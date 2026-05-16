@@ -27,7 +27,7 @@ export const useOverlordStore = defineStore("overlord", {
     restorePointCreated: false,
 
     // Perfil seleccionado por el usuario
-    activeProfile: "Custom",
+    activeProfile: "Personalizado",
 
     // El estado de los 10 módulos ofensivos
     modules: {

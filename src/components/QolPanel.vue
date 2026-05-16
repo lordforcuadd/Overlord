@@ -250,7 +250,8 @@ type QolKeys =
   | "disableOneDrive"
   | "disableWidgets"
   | "zeroStartupDelay"
-  | "enableGameMode";
+  | "enableGameMode"
+  | "barebonesVisual";
 
 const qol = ref<Record<QolKeys, boolean>>({
   darkMode: false,
@@ -273,6 +274,7 @@ const qol = ref<Record<QolKeys, boolean>>({
   disableWidgets: false,
   zeroStartupDelay: false,
   enableGameMode: false,
+  barebonesVisual: false,
 });
 
 const qolStatus = ref<
@@ -298,9 +300,15 @@ const qolStatus = ref<
   disableWidgets: "idle",
   zeroStartupDelay: "idle",
   enableGameMode: "idle",
+  barebonesVisual: "idle",
 });
 
 const uiToggles: { id: QolKeys; title: string; desc: string }[] = [
+  {
+    id: "barebonesVisual",
+    title: "Rendimiento Visual (Barebones)",
+    desc: "Apaga transparencias y animaciones para reducir latencia.",
+  },
   {
     id: "darkMode",
     title: "Modo Oscuro Global",

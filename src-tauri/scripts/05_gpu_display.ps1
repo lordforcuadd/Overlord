@@ -42,10 +42,19 @@ Try {
         Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0
     }
 
-    Write-Host "[+] HAGS activado, MPO destruido, Fullscreen Optimizations purgado."
+    # HDCP
+    Write-Host "[*] Erradicando proteccion HDCP para reducir latencia de comunicacion GPU-Monitor..."
+    $DisplayClass = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+    $Adapters = Get-ChildItem -Path $DisplayClass -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' }
+    
+    foreach ($Adapter in $Adapters) {
+        $Path = $Adapter.PSPath
+        New-ItemProperty -Path $Path -Name "RMHdcpKeyLocalZero" -Value 1 -PropertyType DWORD -Force | Out-Null
+    }
+
+    Write-Host "[+] HAGS activado, MPO destruido, HDCP erradicado, FSO purgado."
     exit 0
 } Catch {
-    # Cambiado a Write-Host y sin la tilde en "crítico"
     Write-Host "[-] Error critico en Modulo GPU: $_"
     exit 1
 }

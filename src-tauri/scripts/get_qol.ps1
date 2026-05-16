@@ -83,4 +83,8 @@ $StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Seriali
 $Startup = (Get-ItemProperty -Path $StartupPath -Name "StartupDelayInMSec" -ErrorAction SilentlyContinue).StartupDelayInMSec
 $Status["zeroStartupDelay"] = if ($null -ne $Startup -and $Startup -eq 0) { $true } else { $false }
 
+$Fx = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -ErrorAction SilentlyContinue).VisualFXSetting
+$Trans = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -ErrorAction SilentlyContinue).EnableTransparency
+$Status["barebonesVisual"] = if ($Fx -eq 2 -and $Trans -eq 0) { $true } else { $false }
+
 $Status | ConvertTo-Json -Compress

@@ -196,6 +196,8 @@
         </div>
       </header>
 
+      <QuickActions />
+
       <QolPanel />
 
       <section class="mb-12">
@@ -603,9 +605,7 @@
           </svg>
         </div>
         <div>
-          <h3 class="text-white font-bold text-xl leading-tight">
-            Listo para optimizar
-          </h3>
+          <h3 class="text-white font-bold text-xl leading-tight">Optimizar</h3>
           <p class="text-gray-400 text-sm mt-1">
             Perfil:
             <span class="text-yellow-400 font-bold uppercase">{{
@@ -711,6 +711,7 @@
 import { ref, onMounted } from "vue";
 import QolPanel from "./components/QolPanel.vue";
 import Swal from "sweetalert2";
+import QuickActions from "./components/QuickActions.vue";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveResource } from "@tauri-apps/api/path";
 import ModuleCard from "./components/ModuleCard.vue";

@@ -127,5 +127,17 @@ switch ($ToggleName) {
         if (!(Test-Path $FsoPath)) { New-Item -Path $FsoPath -Force | Out-Null }
         Set-ItemProperty -Path $FsoPath -Name "GameDVR_Enabled" -Value 0 -Type DWord -Force
     }
+    "barebonesVisual" {
+    $VisualFxPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects"
+    $ColorPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+    if ($IsEnabled) {
+        Set-ItemProperty -Path $VisualFxPath -Name "VisualFXSetting" -Type DWord -Value 2 -Force
+        Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0 -Force
+    } else {
+        Set-ItemProperty -Path $VisualFxPath -Name "VisualFXSetting" -Type DWord -Value 1 -Force
+        Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 1 -Force
+    }
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+}
 }
 exit 0

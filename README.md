@@ -15,6 +15,10 @@
 
 <hr>
 
+<div align="center">
+  <img src="/src/assets/overlordPanel.png" alt="Overlord UI" width="800"/>
+</div>
+
 ## ¿Qué hace Overlord diferente?
 
 A diferencia de los scripts genéricos, Overlord no rompe tu sistema. Utiliza un backend reactivo en **Rust** para inyectar configuraciones a nivel Kernel de forma segura, respetando la arquitectura de tu hardware (con inteligencia artificial básica para diferenciar Laptops de Desktops).

@@ -138,7 +138,6 @@ pub struct AppState {
 fn get_live_telemetry(state: tauri::State<AppState>) -> TelemetryData {
     let mut sys = state.sys.lock().unwrap();
     
-    
     sys.refresh_cpu_usage();
     sys.refresh_memory();
 
@@ -160,10 +159,8 @@ fn get_live_telemetry(state: tauri::State<AppState>) -> TelemetryData {
 
 #[tauri::command]
 async fn run_powershell_async(script_path: String, args_string: String) -> Result<String, String> {
-    
     let ps_cmd = format!("& '{}' {}", script_path, args_string);
     
-    // Ejecutamos silenciosamente
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let output = Command::new("powershell")
         .creation_flags(CREATE_NO_WINDOW)
@@ -178,20 +175,67 @@ async fn run_powershell_async(script_path: String, args_string: String) -> Resul
     }
 }
 
+
+#[tauri::command]
+async fn get_barebones_status() -> Result<bool, String> {
+    let script = r#"
+    $Fx = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -ErrorAction SilentlyContinue).VisualFXSetting
+    $Trans = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -ErrorAction SilentlyContinue).EnableTransparency
+    
+    if ($Fx -eq 2 -and $Trans -eq 0) { Write-Output "true" } else { Write-Output "false" }
+    "#;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let output = Command::new("powershell")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(&["-NoProfile", "-Command", script])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(result == "true")
+}
+
+#[tauri::command]
+async fn set_barebones_status(enable: bool) -> Result<String, String> {
+    let script = if enable {
+        r#"
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 2 -Force
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 0 -Force
+        Stop-Process -Name explorer -Force
+        "#
+    } else {
+        r#"
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 1 -Force
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1 -Force
+        Stop-Process -Name explorer -Force
+        "#
+    };
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let _ = Command::new("powershell")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(&["-NoProfile", "-Command", script])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    Ok(if enable { "Barebones Activado".into() } else { "Graficos Restaurados".into() })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        
         .manage(AppState { sys: Mutex::new(System::new_all()) }) 
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        
         .invoke_handler(tauri::generate_handler![
             greet, 
             get_hardware_info, 
             scan_games, 
             get_live_telemetry,
-            run_powershell_async 
+            run_powershell_async,
+            get_barebones_status,
+            set_barebones_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
