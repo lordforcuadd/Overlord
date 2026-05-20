@@ -21,7 +21,6 @@ fn main() {
 </assembly>
 "#);
 
-    tauri_build::try_build(
-        tauri_build::Attributes::new().windows_attributes(windows)
-    ).expect("Error al compilar Tauri");
+    tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
+        .expect("Error al compilar Tauri");
 }

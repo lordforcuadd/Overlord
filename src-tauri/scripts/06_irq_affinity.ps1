@@ -8,6 +8,7 @@ Try {
     Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 0
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295
 
+    # Recuperada tu línea de SFIO Priority
     $TasksPath = "$ProfilePath\Tasks\Games"
     if (!(Test-Path $TasksPath)) { New-Item -Path $TasksPath -Force | Out-Null }
     Set-ItemProperty -Path $TasksPath -Name "GPU Priority" -Type DWord -Value 8
@@ -15,10 +16,9 @@ Try {
     Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High"
     Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "High"
 
-    Write-Host "[*] Aplicando IRQ Steering y Aislamiento de Nucleos..."
+    Write-Host "[*] Aplicando IRQ Steering para aislar tráfico de red..."
     
-    $PriorityControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
-    Set-ItemProperty -Path $PriorityControlPath -Name "IRQ8Priority" -Type DWord -Value 1
+    # (El mito de IRQ8Priority se mantiene borrado, tal como discutimos)
 
     $NetDevices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters\Interrupt Management\Affinity Policy" -ErrorAction SilentlyContinue
     foreach ($Net in $NetDevices) {

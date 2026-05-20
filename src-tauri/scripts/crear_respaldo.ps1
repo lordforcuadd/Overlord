@@ -6,10 +6,16 @@ Try {
     
     $Description = "Overlord V1 - Punto Seguro (Stock)"
 
-    # Activar la protección del sistema en el disco C: (por si el usuario lo tiene apagado)
+    
+    Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue
+    Start-Service -Name vmicvss -ErrorAction SilentlyContinue
+    Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
+    Start-Service -Name VSS -ErrorAction SilentlyContinue
+
+    
     Enable-ComputerRestore -Drive "C:\" | Out-Null
 
-    # Crear el punto de restauración
+    
     Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
 
     Write-Host "[+] Punto de restauración creado con exito. El sistema está blindado."

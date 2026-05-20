@@ -17,25 +17,32 @@ Try {
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0
 
-    Write-Host "[*] Inyectando bloqueos DNS en el archivo Hosts..."
+    Write-Host "[*] Bloqueando dominios de telemetria via Windows Firewall..."
     
-    $HostsPath = "$env:windir\System32\drivers\etc\hosts"
     $TelemetryDomains = @(
-        "0.0.0.0 vortex.data.microsoft.com",
-        "0.0.0.0 settings-win.data.microsoft.com",
-        "0.0.0.0 telemetry.microsoft.com",
-        "0.0.0.0 oca.telemetry.microsoft.com"
+        "vortex.data.microsoft.com",
+        "settings-win.data.microsoft.com",
+        "telemetry.microsoft.com",
+        "oca.telemetry.microsoft.com"
     )
     
+    
     foreach ($Domain in $TelemetryDomains) {
-        if (!(Select-String -Path $HostsPath -Pattern $Domain -Quiet)) {
-            Add-Content -Path $HostsPath -Value "`n$Domain"
-        }
+        Try {
+            $IPs = [System.Net.Dns]::GetHostAddresses($Domain) | Select-Object -ExpandProperty IPAddressToString
+            foreach ($IP in $IPs) {
+                $RuleName = "Overlord_Block_$Domain"
+                
+                if (-not (Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue)) {
+                    New-NetFirewallRule -DisplayName $RuleName -Direction Outbound -Action Block -RemoteAddress $IP -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+        } Catch {}
     }
 
-    Write-Host "[+] VBS destruido. Telemetria cegada por DNS."
+    Write-Host "[+] VBS destruido. Telemetria cegada por Firewall."
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo de Telemetria: $_"
+    Write-Error "[-] Error critico en Modulo de Telemetria: $_"
     exit 1
 }

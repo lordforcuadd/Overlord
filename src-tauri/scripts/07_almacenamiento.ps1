@@ -8,6 +8,8 @@ Try {
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1
 
+    fsutil behavior set disable8dot3 1 | Out-Null
+
     # 2. INTELIGENCIA DE HIBERNACION (Proteccion de SSD y espacio)
     if (-not $IsLaptop) {
         Write-Host "    -> Desktop detectada: Eliminando Hiberfil.sys"

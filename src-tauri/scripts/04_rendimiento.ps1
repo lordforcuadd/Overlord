@@ -57,6 +57,10 @@ Try {
 
     Write-Host "[+] Plan Ultimate activado, Defender domado y Rendimiento ajustado."
     
+    Write-Host "[*] Destruyendo el Fault Tolerant Heap (FTH) para evitar estrangulamiento de FPS..."
+    $FthPath = "HKLM:\Software\Microsoft\FTH"
+    if (!(Test-Path $FthPath)) { New-Item -Path $FthPath -Force | Out-Null }
+    Set-ItemProperty -Path $FthPath -Name "Enabled" -Type DWord -Value 0 -Force
     exit 0
 
 } Catch {

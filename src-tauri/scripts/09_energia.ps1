@@ -4,11 +4,6 @@ $ErrorActionPreference = "SilentlyContinue"
 Try {
     Write-Host "[*] Aplicando inyecciones de energia y Core Parking..."
 
-    $PciePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\501a4d13-42af-4429-9fd1-a8218c268e20\ee12f906-d277-404b-b6da-e5fa1a558deb"
-    if (Test-Path $PciePath) {
-        Set-ItemProperty -Path $PciePath -Name "Attributes" -Type DWord -Value 2
-    }
-
     $PowerGuid = (Get-WmiObject -Class Win32_PowerPlan -Namespace root\cimv2\power -Filter "IsActive='true'").InstanceID.Split('\')[1]
 
     if ($IsLaptop) {
@@ -16,7 +11,11 @@ Try {
         powercfg /SETACVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 
         powercfg /SETDCVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1
     } else {
-        Write-Host "    -> Desktop detectada. Deshabilitando Core Parking y maximizando voltaje..."
+        Write-Host "    -> Desktop detectada. Deshabilitando Core Parking y ASPM PCIe..."
+        
+        # Deshabilitar ASPM (PCIe Link State Power Management) - Evita stutters severos
+        powercfg /SETACVALUEINDEX $PowerGuid 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a558deb 0
+
         $PowerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
         if (Test-Path $PowerPath) {
             Set-ItemProperty -Path $PowerPath -Name "ValueMax" -Type DWord -Value 0
@@ -27,10 +26,7 @@ Try {
     }
     
     powercfg /SETACTIVE $PowerGuid
-
-    Write-Host "[+] Perfil de energia adaptativo configurado."
     exit 0
 } Catch {
-    Write-Error "[-] Error en Modulo de Energia: $_"
     exit 1
 }

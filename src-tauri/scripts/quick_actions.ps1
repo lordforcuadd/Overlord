@@ -17,11 +17,17 @@ switch ($Action) {
         [System.Runtime.InteropServices.Marshal]::WriteInt32($Ptr, 4)
         [RamPurger]::NtSetSystemInformation(80, $Ptr, $Size) | Out-Null
         [System.Runtime.InteropServices.Marshal]::FreeHGlobal($Ptr)
-        Write-Output "RAM purgada."
+        Write-Output "RAM purgada via NtSetSystemInformation."
         exit 0
     }
     "DeepClean" {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c cleanmgr.exe /sagerun:1" -WindowStyle Hidden -Wait
+        # Modificado: AutoClean funciona de forma silenciosa sin necesidad de correr sageset primero.
+        Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/autoclean" -WindowStyle Hidden -Wait
+        
+        # Opcional: Borrado forzado de basura temporal
+        Remove-Item -Path "$env:TEMP\*" -Recurse -Force -Confirm:$false
+        Remove-Item -Path "$env:WINDIR\Temp\*" -Recurse -Force -Confirm:$false
+        
         Write-Output "Limpieza finalizada."
         exit 0
     }

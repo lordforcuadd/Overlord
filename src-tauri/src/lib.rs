@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 use std::os::windows::process::CommandExt;
-use sysinfo::System; 
-use std::sync::Mutex; 
+use std::process::Command;
+use std::sync::Mutex;
+use sysinfo::System;
+use tauri::Manager;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -58,8 +59,8 @@ fn get_hardware_info() -> Result<HardwareData, String> {
         .map_err(|e| e.to_string())?;
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    let data: HardwareData = serde_json::from_str(&json_str)
-        .map_err(|e| format!("Error parseando JSON: {}", e))?;
+    let data: HardwareData =
+        serde_json::from_str(&json_str).map_err(|e| format!("Error parseando JSON: {}", e))?;
 
     Ok(data)
 }
@@ -116,8 +117,7 @@ fn scan_games() -> Result<Vec<GameDetected>, String> {
         .map_err(|e| e.to_string())?;
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    let data: Vec<GameDetected> = serde_json::from_str(&json_str)
-        .unwrap_or_else(|_| vec![]);
+    let data: Vec<GameDetected> = serde_json::from_str(&json_str).unwrap_or_else(|_| vec![]);
 
     Ok(data)
 }
@@ -137,17 +137,21 @@ pub struct AppState {
 #[tauri::command]
 fn get_live_telemetry(state: tauri::State<AppState>) -> TelemetryData {
     let mut sys = state.sys.lock().unwrap();
-    
+
     sys.refresh_cpu_usage();
     sys.refresh_memory();
 
     let cpu_usage = sys.global_cpu_info().cpu_usage();
     let used_bytes = sys.used_memory() as f32;
     let total_bytes = sys.total_memory() as f32;
-    
+
     let ram_used_gb = used_bytes / 1024.0 / 1024.0 / 1024.0;
     let ram_total_gb = total_bytes / 1024.0 / 1024.0 / 1024.0;
-    let ram_percent = if total_bytes > 0.0 { (used_bytes / total_bytes) * 100.0 } else { 0.0 };
+    let ram_percent = if total_bytes > 0.0 {
+        (used_bytes / total_bytes) * 100.0
+    } else {
+        0.0
+    };
 
     TelemetryData {
         cpu_usage,
@@ -157,14 +161,50 @@ fn get_live_telemetry(state: tauri::State<AppState>) -> TelemetryData {
     }
 }
 
+
 #[tauri::command]
-async fn run_powershell_async(script_path: String, args_string: String) -> Result<String, String> {
-    let ps_cmd = format!("& '{}' {}", script_path, args_string);
-    
+async fn run_powershell_async(
+    script_path: String,
+    is_laptop: bool,
+    ram_gb: u32,
+    game_list: Option<String>,
+) -> Result<String, String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    
+    if script_path == "shutdown" {
+        let output = Command::new("shutdown")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(&["/r", "/t", "0"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+
+    
+    let mut args = vec![
+        "-NoLogo".to_string(),
+        "-NoProfile".to_string(),
+        "-ExecutionPolicy".to_string(),
+        "Bypass".to_string(),
+        "-File".to_string(),
+        script_path,
+        "-IsLaptop".to_string(),
+        format!("${}", is_laptop),
+        "-RamGB".to_string(),
+        ram_gb.to_string(),
+    ];
+
+    if let Some(games) = game_list {
+        if !games.is_empty() {
+            args.push("-GameList".to_string());
+            args.push(games);
+        }
+    }
+
     let output = Command::new("powershell")
         .creation_flags(CREATE_NO_WINDOW)
-        .args(&["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps_cmd])
+        .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -174,7 +214,6 @@ async fn run_powershell_async(script_path: String, args_string: String) -> Resul
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
-
 
 #[tauri::command]
 async fn get_barebones_status() -> Result<bool, String> {
@@ -219,12 +258,51 @@ async fn set_barebones_status(enable: bool) -> Result<String, String> {
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    Ok(if enable { "Barebones Activado".into() } else { "Graficos Restaurados".into() })
+    Ok(if enable {
+        "Barebones Activado".into()
+    } else {
+        "Graficos Restaurados".into()
+    })
+}
+
+#[tauri::command]
+async fn run_powershell_generic(
+    script_path: String,
+    args_list: Vec<String>
+) -> Result<String, String> {
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    
+    let mut ps_args = vec![
+        "-NoLogo".to_string(),
+        "-NoProfile".to_string(),
+        "-ExecutionPolicy".to_string(),
+        "Bypass".to_string(),
+        "-File".to_string(),
+        script_path,
+    ];
+    
+    
+    ps_args.extend(args_list);
+
+    let output = Command::new("powershell")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(&ps_args)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            let _ = app.get_webview_window("main").expect("no main window").set_focus();
+        })) // <--- AÑADIDO AQUI
         .manage(AppState { sys: Mutex::new(System::new_all()) }) 
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
@@ -235,7 +313,8 @@ pub fn run() {
             get_live_telemetry,
             run_powershell_async,
             get_barebones_status,
-            set_barebones_status
+            set_barebones_status,
+            run_powershell_generic
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

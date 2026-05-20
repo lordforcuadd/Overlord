@@ -11,7 +11,7 @@ Try {
         "*Microsoft.ZuneVideo*", "*Microsoft.ZuneMusic*", "*TikTok*"
     )
     foreach ($App in $Bloatware) {
-        Get-AppxPackage -Name $App -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        Get-AppxPackage -Name $App -AllUsers | Remove-AppxPackage -AllUsers
     }
 
     $BgPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
@@ -23,19 +23,22 @@ Try {
     if (!(Test-Path $GpoPath)) { New-Item -Path $GpoPath -Force | Out-Null }
     Set-ItemProperty -Path $GpoPath -Name "AllowTelemetry" -Type DWord -Value 0
     
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Customer Experience Improvement Program\Consolidator" -ErrorAction SilentlyContinue
-    Disable-ScheduledTask -TaskName "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip" -ErrorAction SilentlyContinue
+    Disable-ScheduledTask -TaskName "Microsoft\Windows\Customer Experience Improvement Program\Consolidator"
+    Disable-ScheduledTask -TaskName "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip"
 
     Write-Host "[*] Aplicando Purga de Servicios (Black Viper Method Seguro)..."
-    # Se eliminó Spooler y WSearch para mantener compatibilidad universal
-    $ServicesToKill = @("Fax", "CDPSvc", "MapsBroker", "PcaSvc")
+    # Bluetooth (CDPSvc) y AntiCheats (PcaSvc) salvados. Solo eliminamos la basura real.
+    $ServicesToKill = @("Fax", "MapsBroker", "DiagTrack", "WSearch")
     
     foreach ($Svc in $ServicesToKill) {
-        Stop-Service -Name $Svc -Force -ErrorAction SilentlyContinue
-        Set-Service -Name $Svc -StartupType Disabled -ErrorAction SilentlyContinue
+        Stop-Service -Name $Svc -Force
+        if ($Svc -eq "WSearch") {
+            Set-Service -Name $Svc -StartupType Manual # Salva el menu inicio
+        } else {
+            Set-Service -Name $Svc -StartupType Disabled
+        }
     }
 
-    Write-Host "[+] Limpieza completada. Bloatware erradicado."
     exit 0
 } Catch {
     Write-Error "[-] Error en Debloat: $_"

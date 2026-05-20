@@ -2,9 +2,9 @@
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Iniciando inyeccion de Latencia de Perifericos (Modulo 1)..."
+    Write-Host "[*] Iniciando inyeccion de Latencia de Perifericos..."
 
-    # 1. INTELIGENCIA DE BATERÍA PARA USB (Deshabilitar USB Selective Suspend)
+    # 1. INTELIGENCIA DE BATERÍA PARA USB
     if (-not $IsLaptop) {
         Write-Host "    -> Desktop detectada: Desactivando USB Selective Suspend para 0ms lag."
         try {
@@ -12,12 +12,10 @@ Try {
             powercfg /SETACVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
             powercfg /SETDCVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
             powercfg /SETACTIVE $PowerGuid
-        } catch { Write-Host "    [!] Advertencia: Perfil de energía bloqueado." }
-    } else {
-        Write-Host "    -> Laptop detectada: Saltando desvio de energía USB para proteger la bateria."
+        } catch {}
     }
 
-    # 2. Habilitar MSI (Bucle Blindado contra Laptops)
+    # 2. Habilitar MSI
     Write-Host "[*] Habilitando MSI Mode para GPU y USB..."
     $Devices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters" -ErrorAction SilentlyContinue
     foreach ($Device in $Devices) {
@@ -27,36 +25,37 @@ Try {
                 $MsiPath = "$($Device.PSPath)\Interrupt Management\MessageSignaledInterruptProperties"
                 if (!(Test-Path $MsiPath)) { New-Item -Path $MsiPath -Force -ErrorAction Stop | Out-Null }
                 Set-ItemProperty -Path $MsiPath -Name "MSISupported" -Type DWord -Value 1 -ErrorAction Stop
-            } catch {
-                # Si el fabricante de la laptop bloquea este registro, lo ignoramos y seguimos
-                continue 
-            }
+            } catch { continue }
         }
     }
 
+    # 3. Timer Resolution y Reloj TSC (Metodo Seguro)
+    Write-Host "[*] Ajustando Timer Resolution y sincronizando reloj TSC..."
+    try {
+        bcdedit /set useplatformclock false | Out-Null
+        bcdedit /set disabledynamictick yes | Out-Null
+        bcdedit /set useplatformtick yes | Out-Null
+    } catch {}
 
-    Write-Host "[*] Ajustando Timer Resolution y destruyendo HPET..."
-try {
-    bcdedit /deletevalue useplatformclock | Out-Null
-    bcdedit /deletevalue useplatformtick | Out-Null
-    bcdedit /set disabledynamictick yes | Out-Null
-} catch {
-    Write-Host "    [!] BCDedit bloqueado por SecureBoot. Continuando..."
-}
+    # 4. Queue Size de periféricos
+    Write-Host "[*] Optimizando Queue Size y separacion de prioridad Win32..."
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" -Name "MouseDataQueueSize" -Type DWord -Value 20 -Force
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" -Name "KeyboardDataQueueSize" -Type DWord -Value 20 -Force
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Type DWord -Value 38 -Force
 
-    # 4. Modificación extra: MouseDataQueueSize y Win32PrioritySeparation
-    Write-Host "[*] Optimizando Queue Size de perifericos..."
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" -Name "MouseDataQueueSize" -Type DWord -Value 20 -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" -Name "KeyboardDataQueueSize" -Type DWord -Value 20 -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Type DWord -Value 38 -ErrorAction SilentlyContinue
+    # 5. Prioridad CSRSS (Nuevo)
+    Write-Host "[*] Inyectando prioridad máxima al subsistema de ventanas (CSRSS)..."
+    $CsrssPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe\PerfOptions"
+    if (!(Test-Path $CsrssPath)) { New-Item -Path $CsrssPath -Force | Out-Null }
+    Set-ItemProperty -Path $CsrssPath -Name "CpuPriorityClass" -Type DWord -Value 4 -Force # Realtime
+    Set-ItemProperty -Path $CsrssPath -Name "IoPriority" -Type DWord -Value 3 -Force # High
 
-    # 5. ACELERACIÓN DE RATÓN Y TECLAS ESPECIALES
+    # 6. Aceleración de Ratón y Teclas Especiales (Recuperado de tu código)
     Write-Host "[*] Destruyendo Aceleracion de Raton y Sticky/Filter Keys..."
-    
     $MousePath = "HKCU:\Control Panel\Mouse"
-    Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -Force
+    Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force
+    Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -Force
 
     $StickyPath = "HKCU:\Control Panel\Accessibility\StickyKeys"
     if (!(Test-Path $StickyPath)) { New-Item -Path $StickyPath -Force | Out-Null }

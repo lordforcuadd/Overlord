@@ -209,14 +209,13 @@ const runAction = async (actionId) => {
 
   try {
     let rawPath = await resolveResource("scripts/quick_actions.ps1");
-
     let cleanPath = rawPath.replace(/^\\\\\\?\\\\/, "");
 
-    const args = `-Action "${actionId}"`;
+    const args = ["-Action", actionId];
 
-    const response = await invoke("run_powershell_async", {
+    const response = await invoke("run_powershell_generic", {
       scriptPath: cleanPath,
-      argsString: args,
+      argsList: args,
     });
 
     console.log(`[Overlord Quick Action] ${actionId} ->`, response);

@@ -36,7 +36,7 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v1.0
+              Optimizador de Windows v2.0
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@
                 <span>CPU</span>
               </div>
               <span
-                class="text-white text-right truncate max-w-[600px]]"
+                class="text-white text-right truncate max-w-[600px]"
                 :title="store.hardwareInfo.cpu"
               >
                 {{ store.hardwareInfo.cpu || "Buscando..." }}
@@ -301,52 +301,69 @@
       >
         <ModuleCard
           title="Latencia de Periféricos"
-          description="Erradica el input delay reescribiendo las colas de interrupción de hardware y el procesado de entrada."
+          description="Fuerza el motor de ventanas (CSRSS) a Tiempo Real y activa el MSI Mode para lograr 0ms de input delay."
           scriptName="01_perifericos.ps1"
           v-model="store.modules.peripheralLatency"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.peripheralLatency || 'idle'"
           :details="[
-            'Habilita MSI Mode (Message Signaled Interrupts)',
-            'Bloquea USB Selective Suspend',
-            'Fuerza Timer Resolution a 0.5ms',
-            'Anula la aceleración de ratón (Raw Tracking)',
+            'Prioridad Realtime a CSRSS',
+            'MSI Mode en GPU y USB',
+            'Reloj TSC Sincronizado',
+            'Aceleración de ratón destruida',
           ]"
-        />
+        >
+          <div
+            class="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-2 text-blue-400 text-xs"
+          >
+            <p>
+              Perfectamente seguro. Afectará positivamente la sensibilidad de tu
+              ratón en juegos FPS.
+            </p>
+          </div>
+        </ModuleCard>
 
         <ModuleCard
-          title="Limpieza Segura y Debloat"
-          description="Libera RAM y CPU destruyendo telemetría profunda y servicios parásitos, sin romper herramientas de trabajo."
+          title="Limpieza Segura (Debloat)"
+          description="Erradica telemetría, servicios parásitos y bloatware sin romper herramientas de trabajo vitales."
           scriptName="02_debloat.ps1"
           v-model="store.modules.debloat"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.debloat || 'idle'"
           :details="[
-            'Bloqueo de AllowTelemetry vía GPO',
-            'Purga de Apps UWP y Bloatware preinstalado',
-            'Apaga tareas CEIP',
-            'Black Viper Method Seguro',
+            'Bloqueo de AllowTelemetry',
+            'Purga de Apps preinstaladas',
+            'Servicios inútiles a Manual',
           ]"
-        />
+        >
+          <div
+            class="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 text-emerald-400 text-xs"
+          >
+            <p>
+              <b>SEGURO:</b> El Bluetooth, la Impresora (Spooler) y los
+              Anti-Cheats están 100% protegidos y no se borrarán.
+            </p>
+          </div>
+        </ModuleCard>
 
         <ModuleCard
           title="Network & TCP/IP Stack"
-          description="Destruye el empaquetamiento de red para que tus clics se envíen al servidor en el milisegundo exacto."
+          description="Normaliza ECN y destruye el límite de reserva de ancho de banda (QoS) para un Ping estable."
           scriptName="03_red.ps1"
           v-model="store.modules.networkOptimized"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.networkOptimized || 'idle'"
           :details="[
-            'Deshabilita Algoritmo de Nagle',
-            'Ajusta NetworkThrottlingIndex a FFFFFFFF',
-            'Fuerza MTU a 1500',
-            'Purgado de Caché DNS',
+            'Normaliza algoritmo ECN',
+            'Elimina límite QoS (0%)',
+            'Caché DNS a latencia cero',
+            'TCP/IP NoDelay activado',
           ]"
         />
 
         <ModuleCard
           title="Rendimiento y Memoria"
-          description="Gestión inteligente de RAM. Corta los estranguladores de CPU y limita el consumo de los antivirus."
+          description="Aplica el Plan Ultimate Performance y baja el consumo asfixiante del Antivirus en segundo plano."
           scriptName="04_rendimiento.ps1"
           v-model="store.modules.generalPerformance"
           @update:modelValue="store.activeProfile = 'Personalizado'"
@@ -354,82 +371,116 @@
           :details="[
             'Limita Defender al 25% de uso',
             'Desactiva Paginación del Kernel',
-            'Inyecta Plan Ultimate Performance',
-            'Purga cachés DirectX',
+            'Inyecta Plan Ultimate',
           ]"
         />
 
         <ModuleCard
           title="GPU & Display Engine"
-          description="Secuestra el programador multimedia (MMCSS) para darle a la GPU prioridad absoluta sobre el sistema."
+          description="Apaga MPO y ajusta la prioridad del Gestor de Ventanas (DWM) para erradicar el micro-stuttering."
           scriptName="05_gpu_display.ps1"
           v-model="store.modules.gpuDisplay"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.gpuDisplay || 'idle'"
           :details="[
-            'Forza SystemResponsiveness al 0%',
-            'Ajusta DWM.exe a Prioridad High',
-            'Habilita HAGS (Hardware Scheduling)',
-            'Destruye overlays GameDVR',
+            'MPO (Multi-Plane Overlay) OFF',
+            'Prioridad DWM a Above Normal',
+            'Desactiva HDCP y GameBar',
           ]"
-        />
+        >
+          <div
+            class="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-start gap-2 text-yellow-400 text-xs"
+          >
+            <p>
+              <b>AVISO:</b> Tras aplicar esto, es normal que tu pantalla
+              parpadee una vez. Requiere reinicio.
+            </p>
+          </div>
+        </ModuleCard>
 
         <ModuleCard
           title="Aislamiento de Núcleos (IRQ)"
-          description="Aleja el tráfico de red del Núcleo 0 para evitar que interrumpa el renderizado y los FPS del juego."
+          description="Aísla el tráfico de red de tu procesador (DPC) obligándolo a procesarse fuera del Núcleo 0."
           scriptName="06_irq_affinity.ps1"
           v-model="store.modules.irqAffinity"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.irqAffinity || 'idle'"
           :details="[
-            'Configura IRQ8Priority a 1',
+            'SystemResponsiveness al 0%',
             'Aplica DevicePolicy 4 a la red',
-            'Fuerza interrupciones a núcleos secundarios',
-            'Estabiliza Frame Pacing',
+            'Fuerza lectura de disco a SFIO',
           ]"
         />
 
         <ModuleCard
           title="Smart Storage & WinSxS"
-          description="Optimiza el bus de datos NVMe y ejecuta una purga profunda de nivel Kernel recuperando gigabytes."
+          description="Optimiza el bus de datos NTFS y ejecuta una purga profunda de nivel Kernel."
           scriptName="07_almacenamiento.ps1"
           v-model="store.modules.smartStorage"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.smartStorage || 'idle'"
           :details="[
-            'Purga profunda de WinSxS',
-            'Activa LargeSystemCache',
-            'Borra instaladores de Windows Update',
-            'Gestión SSD inteligente',
+            'Purga profunda de Componentes',
+            'Borra instaladores de Update',
+            'Desactiva Update TimeStamp',
           ]"
         />
 
         <ModuleCard
           title="Seguridad Virtual (VBS)"
-          description="Apaga las capas de virtualización de Windows 11 que merman el rendimiento bruto del procesador."
+          description="Aumenta drásticamente los FPS crudos apagando las capas de virtualización impuestas por Windows 11."
           scriptName="08_telemetria.ps1"
           v-model="store.modules.deepTelemetry"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.deepTelemetry || 'idle'"
           :details="[
-            'Deshabilita VBS',
-            'Apaga HVCI (Memory Integrity)',
-            'Inyecta sumideros DNS (Hosts)',
-            'Mata DiagTrack de raíz',
+            'Deshabilita VBS y HVCI',
+            'Bloquea IPs de telemetría vía WFP',
           ]"
-        />
+        >
+          <div
+            class="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-xs"
+          >
+            <p>
+              <b>NO ACTIVAR SI ERES PROGRAMADOR:</b> Rompe por completo
+              VirtualBox, VMware, Docker Desktop y WSL2 (Subsistema de Linux).
+            </p>
+          </div>
+        </ModuleCard>
+
+        <ModuleCard
+          title="Energía y PCIe (ASPM)"
+          description="Deshabilita el Core Parking y apaga el ahorro de energía del bus PCIe para evitar tirones de la gráfica."
+          scriptName="09_energia.ps1"
+          v-model="store.modules.powerProfiles"
+          @update:modelValue="store.activeProfile = 'Personalizado'"
+          :status="cardStatus.powerProfiles || 'idle'"
+          :details="[
+            'Desactiva ASPM (PCIe)',
+            'Anula el Core Parking',
+            'Detecta y protege Laptops',
+          ]"
+        >
+          <div
+            class="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 text-emerald-400 text-xs"
+          >
+            <p>
+              <b>INTELIGENTE:</b> Si detecta que usas Laptop, no aplicará este
+              tweak para no asesinar tu batería.
+            </p>
+          </div>
+        </ModuleCard>
 
         <ModuleCard
           title="Game-Specific Hooks"
-          description="Inyecta reglas dinámicas a los motores de tus juegos instalados para máximo rendimiento."
+          description="Inyecta reglas directas al ejecutable (.exe) de tus juegos para anular la Optimizaciones de Pantalla Completa (FSO)."
           scriptName="11_game_hooks.ps1"
           v-model="store.modules.gameHooks"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.gameHooks || 'idle'"
           :details="[
             'Fuerza CpuPriorityClass=3',
-            'Sobrescribe Task Manager',
-            'Optimización por proceso',
+            'Inyecta flag DISABLEDXMAXIMIZED...',
           ]"
         >
           <div
@@ -708,7 +759,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import QolPanel from "./components/QolPanel.vue";
 import Swal from "sweetalert2";
 import QuickActions from "./components/QuickActions.vue";
@@ -743,9 +794,6 @@ async function ejecutarTodo() {
   if (isExecutingAll.value) return;
   isExecutingAll.value = true;
 
-  const isLaptopStr = store.hardwareInfo.isLaptop ? "$true" : "$false";
-  const ramGbStr = store.hardwareInfo.ram.toString();
-
   const modulosActivos = Object.entries(store.modules)
     .filter(([_, isEnabled]) => isEnabled)
     .map(([key, _]) => key);
@@ -758,29 +806,30 @@ async function ejecutarTodo() {
     cardStatus.value[modKey] = "loading";
 
     try {
-      let rawPath = await resolveResource(`scripts/${scriptName}`);
+      const rawPath = await resolveResource(`scripts/${scriptName}`);
       const scriptPath = rawPath.replace(/^\\\\\\?\\\\/, "");
 
-      let args = `-IsLaptop ${isLaptopStr} -RamGB ${ramGbStr}`;
+      let gameListOpt = null;
 
       if (modKey === "gameHooks") {
-        const selectedGames = store.gameList
+        gameListOpt = store.gameList
           .filter((g) => g.optimize)
           .map((g) => g.exe)
           .join(",");
-        args += ` -GameList "${selectedGames}"`;
       }
 
       await invoke("run_powershell_async", {
         scriptPath: scriptPath,
-        argsString: args,
+        isLaptop: store.hardwareInfo.isLaptop,
+        ramGb: store.hardwareInfo.ram,
+        gameList: gameListOpt,
       });
 
-      console.log(`[MASTER] ✅ Éxito en ${scriptName}`);
+      console.log(`[MASTER] Éxito en ${scriptName}`);
       cardStatus.value[modKey] = "success";
     } catch (errorOutput) {
       console.error(
-        `[MASTER] ❌ Error real capturado en ${scriptName}:`,
+        `[MASTER] error real capturado en ${scriptName}:`,
         errorOutput,
       );
       cardStatus.value[modKey] = "error";
@@ -790,66 +839,62 @@ async function ejecutarTodo() {
   isExecutingAll.value = false;
   console.log("[MASTER] Secuencia finalizada.");
 
-  isExecutingAll.value = false;
-  console.log("[MASTER] Secuencia finalizada.");
-
   if (modulosActivos.length > 0) {
-    setTimeout(() => {
-      Swal.fire({
-        title: "SISTEMA OPTIMIZADO",
-        html: "Para que los cambios en el Kernel y Registro se apliquen al 100%, es <b>OBLIGATORIO</b> reiniciar el equipo.<br><br>¿Deseas reiniciar tu PC ahora mismo?",
-        icon: "success",
-        iconColor: "#eab308",
-        background: "#0a0a0a",
-        color: "#e5e7eb",
-        showCancelButton: true,
-        confirmButtonColor: "#eab308",
-        cancelButtonColor: "#262626",
-        confirmButtonText: "SÍ, REINICIAR",
-        cancelButtonText: "MÁS TARDE",
-        reverseButtons: true,
-        customClass: {
-          popup:
-            "border border-yellow-500/20 rounded-2xl shadow-[0_0_40px_rgba(250,204,21,0.15)]",
-          title: "font-black tracking-wide text-yellow-400",
-          htmlContainer: "text-sm text-gray-400",
-          confirmButton:
-            "text-black font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] hover:shadow-[0_0_25px_rgba(250,204,21,0.5)] transition-all",
-          cancelButton:
-            "text-gray-400 font-bold uppercase tracking-widest px-6 py-3 rounded-xl border border-white/10 hover:bg-white/5 transition-colors",
-        },
-      }).then(async (result) => {
-        if (result.isConfirmed) {
-          try {
-            await invoke("run_powershell_async", {
-              scriptPath: "shutdown",
-              argsString: "/r /t 0",
-            });
-          } catch (error) {
-            console.error("Fallo al forzar el reinicio:", error);
+    const result = await Swal.fire({
+      title: "SISTEMA OPTIMIZADO",
+      html: "Para que los cambios en el Kernel y Registro se apliquen al 100%, es <b>OBLIGATORIO</b> reiniciar el equipo.<br><br>¿Deseas reiniciar tu PC ahora mismo?",
+      icon: "success",
+      iconColor: "#eab308",
+      background: "#0a0a0a",
+      color: "#e5e7eb",
+      showCancelButton: true,
+      confirmButtonColor: "#eab308",
+      cancelButtonColor: "#262626",
+      confirmButtonText: "SÍ, REINICIAR",
+      cancelButtonText: "MÁS TARDE",
+      reverseButtons: true,
+      customClass: {
+        popup:
+          "border border-yellow-500/20 rounded-2xl shadow-[0_0_40px_rgba(250,204,21,0.15)]",
+        title: "font-black tracking-wide text-yellow-400",
+        htmlContainer: "text-sm text-gray-400",
+        confirmButton:
+          "text-black font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] hover:shadow-[0_0_25px_rgba(250,204,21,0.5)] transition-all",
+        cancelButton:
+          "text-gray-400 font-bold uppercase tracking-widest px-6 py-3 rounded-xl border border-white/10 hover:bg-white/5 transition-colors",
+      },
+    });
 
-            Swal.fire({
-              title: "ERROR DE REINICIO",
-              text: "No se pudo forzar el reinicio automático. Por favor, reinicia manualmente desde el menú de Windows.",
-              icon: "error",
-              iconColor: "#ef4444",
-              background: "#0a0a0a",
-              color: "#e5e7eb",
-              confirmButtonColor: "#ef4444",
-              confirmButtonText: "ENTENDIDO",
-              customClass: {
-                popup:
-                  "border border-red-500/20 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.1)]",
-                title: "font-black tracking-wide text-red-400",
-                htmlContainer: "text-sm text-gray-400",
-                confirmButton:
-                  "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all",
-              },
-            });
-          }
-        }
-      });
-    }, 500);
+    if (result.isConfirmed) {
+      try {
+        await invoke("run_powershell_async", {
+          scriptPath: "shutdown",
+          isLaptop: false,
+          ramGb: 0,
+          gameList: "/r /t 0",
+        });
+      } catch (error) {
+        console.error("Fallo al forzar el reinicio:", error);
+        await Swal.fire({
+          title: "ERROR DE REINICIO",
+          text: "No se pudo forzar el reinicio automático. Por favor, reinicia manualmente desde el menú de Windows.",
+          icon: "error",
+          iconColor: "#ef4444",
+          background: "#0a0a0a",
+          color: "#e5e7eb",
+          confirmButtonColor: "#ef4444",
+          confirmButtonText: "ENTENDIDO",
+          customClass: {
+            popup:
+              "border border-red-500/20 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.1)]",
+            title: "font-black tracking-wide text-red-400",
+            htmlContainer: "text-sm text-gray-400",
+            confirmButton:
+              "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all",
+          },
+        });
+      }
+    }
   }
 }
 
@@ -861,19 +906,25 @@ onMounted(async () => {
   }
 });
 
+onUnmounted(() => {
+  store.stopTelemetryPolling();
+});
+
 async function crearRespaldo() {
   isBackingUp.value = true;
   try {
-    let rawPath = await resolveResource("scripts/crear_respaldo.ps1");
+    const rawPath = await resolveResource("scripts/crear_respaldo.ps1");
     const scriptPath = rawPath.replace(/^\\\\\\?\\\\/, "");
 
     await invoke("run_powershell_async", {
       scriptPath: scriptPath,
-      argsString: "",
+      isLaptop: false,
+      ramGb: 0,
+      gameList: null,
     });
 
-    Swal.fire({
-      title: "¡Punto Creado!",
+    await Swal.fire({
+      title: "PUNTO CREADO",
       text: "Se ha creado el punto de restauración: Overlord - Punto Stock Pre-Optimizacion.",
       icon: "success",
       iconColor: "#3b82f6",
@@ -892,8 +943,7 @@ async function crearRespaldo() {
     });
   } catch (error) {
     console.error("Error de conexión:", error);
-
-    Swal.fire({
+    await Swal.fire({
       title: "ERROR DE RESPALDO",
       text: "No se pudo crear el respaldo de seguridad. Detalles: " + error,
       icon: "error",
@@ -918,7 +968,7 @@ async function crearRespaldo() {
 
 async function revertirStock() {
   const result = await Swal.fire({
-    title: "⚠️ ATENCIÓN",
+    title: "ATENCIÓN",
     text: "Estás a punto de revertir las optimizaciones y volver a los valores por defecto de Windows. ¿Proceder?",
     icon: "warning",
     iconColor: "#ef4444",
@@ -946,15 +996,17 @@ async function revertirStock() {
 
   isReverting.value = true;
   try {
-    let rawPath = await resolveResource("scripts/10_revertir.ps1");
+    const rawPath = await resolveResource("scripts/10_revertir.ps1");
     const scriptPath = rawPath.replace(/^\\\\\\?\\\\/, "");
 
     await invoke("run_powershell_async", {
       scriptPath: scriptPath,
-      argsString: "",
+      isLaptop: false,
+      ramGb: 0,
+      gameList: null,
     });
 
-    Swal.fire({
+    await Swal.fire({
       title: "SISTEMA REVERTIDO",
       text: "Las optimizaciones han sido eliminadas. Reinicia tu PC para aplicar los cambios.",
       icon: "success",
@@ -974,8 +1026,7 @@ async function revertirStock() {
     });
   } catch (error) {
     console.error("Error de comunicación:", error);
-
-    Swal.fire({
+    await Swal.fire({
       title: "ERROR DE REVERSIÓN",
       text: "La reversión falló. Detalles: " + error,
       icon: "error",

@@ -9,6 +9,9 @@ export interface Game {
   optimize: boolean;
 }
 
+// Variable a nivel de módulo para controlar de forma segura el intervalo y evitar memory leaks
+let telemetryIntervalId: ReturnType<typeof setInterval> | null = null;
+
 export const useOverlordStore = defineStore("overlord", {
   // ==========================================
   // 1. ESTADO GLOBAL
@@ -29,7 +32,7 @@ export const useOverlordStore = defineStore("overlord", {
     // Perfil seleccionado por el usuario
     activeProfile: "Personalizado",
 
-    // El estado de los 10 módulos ofensivos
+    // El estado de los módulos ofensivos
     modules: {
       peripheralLatency: false,
       debloat: false,
@@ -58,9 +61,15 @@ export const useOverlordStore = defineStore("overlord", {
   // 2. ACCIONES DEL SISTEMA
   // ==========================================
   actions: {
+    /**
+     * Inicia el sondeo de telemetría asegurando limpiar cualquier intervalo previo
+     */
     startTelemetryPolling() {
-      // Hacemos ping a Rust cada 1000ms (1 segundo)
-      setInterval(async () => {
+      if (telemetryIntervalId) {
+        clearInterval(telemetryIntervalId);
+      }
+
+      telemetryIntervalId = setInterval(async () => {
         try {
           const data: any = await invoke("get_live_telemetry");
           this.liveTelemetry.cpuUsage = data.cpu_usage;
@@ -68,12 +77,23 @@ export const useOverlordStore = defineStore("overlord", {
           this.liveTelemetry.ramTotal = data.ram_total_gb;
           this.liveTelemetry.ramPercent = data.ram_percent;
         } catch (error) {
-          // Fallamos en silencio para no ensuciar la consola si hay un micro-corte
+          // Micro-cortes controlados en silencio para mantener limpia la consola
         }
       }, 1000);
     },
+
     /**
-     * Llama al backend en Rust para leer componentes físicos mediante WMI
+     * Detiene el intervalo de telemetría de raíz para liberar memoria
+     */
+    stopTelemetryPolling() {
+      if (telemetryIntervalId) {
+        clearInterval(telemetryIntervalId);
+        telemetryIntervalId = null;
+      }
+    },
+
+    /**
+     * Llama al backend en Rust para leer componentes físicos
      */
     async detectHardware() {
       try {
@@ -120,22 +140,22 @@ export const useOverlordStore = defineStore("overlord", {
     },
 
     /**
-     * Gestor de Arquetipos: Enciende o apaga módulos según el uso del equipo
+     * Gestor de Arquetipos: Enciende o apaga módulos según el perfil
      */
     applyProfile(profileName: string) {
       this.activeProfile = profileName;
 
-      // 1. Apagamos todos los módulos para reiniciar el estado (Lienzo en blanco)
+      // 1. Reiniciar estado (Lienzo en blanco)
       (Object.keys(this.modules) as Array<keyof typeof this.modules>).forEach(
         (key) => {
           this.modules[key] = false;
         },
       );
 
-      // 2. Encendemos los módulos correspondientes a cada perfil
+      // 2. Configuración granular basada en compatibilidad de Hardware y Software
       switch (profileName) {
         case "Competitivo":
-          // Modo Competitivo Extremo: 0% input lag.
+          // Peligro: Destruye máquinas virtuales para dar 100% de FPS.
           this.modules.peripheralLatency = true;
           this.modules.debloat = true;
           this.modules.networkOptimized = true;
@@ -143,42 +163,45 @@ export const useOverlordStore = defineStore("overlord", {
           this.modules.gpuDisplay = true;
           this.modules.irqAffinity = true;
           this.modules.smartStorage = true;
-          this.modules.deepTelemetry = true;
+          this.modules.deepTelemetry = true; // <- Apaga VBS
           this.modules.powerProfiles = true;
           this.modules.gameHooks = true;
           break;
 
         case "Programador & Competitivo":
-          // Programador + Gamer: VBS y Núcleos intactos para Docker/NodeJS.
+          // Equilibrio: Mantiene VBS/Hyper-V vivo para Docker y Máquinas Virtuales.
           this.modules.peripheralLatency = true;
           this.modules.debloat = true;
           this.modules.networkOptimized = true;
           this.modules.generalPerformance = true;
           this.modules.gpuDisplay = true;
+          this.modules.irqAffinity = true;
           this.modules.smartStorage = true;
+          this.modules.deepTelemetry = false; // <- SALVA LAS VMs
+          this.modules.powerProfiles = true;
           this.modules.gameHooks = true;
           break;
 
         case "Programador":
-          // Solo Programación: RAM libre y disco rápido.
+          // Puro entorno de trabajo: Optimiza RAM y compila más rápido.
           this.modules.debloat = true;
-          this.modules.smartStorage = true;
           this.modules.generalPerformance = true;
-          break;
-
-        case "Home Office / Laptops":
-          // Laptops y Oficina: Estabilidad y batería.
-          this.modules.debloat = true;
           this.modules.smartStorage = true;
           this.modules.networkOptimized = true;
           break;
 
+        case "Home Office / Laptops":
+          // Seguro y enfocado en red/batería
+          this.modules.debloat = true;
+          this.modules.networkOptimized = true;
+          this.modules.smartStorage = true;
+          break;
+
         case "Usuario Casual":
-          // Navegación y Multimedia estándar.
+          // Módulos inofensivos que no alteran el comportamiento diario
           this.modules.debloat = true;
           this.modules.generalPerformance = true;
           this.modules.smartStorage = true;
-          this.modules.gpuDisplay = true;
           break;
       }
     },

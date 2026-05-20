@@ -430,9 +430,10 @@ function getRowClass(id: QolKeys) {
 onMounted(async () => {
   try {
     let rawPath = await resolveResource("scripts/get_qol.ps1");
-    const jsonOutput = await invoke("run_powershell_async", {
+
+    const jsonOutput = await invoke("run_powershell_generic", {
       scriptPath: rawPath.replace(/^\\\\\\?\\\\/, ""),
-      argsString: "",
+      argsList: [],
     });
     qol.value = JSON.parse(jsonOutput as string);
   } catch (e) {
@@ -448,11 +449,17 @@ async function applyToggle(settingKey: QolKeys) {
 
   try {
     let rawPath = await resolveResource("scripts/set_qol.ps1");
-    const args = `-ToggleName "${settingKey}" -IsEnabledStr ${qol.value[settingKey] ? "$true" : "$false"}`;
 
-    await invoke("run_powershell_async", {
+    const args = [
+      "-ToggleName",
+      settingKey,
+      "-IsEnabledStr",
+      qol.value[settingKey] ? "true" : "false",
+    ];
+
+    await invoke("run_powershell_generic", {
       scriptPath: rawPath.replace(/^\\\\\\?\\\\/, ""),
-      argsString: args,
+      argsList: args,
     });
 
     qolStatus.value[settingKey] = "success";

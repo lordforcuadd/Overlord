@@ -1,9 +1,10 @@
 $ErrorActionPreference = "SilentlyContinue"
 $Status = @{}
 
-# 1. Modo Oscuro
-$AppTheme = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme").AppsUseLightTheme
-$Status["darkMode"] = if ($AppTheme -eq 0) { $true } else { $false }
+# 1. Modo Oscuro (Mejorado: Lee tanto las Apps como el Sistema)
+$AppTheme = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -ErrorAction SilentlyContinue).AppsUseLightTheme
+$SysTheme = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -ErrorAction SilentlyContinue).SystemUsesLightTheme
+$Status["darkMode"] = if ($AppTheme -eq 0 -and $SysTheme -eq 0) { $true } else { $false }
 
 # 2. Extensiones
 $HideExt = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt").HideFileExt
@@ -68,23 +69,25 @@ $Status["detailedBSoD"] = if ($BSoD -eq 1) { $true } else { $false }
 # 4. Bloquear OneDrive
 $OneDrive = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue).DisableFileSyncNGSC
 $Status["disableOneDrive"] = if ($OneDrive -eq 1) { $true } else { $false }
+
 # Modo Juego (Game Mode)
 $GameMode = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\GameBar" -Name "AutoGameModeEnabled" -ErrorAction SilentlyContinue).AutoGameModeEnabled
 $Status["enableGameMode"] = if ($GameMode -ne 0) { $true } else { $false }
 
 # 1. Widgets (Noticias e Intereses)
-# En Windows, 0 significa bloqueado por política.
 $Widgets = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Name "AllowNewsAndInterests" -ErrorAction SilentlyContinue).AllowNewsAndInterests
 $Status["disableWidgets"] = if ($null -ne $Widgets -and $Widgets -eq 0) { $true } else { $false }
 
 # 2. Cero Retraso de Arranque (Startup Delay)
-# Si la llave existe y es 0, el delay está desactivado.
 $StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize"
 $Startup = (Get-ItemProperty -Path $StartupPath -Name "StartupDelayInMSec" -ErrorAction SilentlyContinue).StartupDelayInMSec
 $Status["zeroStartupDelay"] = if ($null -ne $Startup -and $Startup -eq 0) { $true } else { $false }
 
+# 3. Rendimiento Visual (Barebones) - MEJORADO: Ahora también verifica que las animaciones estén apagadas
 $Fx = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -ErrorAction SilentlyContinue).VisualFXSetting
 $Trans = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -ErrorAction SilentlyContinue).EnableTransparency
-$Status["barebonesVisual"] = if ($Fx -eq 2 -and $Trans -eq 0) { $true } else { $false }
+$TaskAnim = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -ErrorAction SilentlyContinue).TaskbarAnimations
+
+$Status["barebonesVisual"] = if ($Fx -eq 2 -and $Trans -eq 0 -and $TaskAnim -eq 0) { $true } else { $false }
 
 $Status | ConvertTo-Json -Compress
