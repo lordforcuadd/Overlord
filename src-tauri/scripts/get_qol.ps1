@@ -1,4 +1,4 @@
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Stop"
 $Status = @{}
 
 # 1. Modo Oscuro (Mejorado: Lee tanto las Apps como el Sistema)

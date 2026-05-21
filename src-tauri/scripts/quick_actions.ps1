@@ -1,5 +1,5 @@
 param([string]$Action = "")
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Stop"
 
 switch ($Action) {
     "PurgeRAM" {

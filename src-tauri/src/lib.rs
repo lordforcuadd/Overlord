@@ -151,7 +151,7 @@ pub struct AppState {
 
 #[tauri::command]
 fn get_live_telemetry(state: tauri::State<AppState>) -> TelemetryData {
-    let mut sys = state.sys.lock().unwrap();
+    let mut sys = state.sys.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
     sys.refresh_cpu_usage();
     sys.refresh_memory();

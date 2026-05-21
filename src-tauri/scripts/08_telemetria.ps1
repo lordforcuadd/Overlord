@@ -1,5 +1,5 @@
 ﻿param([bool]$IsLaptop = $false, [int]$RamGB = 8)
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Stop"
 
 Try {
     Write-Host "[*] Erradicando Telemetria y apagando VBS..."

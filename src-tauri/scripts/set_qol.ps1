@@ -1,5 +1,5 @@
 param([string]$ToggleName, [string]$IsEnabledStr)
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Stop"
 $IsEnabled = if ($IsEnabledStr -eq "true") { $true } else { $false }
 
 switch ($ToggleName) {
