@@ -46,25 +46,15 @@ Try {
     $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
     Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 20
 
-    # 7. Limpiar Hooks y AppCompatFlags
+    # 7. Limpiar Hooks (IFEO)
     $TargetGames = @("League of Legends.exe", "VALORANT-Win64-Shipping.exe", "cs2.exe", "FortniteClient-Win64-Shipping.exe", "r5apex.exe", "Overwatch.exe")
-    $Drives = @("C:\*", "D:\*", "E:\*", "F:\*", "G:\*")
     
     foreach ($Game in $TargetGames) {
-        # Limpiar CPU Hooks
         $IfeoPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game"
         if (Test-Path $IfeoPath) { Remove-Item -Path $IfeoPath -Recurse -Force }
-
-        # Limpiar FSO Hooks de todos los discos posibles
-        $AppCompatPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
-        if (Test-Path $AppCompatPath) {
-            foreach ($Drive in $Drives) {
-                Remove-ItemProperty -Path $AppCompatPath -Name "$Drive$Game" -ErrorAction SilentlyContinue
-            }
-        }
     }
 
-    Write-Host "[+] Desinfeccion completa. Sistema revertido a la normalidad de Windows 11."
+    Write-Host "[+] Desinfeccion completa. Sistema revertido a la normalidad de Windows."
     exit 0
 } Catch {
     exit 1

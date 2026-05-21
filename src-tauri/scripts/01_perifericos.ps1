@@ -47,7 +47,7 @@ Try {
     Write-Host "[*] Inyectando prioridad máxima al subsistema de ventanas (CSRSS)..."
     $CsrssPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe\PerfOptions"
     if (!(Test-Path $CsrssPath)) { New-Item -Path $CsrssPath -Force | Out-Null }
-    Set-ItemProperty -Path $CsrssPath -Name "CpuPriorityClass" -Type DWord -Value 4 -Force # Realtime
+    Set-ItemProperty -Path $CsrssPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force # High
     Set-ItemProperty -Path $CsrssPath -Name "IoPriority" -Type DWord -Value 3 -Force # High
 
     # 6. Aceleración de Ratón y Teclas Especiales (Recuperado de tu código)
