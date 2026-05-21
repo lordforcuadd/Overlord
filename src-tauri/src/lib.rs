@@ -161,18 +161,17 @@ fn get_live_telemetry(state: tauri::State<AppState>) -> TelemetryData {
     }
 }
 
-
 #[tauri::command]
 async fn run_powershell_async(
-    script_path: String,
+    script_name: String,
     is_laptop: bool,
     ram_gb: u32,
     game_list: Option<String>,
+    app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-    
-    if script_path == "shutdown" {
+    if script_name == "shutdown" {
         let output = Command::new("shutdown")
             .creation_flags(CREATE_NO_WINDOW)
             .args(&["/r", "/t", "0"])
@@ -181,14 +180,27 @@ async fn run_powershell_async(
         return Ok(String::from_utf8_lossy(&output.stdout).to_string());
     }
 
-    
+    if script_name.contains("/") || script_name.contains("\\") || script_name.contains("..") {
+        return Err("Intento de ejecución no autorizado bloqueado.".into());
+    }
+
+    let resource_path = app_handle
+        .path()
+        .resolve(
+            format!("scripts/{}", script_name),
+            tauri::path::BaseDirectory::Resource,
+        )
+        .map_err(|e| e.to_string())?;
+
+    let absolute_script_path = resource_path.to_string_lossy().to_string();
+
     let mut args = vec![
         "-NoLogo".to_string(),
         "-NoProfile".to_string(),
         "-ExecutionPolicy".to_string(),
         "Bypass".to_string(),
         "-File".to_string(),
-        script_path,
+        absolute_script_path,
         "-IsLaptop".to_string(),
         format!("${}", is_laptop),
         "-RamGB".to_string(),
@@ -215,73 +227,38 @@ async fn run_powershell_async(
     }
 }
 
-#[tauri::command]
-async fn get_barebones_status() -> Result<bool, String> {
-    let script = r#"
-    $Fx = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -ErrorAction SilentlyContinue).VisualFXSetting
-    $Trans = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -ErrorAction SilentlyContinue).EnableTransparency
-    
-    if ($Fx -eq 2 -and $Trans -eq 0) { Write-Output "true" } else { Write-Output "false" }
-    "#;
-
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let output = Command::new("powershell")
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(&["-NoProfile", "-Command", script])
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    Ok(result == "true")
-}
-
-#[tauri::command]
-async fn set_barebones_status(enable: bool) -> Result<String, String> {
-    let script = if enable {
-        r#"
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 2 -Force
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 0 -Force
-        Stop-Process -Name explorer -Force
-        "#
-    } else {
-        r#"
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 1 -Force
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1 -Force
-        Stop-Process -Name explorer -Force
-        "#
-    };
-
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let _ = Command::new("powershell")
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(&["-NoProfile", "-Command", script])
-        .spawn()
-        .map_err(|e| e.to_string())?;
-
-    Ok(if enable {
-        "Barebones Activado".into()
-    } else {
-        "Graficos Restaurados".into()
-    })
-}
 
 #[tauri::command]
 async fn run_powershell_generic(
-    script_path: String,
-    args_list: Vec<String>
+    script_name: String,
+    args_list: Vec<String>,
+    app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    
+
+    if script_name.contains("/") || script_name.contains("\\") || script_name.contains("..") {
+        return Err("Intento de ejecución no autorizado bloqueado.".into());
+    }
+
+    let resource_path = app_handle
+        .path()
+        .resolve(
+            format!("scripts/{}", script_name),
+            tauri::path::BaseDirectory::Resource,
+        )
+        .map_err(|e| e.to_string())?;
+
+    let absolute_script_path = resource_path.to_string_lossy().to_string();
+
     let mut ps_args = vec![
         "-NoLogo".to_string(),
         "-NoProfile".to_string(),
         "-ExecutionPolicy".to_string(),
         "Bypass".to_string(),
         "-File".to_string(),
-        script_path,
+        absolute_script_path,
     ];
-    
-    
+
     ps_args.extend(args_list);
 
     let output = Command::new("powershell")
@@ -300,20 +277,28 @@ async fn run_powershell_generic(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(tauri_plugin_log::log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            let _ = app.get_webview_window("main").expect("no main window").set_focus();
-        })) // <--- AÑADIDO AQUI
-        .manage(AppState { sys: Mutex::new(System::new_all()) }) 
+            let _ = app
+                .get_webview_window("main")
+                .expect("no main window")
+                .set_focus();
+        })) 
+        .manage(AppState {
+            sys: Mutex::new(System::new_all()),
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet, 
-            get_hardware_info, 
-            scan_games, 
+            greet,
+            get_hardware_info,
+            scan_games,
             get_live_telemetry,
             run_powershell_async,
-            get_barebones_status,
-            set_barebones_status,
             run_powershell_generic
         ])
         .run(tauri::generate_context!())

@@ -17,27 +17,20 @@ Try {
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0
 
-    Write-Host "[*] Bloqueando dominios de telemetria via Windows Firewall..."
-    
-    $TelemetryDomains = @(
-        "vortex.data.microsoft.com",
-        "settings-win.data.microsoft.com",
-        "telemetry.microsoft.com",
-        "oca.telemetry.microsoft.com"
+    Write-Host "[*] Bloqueando binarios de telemetria en el Firewall..."
+    $TelemetryExes = @(
+        "$env:SystemRoot\System32\CompatTelRunner.exe",
+        "$env:SystemRoot\System32\DeviceCensus.exe",
+        "$env:SystemRoot\System32\wsqmcons.exe"
     )
     
-    
-    foreach ($Domain in $TelemetryDomains) {
-        Try {
-            $IPs = [System.Net.Dns]::GetHostAddresses($Domain) | Select-Object -ExpandProperty IPAddressToString
-            foreach ($IP in $IPs) {
-                $RuleName = "Overlord_Block_$Domain"
-                
-                if (-not (Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue)) {
-                    New-NetFirewallRule -DisplayName $RuleName -Direction Outbound -Action Block -RemoteAddress $IP -ErrorAction SilentlyContinue | Out-Null
-                }
+    foreach ($exe in $TelemetryExes) {
+        if (Test-Path $exe) {
+            $RuleName = "Overlord_Block_$(Split-Path $exe -Leaf)"
+            if (-not (Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue)) {
+                New-NetFirewallRule -DisplayName $RuleName -Direction Outbound -Program $exe -Action Block -ErrorAction SilentlyContinue | Out-Null
             }
-        } Catch {}
+        }
     }
 
     Write-Host "[+] VBS destruido. Telemetria cegada por Firewall."

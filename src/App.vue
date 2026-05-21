@@ -764,9 +764,9 @@ import QolPanel from "./components/QolPanel.vue";
 import Swal from "sweetalert2";
 import QuickActions from "./components/QuickActions.vue";
 import { invoke } from "@tauri-apps/api/core";
-import { resolveResource } from "@tauri-apps/api/path";
 import ModuleCard from "./components/ModuleCard.vue";
 import { useOverlordStore } from "./stores/overlordStore";
+import { info, error as logError } from "@tauri-apps/plugin-log";
 
 const store = useOverlordStore();
 
@@ -796,21 +796,17 @@ async function ejecutarTodo() {
 
   const modulosActivos = Object.entries(store.modules)
     .filter(([_, isEnabled]) => isEnabled)
-    .map(([key, _]) => key);
+    .map(([key]) => key);
 
   for (const modKey of modulosActivos) {
     const scriptName = scriptMap[modKey];
     if (!scriptName) continue;
 
-    console.log(`[MASTER] Ejecutando: ${scriptName}...`);
+    info(`[MASTER] Ejecutando: ${scriptName}...`);
     cardStatus.value[modKey] = "loading";
 
     try {
-      const rawPath = await resolveResource(`scripts/${scriptName}`);
-      const scriptPath = rawPath.replace(/^\\\\\\?\\\\/, "");
-
       let gameListOpt = null;
-
       if (modKey === "gameHooks") {
         gameListOpt = store.gameList
           .filter((g) => g.optimize)
@@ -818,92 +814,51 @@ async function ejecutarTodo() {
           .join(",");
       }
 
+      // Invocación blindada: enviamos solo el nombre del script a Rust
       await invoke("run_powershell_async", {
-        scriptPath: scriptPath,
+        scriptName: scriptName,
         isLaptop: store.hardwareInfo.isLaptop,
         ramGb: store.hardwareInfo.ram,
         gameList: gameListOpt,
       });
 
-      console.log(`[MASTER] Éxito en ${scriptName}`);
+      info(`[MASTER] Éxito en ${scriptName}`);
       cardStatus.value[modKey] = "success";
     } catch (errorOutput) {
-      console.error(
-        `[MASTER] error real capturado en ${scriptName}:`,
-        errorOutput,
+      logError(
+        `[MASTER] Error real capturado en ${scriptName}: ${errorOutput}`,
       );
       cardStatus.value[modKey] = "error";
     }
   }
 
   isExecutingAll.value = false;
-  console.log("[MASTER] Secuencia finalizada.");
 
   if (modulosActivos.length > 0) {
     const result = await Swal.fire({
       title: "SISTEMA OPTIMIZADO",
-      html: "Para que los cambios en el Kernel y Registro se apliquen al 100%, es <b>OBLIGATORIO</b> reiniciar el equipo.<br><br>¿Deseas reiniciar tu PC ahora mismo?",
+      html: "Es <b>OBLIGATORIO</b> reiniciar para aplicar cambios en el Kernel.",
       icon: "success",
-      iconColor: "#eab308",
       background: "#0a0a0a",
-      color: "#e5e7eb",
-      showCancelButton: true,
-      confirmButtonColor: "#eab308",
-      cancelButtonColor: "#262626",
       confirmButtonText: "SÍ, REINICIAR",
-      cancelButtonText: "MÁS TARDE",
-      reverseButtons: true,
-      customClass: {
-        popup:
-          "border border-yellow-500/20 rounded-2xl shadow-[0_0_40px_rgba(250,204,21,0.15)]",
-        title: "font-black tracking-wide text-yellow-400",
-        htmlContainer: "text-sm text-gray-400",
-        confirmButton:
-          "text-black font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] hover:shadow-[0_0_25px_rgba(250,204,21,0.5)] transition-all",
-        cancelButton:
-          "text-gray-400 font-bold uppercase tracking-widest px-6 py-3 rounded-xl border border-white/10 hover:bg-white/5 transition-colors",
-      },
+      showCancelButton: true,
     });
 
     if (result.isConfirmed) {
-      try {
-        await invoke("run_powershell_async", {
-          scriptPath: "shutdown",
-          isLaptop: false,
-          ramGb: 0,
-          gameList: "/r /t 0",
-        });
-      } catch (error) {
-        console.error("Fallo al forzar el reinicio:", error);
-        await Swal.fire({
-          title: "ERROR DE REINICIO",
-          text: "No se pudo forzar el reinicio automático. Por favor, reinicia manualmente desde el menú de Windows.",
-          icon: "error",
-          iconColor: "#ef4444",
-          background: "#0a0a0a",
-          color: "#e5e7eb",
-          confirmButtonColor: "#ef4444",
-          confirmButtonText: "ENTENDIDO",
-          customClass: {
-            popup:
-              "border border-red-500/20 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.1)]",
-            title: "font-black tracking-wide text-red-400",
-            htmlContainer: "text-sm text-gray-400",
-            confirmButton:
-              "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all",
-          },
-        });
-      }
+      await invoke("run_powershell_async", {
+        scriptName: "shutdown",
+        isLaptop: false,
+        ramGb: 0,
+        gameList: "/r /t 0",
+      });
     }
   }
 }
 
 onMounted(async () => {
-  if (store.detectHardware) {
-    await store.detectHardware();
-    await store.scanGames();
-    store.startTelemetryPolling();
-  }
+  await store.detectHardware();
+  await store.scanGames();
+  store.startTelemetryPolling();
 });
 
 onUnmounted(() => {
@@ -913,54 +868,13 @@ onUnmounted(() => {
 async function crearRespaldo() {
   isBackingUp.value = true;
   try {
-    const rawPath = await resolveResource("scripts/crear_respaldo.ps1");
-    const scriptPath = rawPath.replace(/^\\\\\\?\\\\/, "");
-
-    await invoke("run_powershell_async", {
-      scriptPath: scriptPath,
-      isLaptop: false,
-      ramGb: 0,
-      gameList: null,
+    await invoke("run_powershell_generic", {
+      scriptName: "crear_respaldo.ps1",
+      argsList: [],
     });
-
-    await Swal.fire({
-      title: "PUNTO CREADO",
-      text: "Se ha creado el punto de restauración: Overlord - Punto Stock Pre-Optimizacion.",
-      icon: "success",
-      iconColor: "#3b82f6",
-      background: "#0a0a0a",
-      color: "#e5e7eb",
-      confirmButtonColor: "#3b82f6",
-      confirmButtonText: "ENTENDIDO",
-      customClass: {
-        popup:
-          "border border-blue-500/20 rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.15)]",
-        title: "font-black tracking-wide text-blue-400",
-        htmlContainer: "text-sm text-gray-400",
-        confirmButton:
-          "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] transition-all",
-      },
-    });
+    await Swal.fire("¡Punto Creado!", "", "success");
   } catch (error) {
-    console.error("Error de conexión:", error);
-    await Swal.fire({
-      title: "ERROR DE RESPALDO",
-      text: "No se pudo crear el respaldo de seguridad. Detalles: " + error,
-      icon: "error",
-      iconColor: "#ef4444",
-      background: "#0a0a0a",
-      color: "#e5e7eb",
-      confirmButtonColor: "#ef4444",
-      confirmButtonText: "ENTENDIDO",
-      customClass: {
-        popup:
-          "border border-red-500/20 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.15)]",
-        title: "font-black tracking-wide text-red-400",
-        htmlContainer: "text-sm text-gray-400",
-        confirmButton:
-          "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all",
-      },
-    });
+    logError("Error de respaldo: " + error);
   } finally {
     isBackingUp.value = false;
   }
@@ -969,81 +883,21 @@ async function crearRespaldo() {
 async function revertirStock() {
   const result = await Swal.fire({
     title: "ATENCIÓN",
-    text: "Estás a punto de revertir las optimizaciones y volver a los valores por defecto de Windows. ¿Proceder?",
+    text: "¿Revertir cambios?",
     icon: "warning",
-    iconColor: "#ef4444",
-    background: "#0a0a0a",
-    color: "#e5e7eb",
     showCancelButton: true,
-    confirmButtonColor: "#ef4444",
-    cancelButtonColor: "#262626",
-    confirmButtonText: "SÍ, REVERTIR A WINDOWS NORMAL",
-    cancelButtonText: "CANCELAR",
-    reverseButtons: true,
-    customClass: {
-      popup:
-        "border border-red-500/20 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.15)]",
-      title: "font-black tracking-wide text-red-400",
-      htmlContainer: "text-sm text-gray-400",
-      confirmButton:
-        "text-white font-black uppercase tracking-widest px-6 py-3 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all",
-      cancelButton:
-        "text-gray-400 font-bold uppercase tracking-widest px-6 py-3 rounded-xl border border-white/10 hover:bg-white/5 transition-colors",
-    },
   });
-
   if (!result.isConfirmed) return;
 
   isReverting.value = true;
   try {
-    const rawPath = await resolveResource("scripts/10_revertir.ps1");
-    const scriptPath = rawPath.replace(/^\\\\\\?\\\\/, "");
-
-    await invoke("run_powershell_async", {
-      scriptPath: scriptPath,
-      isLaptop: false,
-      ramGb: 0,
-      gameList: null,
+    await invoke("run_powershell_generic", {
+      scriptName: "10_revertir.ps1",
+      argsList: [],
     });
-
-    await Swal.fire({
-      title: "SISTEMA REVERTIDO",
-      text: "Las optimizaciones han sido eliminadas. Reinicia tu PC para aplicar los cambios.",
-      icon: "success",
-      iconColor: "#10b981",
-      background: "#0a0a0a",
-      color: "#e5e7eb",
-      confirmButtonColor: "#10b981",
-      confirmButtonText: "ENTENDIDO",
-      customClass: {
-        popup:
-          "border border-green-500/20 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.15)]",
-        title: "font-black tracking-wide text-green-400",
-        htmlContainer: "text-sm text-gray-400",
-        confirmButton:
-          "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all",
-      },
-    });
+    await Swal.fire("SISTEMA REVERTIDO", "Reinicia tu PC.", "success");
   } catch (error) {
-    console.error("Error de comunicación:", error);
-    await Swal.fire({
-      title: "ERROR DE REVERSIÓN",
-      text: "La reversión falló. Detalles: " + error,
-      icon: "error",
-      iconColor: "#ef4444",
-      background: "#0a0a0a",
-      color: "#e5e7eb",
-      confirmButtonColor: "#ef4444",
-      confirmButtonText: "ENTENDIDO",
-      customClass: {
-        popup:
-          "border border-red-500/20 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.15)]",
-        title: "font-black tracking-wide text-red-400",
-        htmlContainer: "text-sm text-gray-400",
-        confirmButton:
-          "text-white font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all",
-      },
-    });
+    logError("Error de reversión: " + error);
   } finally {
     isReverting.value = false;
   }

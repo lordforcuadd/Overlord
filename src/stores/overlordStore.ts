@@ -206,4 +206,5 @@ export const useOverlordStore = defineStore("overlord", {
       }
     },
   },
+  persist: true,
 });

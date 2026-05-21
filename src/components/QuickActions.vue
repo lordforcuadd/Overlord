@@ -163,7 +163,6 @@
 <script setup>
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { resolveResource } from "@tauri-apps/api/path";
 
 const isExecutingGlobal = ref(false);
 
@@ -208,13 +207,10 @@ const runAction = async (actionId) => {
   status.value[actionId] = "loading";
 
   try {
-    let rawPath = await resolveResource("scripts/quick_actions.ps1");
-    let cleanPath = rawPath.replace(/^\\\\\\?\\\\/, "");
-
     const args = ["-Action", actionId];
 
     const response = await invoke("run_powershell_generic", {
-      scriptPath: cleanPath,
+      scriptName: "quick_actions.ps1",
       argsList: args,
     });
 

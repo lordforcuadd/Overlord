@@ -226,7 +226,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { resolveResource } from "@tauri-apps/api/path";
 
 const isScanning = ref(true);
 
@@ -429,10 +428,8 @@ function getRowClass(id: QolKeys) {
 
 onMounted(async () => {
   try {
-    let rawPath = await resolveResource("scripts/get_qol.ps1");
-
     const jsonOutput = await invoke("run_powershell_generic", {
-      scriptPath: rawPath.replace(/^\\\\\\?\\\\/, ""),
+      scriptName: "get_qol.ps1",
       argsList: [],
     });
     qol.value = JSON.parse(jsonOutput as string);
@@ -448,17 +445,15 @@ async function applyToggle(settingKey: QolKeys) {
   qolStatus.value[settingKey] = "loading";
 
   try {
-    let rawPath = await resolveResource("scripts/set_qol.ps1");
-
     const args = [
       "-ToggleName",
       settingKey,
       "-IsEnabledStr",
-      qol.value[settingKey] ? "true" : "false",
+      qol.value[settingKey] ? "$true" : "$false",
     ];
 
     await invoke("run_powershell_generic", {
-      scriptPath: rawPath.replace(/^\\\\\\?\\\\/, ""),
+      scriptName: "set_qol.ps1",
       argsList: args,
     });
 
