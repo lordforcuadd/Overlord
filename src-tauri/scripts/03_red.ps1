@@ -13,6 +13,15 @@ Try {
 
     ipconfig /flushdns | Out-Null
 
+    Write-Host "[*] (WinScript) Erradicando RSC y LSO de los adaptadores de red (0ms Packet Delay)..."
+    try {
+        Disable-NetAdapterRsc -Name "*" -IPv4 -ErrorAction SilentlyContinue
+        Disable-NetAdapterRsc -Name "*" -IPv6 -ErrorAction SilentlyContinue
+        Disable-NetAdapterLso -Name "*" -IPv4 -ErrorAction SilentlyContinue
+        Disable-NetAdapterLso -Name "*" -IPv6 -ErrorAction SilentlyContinue
+        Disable-NetAdapterChecksumOffload -Name "*" -IpIPv4 -ErrorAction SilentlyContinue
+    } catch {}
+
     Write-Host "[*] Destruyendo reserva de ancho de banda (QoS Limit)..."
     $QosPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched"
     if (!(Test-Path $QosPath)) { New-Item -Path $QosPath -Force | Out-Null }

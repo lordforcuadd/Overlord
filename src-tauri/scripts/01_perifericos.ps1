@@ -37,10 +37,17 @@ Try {
         bcdedit /set useplatformtick yes | Out-Null
     } catch {}
 
-    # 4. Queue Size de periféricos
+    # 4. Queue Size de periféricos (Modificado v2.0 para auto-crear rutas no existentes)
     Write-Host "[*] Optimizando Queue Size y separacion de prioridad Win32..."
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" -Name "MouseDataQueueSize" -Type DWord -Value 20 -Force
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" -Name "KeyboardDataQueueSize" -Type DWord -Value 20 -Force
+    
+    $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
+    if (!(Test-Path $MouPath)) { New-Item -Path $MouPath -Force | Out-Null }
+    Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value 20 -Force
+
+    $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
+    if (!(Test-Path $KbdPath)) { New-Item -Path $KbdPath -Force | Out-Null }
+    Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value 20 -Force
+
     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Type DWord -Value 38 -Force
 
     # 5. Prioridad CSRSS (Nuevo)

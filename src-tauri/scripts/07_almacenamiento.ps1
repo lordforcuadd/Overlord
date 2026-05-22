@@ -30,17 +30,23 @@ Try {
     # A. Limpieza de WinSxS (SIN ResetBase para que termine rapido y no queme el CPU)
     dism.exe /online /Cleanup-Image /StartComponentCleanup
 
-    # B. Limpieza de SoftwareDistribution (Basura de Windows Update)
-    Stop-Service wuauserv -Force
-    Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false
-    Start-Service wuauserv
+    # B. Limpieza de SoftwareDistribution (Basura de Windows Update - Protegido v2.0)
+    try {
+        Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+        Start-Service wuauserv -ErrorAction SilentlyContinue
+    } catch {}
 
-    # C. Purgado de Delivery Optimization (Archivos compartidos en red local)
-    Remove-Item -Path "$env:windir\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache\*" -Recurse -Force -Confirm:$false
+    # C. Purgado de Delivery Optimization
+    try {
+        Remove-Item -Path "$env:windir\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    } catch {}
 
-    # D. Eliminacion de volcados de memoria y reportes de error antiguos
-    Remove-Item -Path "$env:windir\Minidump\*" -Recurse -Force -Confirm:$false
-    Remove-Item -Path "$env:windir\MEMORY.DMP" -Force -Confirm:$false
+    # D. Eliminacion de volcados de memoria
+    try {
+        Remove-Item -Path "$env:windir\Minidump\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+        if (Test-Path "$env:windir\MEMORY.DMP") { Remove-Item -Path "$env:windir\MEMORY.DMP" -Force -Confirm:$false -ErrorAction SilentlyContinue }
+    } catch {}
 
     Write-Host "[+] Optimizacion completada. Gigabytes recuperados y latencia de disco reducida."
     exit 0

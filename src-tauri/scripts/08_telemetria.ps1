@@ -10,8 +10,10 @@ Try {
     if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
     Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0
 
-    Stop-Service "DiagTrack" -WarningAction SilentlyContinue
-    Set-Service "DiagTrack" -StartupType Disabled
+    try {
+        Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+        Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
+    } catch {}
 
     $ActivityPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
@@ -31,6 +33,19 @@ Try {
                 New-NetFirewallRule -DisplayName $RuleName -Direction Outbound -Program $exe -Action Block -ErrorAction SilentlyContinue | Out-Null
             }
         }
+    }
+    
+    Write-Host "[*] (WinScript) Asesinando sesiones de Event Tracing (ETW) en RAM..."
+    $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
+    $Loggers = @("AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog")
+    
+    foreach ($Logger in $Loggers) {
+        $LoggerKey = "$LoggersPath\$Logger"
+        if (Test-Path $LoggerKey) {
+            reg.exe add "$LoggerKey" /v "Start" /t REG_DWORD /d 0 /f | Out-Null
+        }
+        # Detener la sesión en vivo sin importar los errores
+        logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null
     }
 
     Write-Host "[+] VBS destruido. Telemetria cegada por Firewall."

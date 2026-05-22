@@ -22,8 +22,10 @@ Try {
 
     $NetDevices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters\Interrupt Management\Affinity Policy" -ErrorAction SilentlyContinue
     foreach ($Net in $NetDevices) {
-        Set-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -Type DWord -Value 4 
-        Set-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -Type Binary -Value ([byte[]](0x02,0x00,0x00,0x00)) 
+        try {
+            Set-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -Type DWord -Value 4 -ErrorAction SilentlyContinue
+            Set-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -Type Binary -Value ([byte[]](0x02,0x00,0x00,0x00)) -ErrorAction SilentlyContinue
+        } catch {}
     }
 
     Write-Host "[+] Hilos del CPU liberados. Prioridad IRQ ajustada."

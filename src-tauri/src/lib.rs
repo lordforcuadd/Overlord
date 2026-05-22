@@ -244,25 +244,30 @@ async fn run_powershell_async(
 
     let absolute_script_path = resource_path.to_string_lossy().to_string();
 
-    let mut args = vec![
+    let is_laptop_val = if is_laptop { "$true" } else { "$false" };
+    let ram_val = ram_gb.to_string();
+    
+    let game_list_param = match &game_list {
+        Some(games) if !games.is_empty() => format!(" -GameList '{}'", games.replace("'", "''")),
+        _ => "".to_string(),
+    };
+
+    let inline_command = format!(
+        "& '{}' -IsLaptop {} -RamGB {}{}",
+        absolute_script_path.replace("'", "''"),
+        is_laptop_val,
+        ram_val,
+        game_list_param
+    );
+
+    let args = vec![
         "-NoLogo".to_string(),
         "-NoProfile".to_string(),
         "-ExecutionPolicy".to_string(),
         "Bypass".to_string(),
-        "-File".to_string(),
-        absolute_script_path,
-        "-IsLaptop".to_string(),
-        format!("${}", is_laptop),
-        "-RamGB".to_string(),
-        ram_gb.to_string(),
+        "-Command".to_string(),
+        inline_command,
     ];
-
-    if let Some(games) = game_list {
-        if !games.is_empty() {
-            args.push("-GameList".to_string());
-            args.push(games);
-        }
-    }
 
     let output = Command::new("powershell")
         .creation_flags(CREATE_NO_WINDOW)

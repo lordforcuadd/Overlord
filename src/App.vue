@@ -790,6 +790,24 @@ const scriptMap: Record<string, string> = {
   gameHooks: "11_game_hooks.ps1",
 };
 
+const overlordSwalConfig = {
+  background: "rgba(15, 15, 15, 0.75)",
+  color: "#e5e5e5",
+  iconColor: "#eab308",
+  confirmButtonColor: "#eab308",
+  cancelButtonColor: "#27272a",
+  customClass: {
+    popup:
+      "backdrop-blur-md border border-yellow-500/30 shadow-[0_0_25px_rgba(234,179,8,0.15)] rounded-2xl",
+    title: "text-yellow-500 font-extrabold tracking-wider",
+    htmlContainer: "text-gray-300",
+    confirmButton:
+      "text-black font-bold tracking-wide hover:scale-105 transition-transform duration-200",
+    cancelButton:
+      "text-gray-300 border border-zinc-600 hover:bg-zinc-700 transition-colors duration-200",
+  },
+};
+
 async function ejecutarTodo() {
   if (isExecutingAll.value) return;
   isExecutingAll.value = true;
@@ -836,11 +854,12 @@ async function ejecutarTodo() {
   if (modulosActivos.length > 0) {
     const result = await Swal.fire({
       title: "SISTEMA OPTIMIZADO",
-      html: "Es <b>OBLIGATORIO</b> reiniciar para aplicar cambios en el Kernel.",
+      html: "Es <b class='text-yellow-500'>OBLIGATORIO</b> reiniciar para inyectar los cambios en el Kernel.",
       icon: "success",
-      background: "#0a0a0a",
-      confirmButtonText: "SÍ, REINICIAR",
+      confirmButtonText: "SÍ, REINICIAR AHORA",
+      cancelButtonText: "MÁS TARDE",
       showCancelButton: true,
+      ...overlordSwalConfig,
     });
 
     if (result.isConfirmed) {
@@ -898,7 +917,13 @@ async function crearRespaldo() {
       scriptName: "crear_respaldo.ps1",
       argsList: [],
     });
-    await Swal.fire("¡Punto Creado!", "", "success");
+
+    await Swal.fire({
+      title: "¡Punto Creado!",
+      text: "El sistema ha sido blindado con éxito.",
+      icon: "success",
+      ...overlordSwalConfig,
+    });
   } catch (error) {
     logError("Error de respaldo: " + error);
   } finally {
@@ -909,10 +934,14 @@ async function crearRespaldo() {
 async function revertirStock() {
   const result = await Swal.fire({
     title: "ATENCIÓN",
-    text: "¿Revertir cambios?",
+    text: "¿Estás seguro de revertir los cambios y volver a stock?",
     icon: "warning",
     showCancelButton: true,
+    confirmButtonText: "SÍ, REVERTIR",
+    cancelButtonText: "CANCELAR",
+    ...overlordSwalConfig,
   });
+
   if (!result.isConfirmed) return;
 
   isReverting.value = true;
@@ -921,7 +950,13 @@ async function revertirStock() {
       scriptName: "10_revertir.ps1",
       argsList: [],
     });
-    await Swal.fire("SISTEMA REVERTIDO", "Reinicia tu PC.", "success");
+
+    await Swal.fire({
+      title: "SISTEMA REVERTIDO",
+      text: "Reinicia tu PC para aplicar los valores de fábrica.",
+      icon: "success",
+      ...overlordSwalConfig,
+    });
   } catch (error) {
     logError("Error de reversión: " + error);
   } finally {

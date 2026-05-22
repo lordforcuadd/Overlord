@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
     
-    $Description = "Overlord V1 - Punto Seguro (Stock)"
+    $Description = "Overlord V2 - Punto Seguro"
 
     
     Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue
@@ -12,8 +12,12 @@ Try {
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
 
+    Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue | Out-Null
+
     
-    Enable-ComputerRestore -Drive "C:\" | Out-Null
+    $SysRestorePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"
+    if (!(Test-Path $SysRestorePath)) { New-Item -Path $SysRestorePath -Force | Out-Null }
+    Set-ItemProperty -Path $SysRestorePath -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue
 
     
     Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"

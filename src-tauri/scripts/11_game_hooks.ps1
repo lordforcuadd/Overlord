@@ -1,4 +1,7 @@
 ﻿param([string]$GameList = "", [bool]$IsLaptop = $false, [int]$RamGB = 8)
+if ($GameList -is [string]) {
+    $GameList = $GameList.Split(',').Trim()
+}
 $ErrorActionPreference = "Stop"
 
 Try {
