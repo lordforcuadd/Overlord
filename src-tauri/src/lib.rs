@@ -5,6 +5,44 @@ use std::sync::Mutex;
 use sysinfo::System;
 use tauri::Manager;
 
+#[link(name = "ntdll")]
+extern "system" {
+    fn RtlAdjustPrivilege(Privilege: u32, Enable: u8, CurrentThread: u8, Enabled: *mut u8) -> i32;
+    fn NtSetSystemInformation(SystemInformationClass: u32, SystemInformation: *mut u32, SystemInformationLength: u32) -> i32;
+}
+
+#[tauri::command]
+fn purge_ram_native() -> Result<String, String> {
+    unsafe {
+        let mut enabled: u8 = 0;
+        
+        
+        let status1 = RtlAdjustPrivilege(13, 1, 0, &mut enabled);
+        
+        
+        let _ = RtlAdjustPrivilege(5, 1, 0, &mut enabled);
+
+        if status1 < 0 {
+            
+            return Err(format!("Bloqueo de Privilegios. NTSTATUS: {:X}", status1 as u32));
+        }
+        
+        
+        let mut command: u32 = 4; 
+        let status2 = NtSetSystemInformation(
+            80,
+            &mut command,
+            std::mem::size_of::<u32>() as u32,
+        );
+        
+        if status2 >= 0 {
+            Ok("RAM purgada con éxito a nivel Kernel".to_string())
+        } else {
+            Err(format!("Kernel rechazó la purga. NTSTATUS: {:X}", status2 as u32))
+        }
+    }
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -26,7 +64,6 @@ fn get_hardware_info() -> Result<HardwareData, String> {
     use winreg::RegKey;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-    // 1. CPU y Placa Madre (Directo del Registro de Windows - Cero Latencia)
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
     let cpu = hklm.open_subkey("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0")
@@ -44,12 +81,12 @@ fn get_hardware_info() -> Result<HardwareData, String> {
         
     let motherboard = format!("{} {}", manufacturer, product).trim().to_string();
 
-    // 2. RAM (Sysinfo es perfecto para esto)
+    
     let mut sys = System::new_all();
     sys.refresh_memory();
     let ram_gb = (sys.total_memory() as f64 / 1_073_741_824.0).round() as u32;
 
-    // 3. GPU y Chasis (Script PowerShell Combinado - Reemplazando wmic)
+    
     let ps_script = r#"
         $ErrorActionPreference = 'SilentlyContinue'
         $gpu = (Get-CimInstance Win32_VideoController | Select-Object -First 1).Name
@@ -64,13 +101,13 @@ fn get_hardware_info() -> Result<HardwareData, String> {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "GPU Desconocida|3".to_string());
 
-    // Separar los datos
+    
     let parts: Vec<&str> = output.split('|').collect();
     let gpu = parts.first().unwrap_or(&"GPU Desconocida").trim().to_string();
     let chassis_str = parts.get(1).unwrap_or(&"3").trim();
     let chassis_int: u32 = chassis_str.parse().unwrap_or(3);
     
-    // Identificadores universales de Laptops
+    
     let is_laptop = matches!(chassis_int, 8 | 9 | 10 | 11 | 14 | 30 | 31);
 
     Ok(HardwareData {
@@ -126,7 +163,8 @@ fn scan_games() -> Result<Vec<GameDetected>, String> {
 
     let mut results = Vec::new();
     for (name, exe) in target_games {
-        let detected = installed_display_names.iter().any(|d| d.contains(name));
+        
+        let detected = installed_display_names.iter().any(|d| d.to_lowercase().contains(&name.to_lowercase()));
         results.push(GameDetected {
             name: name.to_string(),
             exe: exe.to_string(),
@@ -298,7 +336,8 @@ pub fn run() {
             scan_games, 
             get_live_telemetry,
             run_powershell_async,
-            run_powershell_generic
+            run_powershell_generic,
+            purge_ram_native
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

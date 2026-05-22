@@ -202,22 +202,22 @@ const quickActions = [
 
 const runAction = async (actionId) => {
   if (isExecutingGlobal.value || status.value[actionId] === "loading") return;
-
   isExecutingGlobal.value = true;
   status.value[actionId] = "loading";
 
   try {
-    const args = ["-Action", actionId];
-
-    const response = await invoke("run_powershell_generic", {
-      scriptName: "quick_actions.ps1",
-      argsList: args,
-    });
-
-    console.log(`[Overlord Quick Action] ${actionId} ->`, response);
+    if (actionId === "PurgeRAM" || actionId === "ram") {
+      await invoke("purge_ram_native");
+      console.log("[Overlord] RAM purgada nativamente desde Rust.");
+    } else {
+      await invoke("run_powershell_generic", {
+        scriptName: "quick_actions.ps1",
+        argsList: ["-Action", actionId],
+      });
+    }
     status.value[actionId] = "success";
   } catch (error) {
-    console.error(`[Overlord Error] Fallo en acción ${actionId}:`, error);
+    console.error(`[ERROR FATAL EN MODULO ${actionId}]:`, error);
     status.value[actionId] = "error";
   } finally {
     isExecutingGlobal.value = false;

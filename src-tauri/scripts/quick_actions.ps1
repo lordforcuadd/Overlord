@@ -2,24 +2,6 @@ param([string]$Action = "")
 $ErrorActionPreference = "Stop"
 
 switch ($Action) {
-    "PurgeRAM" {
-        $PInvokeCode = @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class RamPurger {
-            [DllImport("ntdll.dll")]
-            public static extern int NtSetSystemInformation(int SystemInformationClass, IntPtr SystemInformation, int SystemInformationLength);
-        }
-"@
-        Add-Type -TypeDefinition $PInvokeCode -Language CSharp
-        $Size = [System.Runtime.InteropServices.Marshal]::SizeOf([System.Int32])
-        $Ptr = [System.Runtime.InteropServices.Marshal]::AllocHGlobal($Size)
-        [System.Runtime.InteropServices.Marshal]::WriteInt32($Ptr, 4)
-        [RamPurger]::NtSetSystemInformation(80, $Ptr, $Size) | Out-Null
-        [System.Runtime.InteropServices.Marshal]::FreeHGlobal($Ptr)
-        Write-Output "RAM purgada via NtSetSystemInformation."
-        exit 0
-    }
     "DeepClean" {
         # Modificado: AutoClean funciona de forma silenciosa sin necesidad de correr sageset primero.
         Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/autoclean" -WindowStyle Hidden -Wait

@@ -814,7 +814,6 @@ async function ejecutarTodo() {
           .join(",");
       }
 
-      // Invocación blindada: enviamos solo el nombre del script a Rust
       await invoke("run_powershell_async", {
         scriptName: scriptName,
         isLaptop: store.hardwareInfo.isLaptop,
@@ -859,6 +858,33 @@ onMounted(async () => {
   await store.detectHardware();
   await store.scanGames();
   store.startTelemetryPolling();
+
+  try {
+    const jsonStatus = await invoke<string>("run_powershell_generic", {
+      scriptName: "get_modules_status.ps1",
+      argsList: [],
+    });
+
+    const realStatus = JSON.parse(jsonStatus);
+
+    Object.keys(realStatus).forEach((key) => {
+      const moduleKey = key as keyof typeof store.modules;
+      store.modules[moduleKey] = realStatus[moduleKey];
+    });
+
+    Object.keys(realStatus).forEach((key) => {
+      const moduleKey = key as keyof typeof store.modules;
+      store.modules[moduleKey] = realStatus[moduleKey];
+
+      if (realStatus[moduleKey]) {
+        cardStatus.value[moduleKey] = "success";
+      }
+    });
+
+    console.log("[MASTER] Auditoría de Kernel sincronizada con Vue.");
+  } catch (e) {
+    console.error("[MASTER] Fallo la auditoría de estado.");
+  }
 });
 
 onUnmounted(() => {
