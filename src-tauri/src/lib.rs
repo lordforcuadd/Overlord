@@ -15,18 +15,12 @@ extern "system" {
 fn purge_ram_native() -> Result<String, String> {
     unsafe {
         let mut enabled: u8 = 0;
-        
-        
         let status1 = RtlAdjustPrivilege(13, 1, 0, &mut enabled);
-        
-        
         let _ = RtlAdjustPrivilege(5, 1, 0, &mut enabled);
 
         if status1 < 0 {
-            
             return Err(format!("Bloqueo de Privilegios. NTSTATUS: {:X}", status1 as u32));
         }
-        
         
         let mut command: u32 = 4; 
         let status2 = NtSetSystemInformation(
@@ -81,7 +75,6 @@ fn get_hardware_info() -> Result<HardwareData, String> {
         
     let motherboard = format!("{} {}", manufacturer, product).trim().to_string();
 
-    
     let mut sys = System::new_all();
     sys.refresh_memory();
     let ram_gb = (sys.total_memory() as f64 / 1_073_741_824.0).round() as u32;
@@ -89,9 +82,10 @@ fn get_hardware_info() -> Result<HardwareData, String> {
     
     let ps_script = r#"
         $ErrorActionPreference = 'SilentlyContinue'
-        $gpu = (Get-CimInstance Win32_VideoController | Select-Object -First 1).Name
+        $gpus = (Get-CimInstance Win32_VideoController).Name -join ', '
         $chassis = (Get-CimInstance Win32_SystemEnclosure | Select-Object -First 1).ChassisTypes[0]
-        Write-Output "$gpu|$chassis"
+        $mhz = (Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1).Speed
+        Write-Output "$gpus|$chassis|$mhz"
     "#;
     
     let output = Command::new("powershell")
@@ -99,14 +93,16 @@ fn get_hardware_info() -> Result<HardwareData, String> {
         .args(&["-NoProfile", "-Command", ps_script])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "GPU Desconocida|3".to_string());
+        .unwrap_or_else(|_| "GPU Desconocida|3|0".to_string());
 
-    
     let parts: Vec<&str> = output.split('|').collect();
     let gpu = parts.first().unwrap_or(&"GPU Desconocida").trim().to_string();
     let chassis_str = parts.get(1).unwrap_or(&"3").trim();
     let chassis_int: u32 = chassis_str.parse().unwrap_or(3);
     
+    
+    let ram_speed_str = parts.get(2).unwrap_or(&"0").trim();
+    let ram_speed: u32 = ram_speed_str.parse().unwrap_or(0);
     
     let is_laptop = matches!(chassis_int, 8 | 9 | 10 | 11 | 14 | 30 | 31);
 
@@ -114,7 +110,7 @@ fn get_hardware_info() -> Result<HardwareData, String> {
         cpu,
         gpu,
         ram_gb,
-        ram_speed: 0,
+        ram_speed, 
         motherboard,
         is_laptop
     })
@@ -163,7 +159,6 @@ fn scan_games() -> Result<Vec<GameDetected>, String> {
 
     let mut results = Vec::new();
     for (name, exe) in target_games {
-        
         let detected = installed_display_names.iter().any(|d| d.to_lowercase().contains(&name.to_lowercase()));
         results.push(GameDetected {
             name: name.to_string(),
@@ -243,37 +238,45 @@ async fn run_powershell_async(
     ).map_err(|e| e.to_string())?;
 
     let absolute_script_path = resource_path.to_string_lossy().to_string();
-
     let is_laptop_val = if is_laptop { "$true" } else { "$false" };
     let ram_val = ram_gb.to_string();
     
-    let game_list_param = match &game_list {
-        Some(games) if !games.is_empty() => format!(" -GameList '{}'", games.replace("'", "''")),
-        _ => "".to_string(),
-    };
 
-    let inline_command = format!(
-        "& '{}' -IsLaptop {} -RamGB {}{}",
+    let mut inline_command = format!(
+        "& '{}' -IsLaptop {} -RamGB {}",
         absolute_script_path.replace("'", "''"),
         is_laptop_val,
-        ram_val,
-        game_list_param
+        ram_val
     );
 
-    let args = vec![
-        "-NoLogo".to_string(),
-        "-NoProfile".to_string(),
-        "-ExecutionPolicy".to_string(),
-        "Bypass".to_string(),
-        "-Command".to_string(),
-        inline_command,
-    ];
+    
+    let has_games = match &game_list {
+        Some(games) if !games.is_empty() => {
+            inline_command.push_str(" -GameList $args[0]");
+            true
+        }
+        _ => false,
+    };
 
-    let output = Command::new("powershell")
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(&args)
-        .output()
-        .map_err(|e| e.to_string())?;
+    let mut cmd = Command::new("powershell");
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    
+    
+    cmd.arg("-NoLogo")
+       .arg("-NoProfile")
+       .arg("-ExecutionPolicy")
+       .arg("Bypass")
+       .arg("-Command")
+       .arg(&inline_command);
+
+    
+    if has_games {
+        if let Some(games) = game_list {
+            cmd.arg(games);
+        }
+    }
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -301,22 +304,21 @@ async fn run_powershell_generic(
 
     let absolute_script_path = resource_path.to_string_lossy().to_string();
 
-    let mut ps_args = vec![
-        "-NoLogo".to_string(),
-        "-NoProfile".to_string(),
-        "-ExecutionPolicy".to_string(),
-        "Bypass".to_string(),
-        "-File".to_string(),
-        absolute_script_path,
-    ];
+    let mut cmd = Command::new("powershell");
+    cmd.creation_flags(CREATE_NO_WINDOW);
     
-    ps_args.extend(args_list);
+    cmd.arg("-NoLogo")
+       .arg("-NoProfile")
+       .arg("-ExecutionPolicy")
+       .arg("Bypass")
+       .arg("-File")
+       .arg(absolute_script_path);
+    
+    for arg in args_list {
+        cmd.arg(arg);
+    }
 
-    let output = Command::new("powershell")
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(&ps_args)
-        .output()
-        .map_err(|e| e.to_string())?;
+    let output = cmd.output().map_err(|e| e.to_string())?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())

@@ -9,6 +9,9 @@ export interface Game {
   optimize: boolean;
 }
 
+// 🚀 TIPO DE DATO EXPORTABLE PARA v2.5: Define las clasificaciones de riesgo válidas
+export type TipoRiesgo = "Seguro" | "Avanzado" | "Kernel";
+
 // Variable a nivel de módulo para controlar de forma segura el intervalo y evitar memory leaks
 let telemetryIntervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -32,7 +35,7 @@ export const useOverlordStore = defineStore("overlord", {
     // Perfil seleccionado por el usuario
     activeProfile: "Personalizado",
 
-    // El estado de los módulos ofensivos
+    // El estado binario de los módulos ofensivos de bajo nivel
     modules: {
       peripheralLatency: false,
       debloat: false,
@@ -44,6 +47,49 @@ export const useOverlordStore = defineStore("overlord", {
       deepTelemetry: false,
       powerProfiles: false,
       gameHooks: false,
+    },
+
+    moduleSpecs: {
+      peripheralLatency: {
+        riesgo: "Seguro" as TipoRiesgo,
+        desc: "Raw Input 1:1, Modo MSI y Queue Size a 20",
+      },
+      debloat: {
+        riesgo: "Seguro" as TipoRiesgo,
+        desc: "Purga de Bloatware Apps y Telemetría básica",
+      },
+      networkOptimized: {
+        riesgo: "Seguro" as TipoRiesgo,
+        desc: "Bypass de Nagle, TCP Experimental y 0ms DNS Cache",
+      },
+      generalPerformance: {
+        riesgo: "Avanzado" as TipoRiesgo,
+        desc: "Plan Ultimate, Desactivación de parches Spectre/Meltdown y FTH",
+      },
+      gpuDisplay: {
+        riesgo: "Avanzado" as TipoRiesgo,
+        desc: "Bypass MPO y Latencia de renderizado",
+      },
+      irqAffinity: {
+        riesgo: "Kernel" as TipoRiesgo,
+        desc: "Afinidad de interrupciones físicas e hilos de CPU",
+      },
+      smartStorage: {
+        riesgo: "Seguro" as TipoRiesgo,
+        desc: "Caché de metadatos NTFS x2 y bloqueo LastAccess",
+      },
+      deepTelemetry: {
+        riesgo: "Kernel" as TipoRiesgo,
+        desc: "Apagado total de VBS / HVCI y Autologgers en RAM",
+      },
+      powerProfiles: {
+        riesgo: "Avanzado" as TipoRiesgo,
+        desc: "Anulación de limitador de energía MMCSS",
+      },
+      gameHooks: {
+        riesgo: "Kernel" as TipoRiesgo,
+        desc: "Inyección de prioridades masivas a ejecutables eSports",
+      },
     },
 
     liveTelemetry: {
@@ -140,7 +186,7 @@ export const useOverlordStore = defineStore("overlord", {
     },
 
     /**
-     * Gestor de Arquetipos: Enciende o apaga módulos según el perfil
+     * Gestor de Arquetipos Premium: Asigna módulos con lógica real de hardware
      */
     applyProfile(profileName: string) {
       this.activeProfile = profileName;
@@ -152,10 +198,9 @@ export const useOverlordStore = defineStore("overlord", {
         },
       );
 
-      // 2. Configuración granular basada en compatibilidad de Hardware y Software
+      // 2. Configuración granular basada en compatibilidad de Hardware y Software real
       switch (profileName) {
         case "Competitivo":
-          // Peligro: Destruye máquinas virtuales para dar 100% de FPS.
           this.modules.peripheralLatency = true;
           this.modules.debloat = true;
           this.modules.networkOptimized = true;
@@ -163,13 +208,12 @@ export const useOverlordStore = defineStore("overlord", {
           this.modules.gpuDisplay = true;
           this.modules.irqAffinity = true;
           this.modules.smartStorage = true;
-          this.modules.deepTelemetry = true; // <- Apaga VBS
+          this.modules.deepTelemetry = true;
           this.modules.powerProfiles = true;
           this.modules.gameHooks = true;
           break;
 
         case "Programador & Competitivo":
-          // Equilibrio: Mantiene VBS/Hyper-V vivo para Docker y Máquinas Virtuales.
           this.modules.peripheralLatency = true;
           this.modules.debloat = true;
           this.modules.networkOptimized = true;
@@ -177,13 +221,12 @@ export const useOverlordStore = defineStore("overlord", {
           this.modules.gpuDisplay = true;
           this.modules.irqAffinity = true;
           this.modules.smartStorage = true;
-          this.modules.deepTelemetry = false; // <- SALVA LAS VMs
+          this.modules.deepTelemetry = false;
           this.modules.powerProfiles = true;
           this.modules.gameHooks = true;
           break;
 
         case "Programador":
-          // Puro entorno de trabajo: Optimiza RAM y compila más rápido.
           this.modules.debloat = true;
           this.modules.generalPerformance = true;
           this.modules.smartStorage = true;
@@ -191,16 +234,14 @@ export const useOverlordStore = defineStore("overlord", {
           break;
 
         case "Home Office / Laptops":
-          // Seguro y enfocado en red/batería
           this.modules.debloat = true;
           this.modules.networkOptimized = true;
           this.modules.smartStorage = true;
           break;
 
         case "Usuario Casual":
-          // Módulos inofensivos que no alteran el comportamiento diario
           this.modules.debloat = true;
-          this.modules.generalPerformance = true;
+          this.modules.generalPerformance = false;
           this.modules.smartStorage = true;
           break;
       }

@@ -43,6 +43,7 @@ Try {
     $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
     if (!(Test-Path $MouPath)) { New-Item -Path $MouPath -Force | Out-Null }
     Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value 20 -Force
+    
 
     $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
     if (!(Test-Path $KbdPath)) { New-Item -Path $KbdPath -Force | Out-Null }

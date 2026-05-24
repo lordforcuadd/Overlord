@@ -36,7 +36,7 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v2.0
+              Optimizador de Windows v2.5
             </p>
           </div>
         </div>
@@ -300,187 +300,204 @@
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-32"
       >
         <ModuleCard
-          title="Latencia de Periféricos"
-          description="Fuerza el motor de ventanas (CSRSS) a Tiempo Real y activa el MSI Mode para lograr 0ms de input delay."
+          title="Respuesta de Teclado y Ratón"
+          description="Elimina por completo el retraso al hacer clic o presionar teclas. Optimiza tus puertos USB y quita los frenos de Windows para que el puntero se mueva exactamente como tu mano."
           scriptName="01_perifericos.ps1"
+          :riesgo="store.moduleSpecs.peripheralLatency.riesgo"
           v-model="store.modules.peripheralLatency"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.peripheralLatency || 'idle'"
           :details="[
-            'Prioridad Realtime a CSRSS',
-            'MSI Mode en GPU y USB',
-            'Reloj TSC Sincronizado',
-            'Aceleración de ratón destruida',
+            'Respuesta inmediata de teclado y ratón',
+            'Puertos USB en modo de alto rendimiento',
+            'Aceleración del ratón 100% desactivada',
+            'Desactiva teclas pegajosas molestas',
           ]"
         >
           <div
             class="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-2 text-blue-400 text-xs"
           >
             <p>
-              Perfectamente seguro. Afectará positivamente la sensibilidad de tu
-              ratón en juegos FPS.
+              <b>PERFECTAMENTE SEGURO:</b> Sentirás los movimientos en tus
+              juegos de disparos (FPS) mucho más fluidos, directos y precisos.
             </p>
           </div>
         </ModuleCard>
 
         <ModuleCard
-          title="Limpieza Segura (Debloat)"
-          description="Erradica telemetría, servicios parásitos y bloatware sin romper herramientas de trabajo vitales."
+          title="Limpieza del Sistema (Debloat)"
+          description="Elimina programas basura que vienen preinstalados de fábrica y apaga funciones ocultas que vigilan tu actividad, liberando espacio en el procesador y la memoria RAM."
           scriptName="02_debloat.ps1"
+          :riesgo="store.moduleSpecs.debloat.riesgo"
           v-model="store.modules.debloat"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.debloat || 'idle'"
           :details="[
-            'Bloqueo de AllowTelemetry',
-            'Purga de Apps preinstaladas',
-            'Servicios inútiles a Manual',
+            'Apaga el rastreo de datos oculto de Windows',
+            'Elimina aplicaciones preinstaladas inútiles',
+            'Detiene servicios pesados en segundo plano',
           ]"
         >
           <div
             class="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 text-emerald-400 text-xs"
           >
             <p>
-              <b>SEGURO:</b> El Bluetooth, la Impresora (Spooler) y los
-              Anti-Cheats están 100% protegidos y no se borrarán.
+              <b>COMPLETAMENTE SEGURO:</b> El Bluetooth, la conexión a
+              impresoras y los sistemas antitrampas de tus juegos están 100%
+              protegidos.
             </p>
           </div>
         </ModuleCard>
 
         <ModuleCard
-          title="Network & TCP/IP Stack"
-          description="Normaliza ECN y destruye el límite de reserva de ancho de banda (QoS) para un Ping estable."
+          title="Optimización de Internet"
+          description="Estabiliza la conexión para evitar subidas repentinas de Ping en tus partidas en línea. Elimina los límites ocultos de Windows para que aproveches toda la velocidad de tu red."
           scriptName="03_red.ps1"
+          :riesgo="store.moduleSpecs.networkOptimized.riesgo"
           v-model="store.modules.networkOptimized"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.networkOptimized || 'idle'"
           :details="[
-            'Normaliza algoritmo ECN',
-            'Elimina límite QoS (0%)',
-            'Caché DNS a latencia cero',
-            'TCP/IP NoDelay activado',
+            'Envío instantáneo de paquetes de datos',
+            'Elimina los límites de velocidad de Windows',
+            'Acelera la respuesta al buscar páginas (DNS)',
+            'Estabiliza el internet frente a micro-cortes',
           ]"
         />
 
         <ModuleCard
-          title="Rendimiento y Memoria"
-          description="Aplica el Plan Ultimate Performance y baja el consumo asfixiante del Antivirus en segundo plano."
+          title="Potencia Bruta y Procesador"
+          description="Desbloquea el plan de energía oculto de máximo rendimiento y regula el consumo excesivo del antivirus en segundo plano para que no cause caídas de fotogramas (FPS)."
           scriptName="04_rendimiento.ps1"
+          :riesgo="store.moduleSpecs.generalPerformance.riesgo"
           v-model="store.modules.generalPerformance"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.generalPerformance || 'idle'"
           :details="[
-            'Limita Defender al 25% de uso',
-            'Desactiva Paginación del Kernel',
-            'Inyecta Plan Ultimate',
+            'Activa el Plan de Energía Máxima del sistema',
+            'Evita tirones y congelamientos en juegos',
+            'Quita frenos de seguridad del procesador',
+            'Limpia archivos temporales acumulados',
           ]"
         />
 
         <ModuleCard
-          title="GPU & Display Engine"
-          description="Apaga MPO y ajusta la prioridad del Gestor de Ventanas (DWM) para erradicar el micro-stuttering."
+          title="Fluidez de Pantalla y Gráficos"
+          description="Mejora la suavidad visual de tus juegos eliminando las micro-congelaciones en la pantalla. Le otorga prioridad absoluta a tu tarjeta de video para procesar las imágenes primero."
           scriptName="05_gpu_display.ps1"
+          :riesgo="store.moduleSpecs.gpuDisplay.riesgo"
           v-model="store.modules.gpuDisplay"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.gpuDisplay || 'idle'"
           :details="[
-            'MPO (Multi-Plane Overlay) OFF',
-            'Prioridad DWM a Above Normal',
-            'Desactiva HDCP y GameBar',
+            'Elimina pequeños tirones visuales en juegos',
+            'Otorga prioridad máxima a la tarjeta de video',
+            'Apaga funciones pesadas de la barra de juegos',
           ]"
         >
           <div
             class="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-start gap-2 text-yellow-400 text-xs"
           >
             <p>
-              <b>AVISO:</b> Tras aplicar esto, es normal que tu pantalla
-              parpadee una vez. Requiere reinicio.
+              <b>AVISO:</b> Al aplicar este ajuste, es completamente normal si
+              tu pantalla parpadea por un segundo. Requiere reiniciar la PC.
             </p>
           </div>
         </ModuleCard>
 
         <ModuleCard
-          title="Aislamiento de Núcleos (IRQ)"
-          description="Aísla el tráfico de red de tu procesador (DPC) obligándolo a procesarse fuera del Núcleo 0."
+          title="Organización del Procesador"
+          description="Reordena la forma en que trabaja tu computadora. Evita que las tareas del internet saturen el núcleo principal donde corre tu juego, distribuyendo el esfuerzo eficientemente."
           scriptName="06_irq_affinity.ps1"
+          :riesgo="store.moduleSpecs.irqAffinity.riesgo"
           v-model="store.modules.irqAffinity"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.irqAffinity || 'idle'"
           :details="[
-            'SystemResponsiveness al 0%',
-            'Aplica DevicePolicy 4 a la red',
-            'Fuerza lectura de disco a SFIO',
+            'Enfoca el 100% del sistema en tus tareas',
+            'Separa el tráfico de internet de tus juegos',
+            'Acelera la velocidad de lectura de archivos',
           ]"
         />
 
         <ModuleCard
-          title="Smart Storage & WinSxS"
-          description="Optimiza el bus de datos NTFS y ejecuta una purga profunda de nivel Kernel."
+          title="Aceleración de Disco y Almacenamiento"
+          description="Duplica la memoria interna dedicada a leer datos para que tus programas abran más rápido, y ejecuta un limpiador profundo que borra gigabytes de actualizaciones viejas."
           scriptName="07_almacenamiento.ps1"
+          :riesgo="store.moduleSpecs.smartStorage.riesgo"
           v-model="store.modules.smartStorage"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.smartStorage || 'idle'"
           :details="[
-            'Purga profunda de Componentes',
-            'Borra instaladores de Update',
-            'Desactiva Update TimeStamp',
+            'Duplica la velocidad de lectura de archivos',
+            'Borra carpetas basura ocultas de Windows Update',
+            'Evita desgastes y escrituras inútiles en tu SSD',
+            'Apaga la hibernación en computadoras de mesa',
           ]"
         />
 
         <ModuleCard
-          title="Seguridad Virtual (VBS)"
-          description="Aumenta drásticamente los FPS crudos apagando las capas de virtualización impuestas por Windows 11."
+          title="Seguridad Virtual y Filtros"
+          description="Desactiva las capas de seguridad invisibles de Windows 11 que frenan el rendimiento gráfico en juegos y apaga por completo los grabadores que registran tu historial en disco."
           scriptName="08_telemetria.ps1"
+          :riesgo="store.moduleSpecs.deepTelemetry.riesgo"
           v-model="store.modules.deepTelemetry"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.deepTelemetry || 'idle'"
           :details="[
-            'Deshabilita VBS y HVCI',
-            'Bloquea IPs de telemetría vía WFP',
+            'Desactiva la seguridad virtual que frena los FPS',
+            'Bloquea el envío automático de datos a Microsoft',
+            'Apaga grabadores de eventos en segundo plano',
           ]"
         >
           <div
             class="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-xs"
           >
             <p>
-              <b>NO ACTIVAR SI ERES PROGRAMADOR:</b> Rompe por completo
-              VirtualBox, VMware, Docker Desktop y WSL2 (Subsistema de Linux).
+              <b>PRECAUCIÓN PROGRAMADORES:</b> No activar si trabajas con
+              herramientas de desarrollo como Docker Desktop, WSL2 (Linux dentro
+              de Windows), VirtualBox o VMware, ya que requiere de estas
+              funciones activas.
             </p>
           </div>
         </ModuleCard>
 
         <ModuleCard
-          title="Energía y PCIe (ASPM)"
-          description="Deshabilita el Core Parking y apaga el ahorro de energía del bus PCIe para evitar tirones de la gráfica."
+          title="Energía Inteligente Antiparos"
+          description="Evita que tus piezas se pongan en 'modo de ahorro' o se duerman en mitad de una partida. Mantiene tu procesador despierto para responder instantáneamente ante cargas pesadas."
           scriptName="09_energia.ps1"
+          :riesgo="store.moduleSpecs.powerProfiles.riesgo"
           v-model="store.modules.powerProfiles"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.powerProfiles || 'idle'"
           :details="[
-            'Desactiva ASPM (PCIe)',
-            'Anula el Core Parking',
-            'Detecta y protege Laptops',
+            'Mantiene la tarjeta de video a máxima velocidad',
+            'Evita que los núcleos del procesador se duerman',
+            'Protección inteligente automática para Laptops',
           ]"
         >
           <div
             class="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 text-emerald-400 text-xs"
           >
             <p>
-              <b>INTELIGENTE:</b> Si detecta que usas Laptop, no aplicará este
-              tweak para no asesinar tu batería.
+              <b>INTELIGENTE:</b> Si el programa detecta que estás usando una
+              Laptop, desactivará este ajuste automáticamente para proteger la
+              duración de tu batería.
             </p>
           </div>
         </ModuleCard>
 
         <ModuleCard
-          title="Game-Specific Hooks"
-          description="Inyecta reglas directas al ejecutable (.exe) de tus juegos para anular la Optimizaciones de Pantalla Completa (FSO)."
+          title="Prioridad Absoluta para Juegos"
+          description="Cuando abres tus juegos favoritos, el sistema detecta su ejecución y enfoca de inmediato toda la potencia del procesador en ellos, suspendiendo alertas molestas."
           scriptName="11_game_hooks.ps1"
+          :riesgo="store.moduleSpecs.gameHooks.riesgo"
           v-model="store.modules.gameHooks"
           @update:modelValue="store.activeProfile = 'Personalizado'"
           :status="cardStatus.gameHooks || 'idle'"
           :details="[
-            'Fuerza CpuPriorityClass=3',
-            'Inyecta flag DISABLEDXMAXIMIZED...',
+            'Fuerza prioridad del procesador exclusiva al jugar',
+            'Desactiva funciones de pantalla completa lentas',
           ]"
         >
           <div

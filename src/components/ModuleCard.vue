@@ -41,7 +41,26 @@
         </button>
       </div>
 
-      <p class="text-xs md:text-sm text-gray-400 mt-2.5 leading-relaxed">
+      <div v-if="riesgo" class="flex items-center gap-2 mt-2">
+        <span
+          class="text-[10px] uppercase tracking-wider text-gray-500 font-medium font-mono"
+          >Impacto:</span
+        >
+        <span
+          :class="{
+            'px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide rounded border border-green-500/30 text-green-400 bg-green-950/20 shadow-[0_0_10px_rgba(34,197,94,0.05)]':
+              riesgo === 'Seguro',
+            'px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide rounded border border-yellow-500/30 text-yellow-400 bg-yellow-950/20 shadow-[0_0_10px_rgba(234,179,8,0.05)]':
+              riesgo === 'Avanzado',
+            'px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide rounded border border-red-500/30 text-red-400 bg-red-950/20 shadow-[0_0_10px_rgba(239,68,68,0.05)]':
+              riesgo === 'Kernel',
+          }"
+        >
+          {{ riesgo }}
+        </span>
+      </div>
+
+      <p class="text-xs md:text-sm text-gray-400 mt-3 leading-relaxed">
         {{ description }}
       </p>
 
@@ -66,7 +85,7 @@
               d="M9 5l7 7-7 7"
             ></path>
           </svg>
-          Ver Mas
+          Ver Más Detalle
         </summary>
         <ul class="mt-3 pl-4 border-l border-white/10 flex flex-col gap-1.5">
           <li
@@ -174,6 +193,11 @@ defineProps({
   status: {
     type: String as () => "idle" | "loading" | "success" | "error",
     default: "idle",
+  },
+
+  riesgo: {
+    type: String as () => "Seguro" | "Avanzado" | "Kernel",
+    default: "Seguro",
   },
 });
 
