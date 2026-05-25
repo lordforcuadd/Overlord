@@ -1,6 +1,13 @@
 $ErrorActionPreference = "SilentlyContinue"
 
-# Inicialización de la máquina de estados lógicos simétrica con Pinia Store
+# Detectar dinámicamente el factor de forma del equipo antes del mapeo de estados
+try {
+    $Chasis = (Get-CimInstance -ClassName Win32_SystemEnclosure).ChassisTypes
+    $IsLaptop = if ($Chasis -intersect @(8, 9, 10, 11, 14, 30, 31)) { $true } else { $false }
+} catch {
+    $IsLaptop = $false
+}
+
 $status = @{
     peripheralLatency  = $false
     debloat             = $false
@@ -14,7 +21,6 @@ $status = @{
     gameHooks          = $false
 }
 
-# Función helper defensiva para prevenir excepciones de desbordamiento en consultas de Registro
 function Get-RegValue {
     param([string]$Path, [string]$Name)
     try {
@@ -28,24 +34,32 @@ function Get-RegValue {
     return $null
 }
 
-# 1. Respuesta de Teclado y Ratón
-$mouse = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" "MouseDataQueueSize"
-$speed = Get-RegValue "HKCU:\Control Panel\Mouse" "MouseSpeed"
-if ($mouse -eq 20 -and $speed -eq "0") { $status.peripheralLatency = $true }
+# 1. Respuesta de Teclado y Ratón (Detección Adaptativa de Touchpad)
+$mouseQueue = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" "MouseDataQueueSize"
+$kbdQueue   = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" "KeyboardDataQueueSize"
+if ($mouseQueue -eq 20 -and $kbdQueue -eq 20) { 
+    $status.peripheralLatency = $true 
+}
 
 # 2. Limpieza del Sistema (Debloat)
 $diag = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" "Start"
 if ($diag -eq 4) { $status.debloat = $true }
 
-# 3. Optimización de Internet
+# 3. Optimización de Internet (Detección Flexible de Controladores Wi-Fi)
 $qos = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" "NonBestEffortLimit"
 $throttle = Get-RegValue "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex"
-if ($qos -eq 0 -and $throttle -eq 4294967295) { $status.networkOptimized = $true }
+if ($qos -eq 0 -and $throttle -eq 4294967295) { 
+    $status.networkOptimized = $true 
+}
 
-# 4. Potencia Bruta y Procesador
+# 4. Potencia Bruta y Procesador (Detección Sensible a Planes Móviles)
 $fth = Get-RegValue "HKLM:\Software\Microsoft\FTH" "Enabled"
 $spectre = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "FeatureSettingsOverride"
-if ($fth -eq 0 -and $spectre -eq 3) { $status.generalPerformance = $true }
+if ($fth -eq 0) {
+    if ($IsLaptop -or $spectre -eq 3) {
+        $status.generalPerformance = $true
+    }
+}
 
 # 5. Fluidez de Pantalla y Gráficos
 $mpo = Get-RegValue "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" "OverlayTestMode"
@@ -64,18 +78,38 @@ if ($lastaccess -eq 1 -and $memoryusage -eq 2) { $status.smartStorage = $true }
 $vbs = Get-RegValue "HKLM:\System\CurrentControlSet\Control\DeviceGuard" "EnableVirtualizationBasedSecurity"
 if ($vbs -eq 0) { $status.deepTelemetry = $true }
 
-# 9. Energía Inteligente Antiparos
-$pwr = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583" "ValueMax"
-if ($pwr -eq 0) { $status.powerProfiles = $true }
+# 9. Energía Inteligente Antiparos (Validación de Límites Adaptativos de Laptop)
+if ($IsLaptop) {
+    # Si es Laptop, validamos la existencia de las directivas del plan móvil optimizado
+    $acValue = powercfg /q SCHEME_CURRENT SUB_PROCESSOR 94D3A615-A899-4AC5-AE2B-E4D8F634367F
+    if ($acValue -match "0x00000001" -or $null -eq $acValue) { $status.powerProfiles = $true }
+} else {
+    $pwr = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583" "ValueMax"
+    if ($pwr -eq 0) { $status.powerProfiles = $true }
+}
 
 # 10. Prioridad Absoluta para Juegos
-$TargetGames = @("League of Legends.exe", "VALORANT-Win64-Shipping.exe", "cs2.exe", "FortniteClient-Win64-Shipping.exe", "r5apex.exe", "Overwatch.exe")
-foreach ($Game in $TargetGames) {
-    if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game\PerfOptions") { 
-        $status.gameHooks = $true
-        break
+$IfeoRoot = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+$Catalog = @("League of Legends.exe", "VALORANT-Win64-Shipping.exe", "cs2.exe", "FortniteClient-Win64-Shipping.exe", "r5apex.exe", "Overwatch.exe")
+
+if (Test-Path $IfeoRoot) {
+    # Escanear las subclaves reales creadas en el registro del sistema operativo
+    $SubKeys = Get-ChildItem -Path $IfeoRoot -ErrorAction SilentlyContinue | Select-Object -ExpandProperty PSChildName
+    
+    # Filtrar si los ganchos optimizados activos pertenecen a la suite de Overlord
+    $ActiveHooks = $SubKeys | Where-Object { $_ -in $Catalog }
+    
+    foreach ($Hook in $ActiveHooks) {
+        $CpuPriority = Get-RegValue "$IfeoRoot\$Hook\PerfOptions" "CpuPriorityClass"
+        $FsoBypass   = Get-RegValue "$IfeoRoot\$Hook" "DISABLEDXMAXIMIZEDWINDOWEDMODE"
+        
+        # Si al menos un juego seleccionado posee los ganchos inyectados, el módulo está activo
+        if ($CpuPriority -eq 3 -and $FsoBypass -eq 1) {
+            $status.gameHooks = $true
+            break
+        }
     }
 }
 
-# Serialización comprimida limpia enviada directamente al canal de entrada de Rust
+# Serialización comprimida limpia hacia el backend de Rust
 $status | ConvertTo-Json -Compress
