@@ -827,6 +827,25 @@ const overlordSwalConfig = {
 
 async function ejecutarTodo() {
   if (isExecutingAll.value) return;
+
+  if (!store.restorePointCreated) {
+    const alertConfirm = await Swal.fire({
+      title: "RESPALDO REQUERIDO",
+      html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creará un <b class='text-yellow-400'>Punto de Restauración</b> de respaldo obligatorio.",
+      icon: "info",
+      showCancelButton: true,
+      confirmButtonText: "SÍ, BLINDAR SISTEMA",
+      cancelButtonText: "CANCELAR",
+      ...overlordSwalConfig,
+    });
+
+    if (!alertConfirm.isConfirmed) return;
+
+    await crearRespaldo();
+
+    if (!store.restorePointCreated) return;
+  }
+
   isExecutingAll.value = true;
 
   const modulosActivos = Object.entries(store.modules)
@@ -906,11 +925,6 @@ onMounted(async () => {
     Object.keys(realStatus).forEach((key) => {
       const moduleKey = key as keyof typeof store.modules;
       store.modules[moduleKey] = realStatus[moduleKey];
-    });
-
-    Object.keys(realStatus).forEach((key) => {
-      const moduleKey = key as keyof typeof store.modules;
-      store.modules[moduleKey] = realStatus[moduleKey];
 
       if (realStatus[moduleKey]) {
         cardStatus.value[moduleKey] = "success";
@@ -935,6 +949,8 @@ async function crearRespaldo() {
       argsList: [],
     });
 
+    store.restorePointCreated = true;
+
     await Swal.fire({
       title: "¡Punto Creado!",
       text: "El sistema ha sido blindado con éxito.",
@@ -942,7 +958,14 @@ async function crearRespaldo() {
       ...overlordSwalConfig,
     });
   } catch (error) {
+    store.restorePointCreated = false;
     logError("Error de respaldo: " + error);
+    await Swal.fire({
+      title: "ERROR DE RESPALDO",
+      text: "No se pudo comprobar la integridad del servicio VSS.",
+      icon: "error",
+      ...overlordSwalConfig,
+    });
   } finally {
     isBackingUp.value = false;
   }
@@ -967,6 +990,8 @@ async function revertirStock() {
       scriptName: "10_revertir.ps1",
       argsList: [],
     });
+
+    store.restorePointCreated = false;
 
     await Swal.fire({
       title: "SISTEMA REVERTIDO",

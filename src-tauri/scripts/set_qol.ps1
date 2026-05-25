@@ -7,8 +7,8 @@ $ErrorActionPreference = "SilentlyContinue"
 $LogFile = "$env:TEMP\overlord_qol_debug.txt"
 $SemaphoreFile = "$env:TEMP\overlord_explorer_restart.lock"
 
-$ToggleName = $ToggleName.Replace("-ToggleName", "").Trim()
-$IsEnabledStr = $IsEnabledStr.Replace("-IsEnabledStr", "").Replace('$', '').Trim().ToLower()
+$ToggleName = $ToggleName.Trim()
+$IsEnabledStr = $IsEnabledStr.Replace('$', '').Trim().ToLower()
 $IsEnabled = if ($IsEnabledStr -eq "true" -or $IsEnabledStr -eq "1") { $true } else { $false }
 
 Add-Content -Path $LogFile -Value "======================================"
@@ -16,6 +16,28 @@ Add-Content -Path $LogFile -Value "[$(Get-Date)] GLOBAL EXECUTION -> $ToggleName
 
 function Set-Reg {
     param([string]$Key, [string]$Value, [string]$Data, [string]$Type="REG_DWORD")
+    
+    $QolBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\QoL"
+    if (!(Test-Path $QolBackupPath)) { New-Item -Path $QolBackupPath -Force | Out-Null }
+    
+    # Normalizar la clave para usarla de forma segura como nombre de propiedad en el respaldo
+    $SanitizedKey = $Key -replace "\\", "_" -replace ":", ""
+    $BackupValueName = "${SanitizedKey}_${Value}"
+    
+    # Validar el formato de ruta de PowerShell para lecturas precisas de fábrica
+    $ReadPath = if ($Key -notmatch ":") { $Key -replace "HKCU", "HKCU:" -replace "HKLM", "HKLM:" } else { $Key }
+
+    # Si no existe un respaldo previo de esta sesión de QoL, capturamos el estado original
+    if ((Get-ItemProperty -Path $QolBackupPath -Name $BackupValueName -ErrorAction SilentlyContinue) -eq $null) {
+        $CurrentVal = (Get-ItemProperty -Path $ReadPath -Name $Value -ErrorAction SilentlyContinue).$Value
+        if ($CurrentVal -eq $null) {
+            # El valor 999 indica de manera unificada que la propiedad no existía de fábrica en el SO del usuario
+            Set-ItemProperty -Path $QolBackupPath -Name $BackupValueName -Type DWord -Value 999 -Force
+        } else {
+            Set-ItemProperty -Path $QolBackupPath -Name $BackupValueName -Value $CurrentVal -Force
+        }
+    }
+
     reg.exe add "$Key" /v "$Value" /t $Type /d "$Data" /f | Out-Null
     Add-Content -Path $LogFile -Value "  [REG] $Key -> $Value = $Data ($Type)"
 }
@@ -32,6 +54,14 @@ switch ($ToggleName) {
     }
     "classicMenu" {
         $Key = "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
+        $QolBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\QoL"
+        if (!(Test-Path $QolBackupPath)) { New-Item -Path $QolBackupPath -Force | Out-Null }
+        
+        if ((Get-ItemProperty -Path $QolBackupPath -Name "classicMenu_Status" -ErrorAction SilentlyContinue) -eq $null) {
+            $Exists = Test-Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
+            Set-ItemProperty -Path $QolBackupPath -Name "classicMenu_Status" -Type DWord -Value (if ($Exists) { 1 } else { 0 }) -Force
+        }
+
         if ($IsEnabled) {
             reg.exe add "$Key" /ve /f | Out-Null
         } else {
@@ -60,7 +90,6 @@ switch ($ToggleName) {
         Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" $val
     }
     "taskbarLeft" {
-        # 🚀 WINUTIL METHOD: 0 = Izquierda, 1 = Centro
         $val = if ($IsEnabled) { "0" } else { "1" }
         Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" $val
     }
@@ -98,12 +127,9 @@ switch ($ToggleName) {
         Set-Reg "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" $val
         
         if ($IsEnabled) {
-            # Matamos procesos en vivo de forma redundante
             taskkill /F /IM OneDrive.exe | Out-Null
-            # Eliminamos el auto-arranque del registro de usuario para que no resucite al reiniciar
             reg.exe delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "OneDrive" /f | Out-Null
         } else {
-            # Si se desactiva el tweak, restauramos el setup por defecto por si el usuario quiere reinstalarlo
             Set-Reg "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" "0"
         }
     }
@@ -151,30 +177,20 @@ switch ($ToggleName) {
     }
 }
 
-
 $NeedsRestart = @("darkMode", "showExtensions", "classicMenu", "showHiddenFiles", "taskbarLeft", "barebonesVisual", "disableWidgets")
 if ($ToggleName -in $NeedsRestart) {
     $CurrentTimeTicks = (Get-Date).Ticks
     Set-Content -Path $SemaphoreFile -Value $CurrentTimeTicks
 
-    # Tiempo de acumulación de ráfaga sutil para agrupar llamadas concurrentes de Vue
     Start-Sleep -Milliseconds 550
 
     $LastTimeTicks = Get-Content -Path $SemaphoreFile
     if ($CurrentTimeTicks -eq $LastTimeTicks) {
         Add-Content -Path $LogFile -Value "  -> [DESPACHADOR TITUS]: Aplicando reseteo seguro de la interfaz de escritorio..."
-        
-        # 🚀 WINUTIL FIX PARA LA FLECHA OCULTA: Detenemos los sub-servicios del shell antes de matar el Explorer
         Stop-Process -Name "ShellExperienceHost" -Force
         Stop-Process -Name "StartMenuExperienceHost" -Force
-        
-        # Matamos explorer.exe de manera limpia mediante comandos nativos del Kernel
         taskkill /F /IM explorer.exe | Out-Null
-        
-        # RETARDO MAESTRO: Damos tiempo a Windows para limpiar los sockets de memoria del Systray
         Start-Sleep -Seconds 1.5
-        
-        # Volvemos a inicializar el entorno gráfico puro
         Start-Process "explorer.exe"
         Remove-Item -Path $SemaphoreFile -Force
         Add-Content -Path $LogFile -Value "  -> [ÉXITO TOTAL]: Shell reconstruido. Iconos de la bandeja resucitados."

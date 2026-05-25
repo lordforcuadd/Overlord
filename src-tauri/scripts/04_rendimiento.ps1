@@ -4,6 +4,19 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Optimizando rendimiento del sistema y potencia de hilos..."
 
+    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
+    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
+
+    $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+    
+    # Respaldo seguro del estado original de paginación del usuario antes de mutarlo
+    if (Test-Path $MemPath) {
+        $OrigPaging = (Get-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -ErrorAction SilentlyContinue).DisablePagingExecutive
+        if ($OrigPaging -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "DisablePagingExecutive" -ErrorAction SilentlyContinue) -eq $null) {
+            Set-ItemProperty -Path $BackupPath -Name "DisablePagingExecutive" -Type DWord -Value $OrigPaging -Force
+        }
+    }
+
     # 1. PLAN DE ENERGÍA DE RENDIMIENTO MÁXIMO DEFINITIVO
     $UltimatePlan = powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
     $PlanGUID = $UltimatePlan -match "([a-f0-9\-]{36})" | Out-Null
@@ -25,7 +38,6 @@ Try {
 
     # 4. GESTIÓN INTELIGENTE DE EJECUCIÓN DE PÁGINAS DE MEMORIA CORRIENDO EN RAM
     Write-Host "[*] Evaluando Inteligencia de RAM..."
-    $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
     if ($RamGB -ge 16) {
         Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value 1
         Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue

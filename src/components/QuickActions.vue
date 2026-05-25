@@ -212,7 +212,7 @@ const runAction = async (actionId) => {
     } else {
       await invoke("run_powershell_generic", {
         scriptName: "quick_actions.ps1",
-        argsList: ["-Action", actionId],
+        argsList: [actionId],
       });
     }
     status.value[actionId] = "success";

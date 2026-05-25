@@ -4,6 +4,10 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Aplicando TCP Tweaks Avanzados y Perfiles Multimedia..."
 
+    # Creación del almacén secundario para red
+    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network"
+    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
+
     # 1. OPTIMIZACIÓN FRECUENCIA DE ACK Y NAGLE ALGORITHM
     $Interfaces = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
     foreach ($Interface in $Interfaces) {
@@ -14,8 +18,8 @@ Try {
 
     ipconfig /flushdns | Out-Null
 
-    # 2. PROCESAMIENTO REUNIDO Y DESCARGAS DE HARDWARE (WinScript Advanced Net Eradication)
-    Write-Host "[*] Erradicando RSC y LSO de los adaptadores de red (0ms Packet Delay)..."
+    # 2. PROCESAMIENTO REUNIDO Y DESCARGAS DE HARDWARE (0ms Packet Delay)
+    Write-Host "[*] Erradicando RSC y LSO de los adaptadores de red..."
     try {
         Disable-NetAdapterRsc -Name "*" -IPv4 -ErrorAction SilentlyContinue
         Disable-NetAdapterRsc -Name "*" -IPv6 -ErrorAction SilentlyContinue
@@ -46,7 +50,7 @@ Try {
     # 6. ANULACIÓN DE REDUNDANCIA Y ESTRANGULAMIENTO MULTIMEDIA (Network Throttling Index)
     Write-Host "[*] Removiendo indexación de estrangulamiento de red en SystemProfile..."
     $SysProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
-    Set-ItemProperty -Path $SysProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force # 0xFFFFFFFF (Disabled)
+    Set-ItemProperty -Path $SysProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force
     Set-ItemProperty -Path $SysProfilePath -Name "SystemResponsiveness" -Type DWord -Value 0 -Force
 
     exit 0

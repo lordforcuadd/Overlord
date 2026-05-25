@@ -4,8 +4,19 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Erradicando telemetría e hilos de recolección en caliente..."
 
-    # 1. DESTRUCCIÓN COMPLETA DE VBS Y SEGURIDAD BASADA EN VIRTUALIZACIÓN (HVCI)
+    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Telemetry"
+    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
+
+    # Respaldo dinámico del estado de Seguridad Basada en Virtualización (VBS / HVCI)
     $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
+    if (Test-Path $VbsPath) {
+        $OrigVbs = (Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue).EnableVirtualizationBasedSecurity
+        if ($OrigVbs -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue) -eq $null) {
+            Set-ItemProperty -Path $BackupPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value $OrigVbs -Force
+        }
+    }
+
+    # 1. DESTRUCCIÓN COMPLETA DE VBS Y SEGURIDAD BASADA EN VIRTUALIZACIÓN (HVCI)
     Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force
     $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
     if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
@@ -21,7 +32,7 @@ Try {
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force
 
-    # 3. AISLAMIENTO PERIMETRAL MEDIANTE REGLAS DE FIREWALL PARA BINARIOS CHISMOSOS
+    # 3. AISLAMIENTO PERIMETRAL MEDIANTE REGLAS DE FIREWALL
     Write-Host "[*] Bloqueando ejecutables nativos de telemetría en el Firewall..."
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
@@ -37,7 +48,7 @@ Try {
         }
     }
     
-    # 4. ASESINATO RADICAL DE SESIONES ETW AUTOLOGGERS EN TIEMPO REAL (WinScript Core)
+    # 4. ASESINATO RADICAL DE SESIONES ETW AUTOLOGGERS EN TIEMPO REAL
     Write-Host "[*] Destruyendo recolectores de eventos activos en RAM..."
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
@@ -49,7 +60,6 @@ Try {
         if (Test-Path $LoggerKey) {
             reg.exe add "$LoggerKey" /v "Start" /t REG_DWORD /d 0 /f | Out-Null
         }
-        # Abortar la sesión de transmisión en caliente activa en memoria inmediatamente
         logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null
     }
 

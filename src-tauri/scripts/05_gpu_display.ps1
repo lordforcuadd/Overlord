@@ -4,8 +4,17 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Aplicando inyecciones de Kernel para la GPU y optimización visual..."
 
-    # 1. HAGS (Hardware-Accelerated GPU Scheduling)
+    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\GPU"
+    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
+
+    # Respaldo dinámico del estado original de la aceleración de hardware por GPU (HAGS)
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
+    if (Test-Path $HagsPath) {
+        $OrigHags = (Get-ItemProperty -Path $HagsPath -Name "HwSchMode" -ErrorAction SilentlyContinue).HwSchMode
+        if ($OrigHags -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "HwSchMode" -ErrorAction SilentlyContinue) -eq $null) {
+            Set-ItemProperty -Path $BackupPath -Name "HwSchMode" -Type DWord -Value $OrigHags -Force
+        }
+    }
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2
 
@@ -33,7 +42,7 @@ Try {
     Write-Host "[*] Optimizando prioridad de procesamiento del DWM..."
     $DwmOptionsPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions"
     if (!(Test-Path $DwmOptionsPath)) { New-Item -Path $DwmOptionsPath -Force | Out-Null }
-    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 6 -Force # Above Normal para evitar tirones de interfaz
+    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 6 -Force
 
     $DwmColorPath = "HKCU:\Software\Microsoft\Windows\DWM"
     if (!(Test-Path $DwmColorPath)) { New-Item -Path $DwmColorPath -Force | Out-Null }
@@ -47,11 +56,21 @@ Try {
         Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0
     }
 
-    # 7. Desactivación de Protección HDCP (Reduce latencia de transmisión GPU-Monitor)
-    Write-Host "[*] Deshabilitando protección anticopia HDCP para reducir la latencia de video..."
+    # 7. Desactivación de Protección HDCP (Reduce latencia de transmisión GPU-Monitor) con respaldo granular
+    Write-Host "[*] Deshabilitando protección anticopia HDCP salvando configuración previa de adaptadores..."
+    $HdcpBackupKey = "$BackupPath\HDCP"
+    if (!(Test-Path $HdcpBackupKey)) { New-Item -Path $HdcpBackupKey -Force | Out-Null }
+
     $DisplayClass = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
     $Adapters = Get-ChildItem -Path $DisplayClass -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' }
     foreach ($Adapter in $Adapters) {
+        $AdapterID = $Adapter.PSChildName # 🚀 FIX v2.5: Cambiado de $_ a $Adapter para evitar valores nulos
+        $OrigHdcp = (Get-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" -ErrorAction SilentlyContinue).RMHdcpKeyLocalZero
+        
+        if ((Get-ItemProperty -Path $HdcpBackupKey -Name $AdapterID -ErrorAction SilentlyContinue) -eq $null) {
+            $BckVal = if ($OrigHdcp -eq $null) { 999 } else { $OrigHdcp }
+            Set-ItemProperty -Path $HdcpBackupKey -Name $AdapterID -Type DWord -Value $BckVal -Force
+        }
         New-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" -Value 1 -PropertyType DWORD -Force | Out-Null
     }
 
