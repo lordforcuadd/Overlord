@@ -9,7 +9,6 @@ Try {
 
     $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
     
-    # Respaldo de metadatos multimedia basales
     if (Test-Path $ProfilePath) {
         $OrigResp = (Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue).SystemResponsiveness
         $OrigThrot = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue).NetworkThrottlingIndex
@@ -25,7 +24,6 @@ Try {
     Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 0 -Force
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force
 
-    # Prioridades de ejecución multimedia para videojuegos y File I/O balanceado
     $TasksPath = "$ProfilePath\Tasks\Games"
     if (!(Test-Path $TasksPath)) { New-Item -Path $TasksPath -Force | Out-Null }
     Set-ItemProperty -Path $TasksPath -Name "GPU Priority" -Type DWord -Value 8 -Force
@@ -33,8 +31,7 @@ Try {
     Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High" -Force
     Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "High" -Force
 
-    # Distribución del tráfico de red fuera del Núcleo 0 (IRQ Steering) con respaldo
-    Write-Host "[*] Aplicando IRQ Steering salvando directivas de red previas..."
+    # Distribución Dinámica de Tráfico de Red (IRQ Steering Adaptativo)
     $NetBackupKey = "$BackupPath\NetworkAffinity"
     if (!(Test-Path $NetBackupKey)) { New-Item -Path $NetBackupKey -Force | Out-Null }
 
@@ -54,8 +51,11 @@ Try {
                 }
             }
 
-            Set-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -Type DWord -Value 4 -ErrorAction SilentlyContinue -Force
-            Set-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -Type Binary -Value ([byte[]](0x02,0x00,0x00,0x00)) -ErrorAction SilentlyContinue -Force
+            Set-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -Type DWord -Value 4 -Force
+            
+            # 🚀 AFINIDAD QUIRÚRGICA: En Desktops enviamos a Núcleo 1 (0x02), en Laptops enviamos a Núcleo 2 (0x04) para mitigar ahogo térmico de hilos
+            $AffinityMask = if ($IsLaptop) { [byte[]](0x04,0x00,0x00,0x00) } else { [byte[]](0x02,0x00,0x00,0x00) }
+            Set-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force
         } catch {}
     }
 

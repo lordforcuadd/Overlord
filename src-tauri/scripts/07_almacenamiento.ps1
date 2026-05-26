@@ -7,29 +7,39 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Storage"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # 1. OPTIMIZACIÓN EN CALIENTE NTFS Y EXPANSIÓN DE CACHE DE METADATOS
-    Write-Host "[*] Elevando asignación de caché NTFS y resguardando estado base..."
+    # 1. EXPANSION CACHÉ NTFS ADAPTATIVA EN CALIENTE
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
     
     if (Test-Path $NtfsPath) {
         $OrigLastAccess = (Get-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue).NtfsDisableLastAccessUpdate
+        $OrigMemoryUsage = (Get-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue).NtfsMemoryUsage
+        
         if ($OrigLastAccess -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue) -eq $null) {
             Set-ItemProperty -Path $BackupPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value $OrigLastAccess -Force
         }
+        if ($OrigMemoryUsage -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue) -eq $null) {
+            Set-ItemProperty -Path $BackupPath -Name "NtfsMemoryUsage" -Type DWord -Value $OrigMemoryUsage -Force
+        }
     }
-    Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1 -Force
     
+    Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1 -Force
     fsutil behavior set disablelastaccess 1 | Out-Null
     fsutil behavior set disable8dot3 1 | Out-Null
-    fsutil behavior set memoryusage 2 | Out-Null # Duplica la pila del pool paginado asignado a NTFS caché
+    
+    # 🚀 PROTECCIÓN LÓGICA DE RAM: Duplicar la pila asignada a NTFS solo si el equipo cuenta con memoria de sobra (> 8GB)
+    if ($RamGB -gt 8) {
+        fsutil behavior set memoryusage 2 | Out-Null
+    } else {
+        fsutil behavior set memoryusage 0 | Out-Null
+    }
 
-    # 2. ELIMINACIÓN TOTAL DEL ARCHIVO DE HIBERNACIÓN EN ESCRITORIOS (Salva ciclos de escritura SSD)
+    # 2. ELIMINACIÓN DE HIBERNACIÓN EXCLUSIVA PARA ESCRITORIOS
     if (-not $IsLaptop) {
         Write-Host "    -> Desktop detectada: Eliminando Hiberfil.sys y liberando almacenamiento."
         powercfg.exe /hibernate off
     }
 
-    # 3. CONTROL DE PREFETCH Y SUPERFETCH CACHÉ LOGICAL
+    # 3. APAGADO DE PREFETCH Y SUPERFETCH
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
     if (!(Test-Path $PrefetchPath)) { New-Item -Path $PrefetchPath -Force | Out-Null }
     Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value 0 -Force
@@ -44,7 +54,7 @@ Try {
 
     try {
         Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+        Remove-Item -Path "$env:redirect_windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         Start-Service wuauserv -ErrorAction SilentlyContinue
     } catch {}
 

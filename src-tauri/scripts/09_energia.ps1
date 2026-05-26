@@ -7,7 +7,9 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Power"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    $PowerGuid = (Get-WmiObject -Class Win32_PowerPlan -Namespace root\cimv2\power -Filter "IsActive='true'").InstanceID.Split('\')[1]
+    # 🚀 API CIM UPGRADE: Mapeo nativo ultra rápido del plan actual
+    $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
+    $PowerGuid = if ($ActivePlan) { $ActivePlan.InstanceID.Split('\')[1] } else { "381b4222-f694-41f0-9685-ff5bb260df2e" }
 
     if ($IsLaptop) {
         Write-Host "    -> Laptop detectada: Optimizando control térmico y límites de energía..."
@@ -16,10 +18,8 @@ Try {
     } else {
         Write-Host "    -> Computadora de Escritorio detectada: Deshabilitando Core Parking y ahorros PCIe..."
         
-        # Deshabilitar ASPM (PCIe Link State Power Management)
         powercfg /SETACVALUEINDEX $PowerGuid 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a558deb 0
 
-        # Respaldar límites basales de modulación del procesador antes de anular Core Parking
         $PowerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
         if (Test-Path $PowerPath) {
             $OrigMax = (Get-ItemProperty -Path $PowerPath -Name "ValueMax" -ErrorAction SilentlyContinue).ValueMax

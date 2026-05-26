@@ -7,22 +7,29 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Telemetry"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # Respaldo dinámico del estado de Seguridad Basada en Virtualización (VBS / HVCI)
+    # Respaldo dinámico completo de VBS y HVCI
     $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
+    $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
+    
     if (Test-Path $VbsPath) {
         $OrigVbs = (Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue).EnableVirtualizationBasedSecurity
         if ($OrigVbs -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue) -eq $null) {
             Set-ItemProperty -Path $BackupPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value $OrigVbs -Force
         }
     }
+    if (Test-Path $HvciPath) {
+        $OrigHvci = (Get-ItemProperty -Path $HvciPath -Name "Enabled" -ErrorAction SilentlyContinue).Enabled
+        if ($OrigHvci -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "Hvci_Enabled" -ErrorAction SilentlyContinue) -eq $null) {
+            Set-ItemProperty -Path $BackupPath -Name "Hvci_Enabled" -Type DWord -Value $OrigHvci -Force
+        }
+    }
 
-    # 1. DESTRUCCIÓN COMPLETA DE VBS Y SEGURIDAD BASADA EN VIRTUALIZACIÓN (HVCI)
+    # 1. DESTRUCCIÓN DE CAPAS DE SEGURIDAD VIRTUAL QUE FRENAN FPS
     Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force
-    $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
     if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
     Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force
 
-    # 2. DETENCIÓN DEL MOTOR CENTRAL DE SEGUIMIENTO (DIAGTRACK)
+    # 2. DETENCIÓN DEL MOTOR DE SEGUIMIENTO (DIAGTRACK)
     try {
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
@@ -32,8 +39,7 @@ Try {
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force
 
-    # 3. AISLAMIENTO PERIMETRAL MEDIANTE REGLAS DE FIREWALL
-    Write-Host "[*] Bloqueando ejecutables nativos de telemetría en el Firewall..."
+    # 3. AISLAMIENTO PERIMETRAL EN FIREWALL
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
         "$env:SystemRoot\System32\DeviceCensus.exe",
@@ -48,8 +54,7 @@ Try {
         }
     }
     
-    # 4. ASESINATO RADICAL DE SESIONES ETW AUTOLOGGERS EN TIEMPO REAL
-    Write-Host "[*] Destruyendo recolectores de eventos activos en RAM..."
+    # 4. PURGA DE SESIONES ETW AUTOLOGGERS
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog",

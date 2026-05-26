@@ -79,12 +79,14 @@ fn get_hardware_info() -> Result<HardwareData, String> {
     sys.refresh_memory();
     let ram_gb = (sys.total_memory() as f64 / 1_073_741_824.0).round() as u32;
 
-    
+
     let ps_script = r#"
         $ErrorActionPreference = 'SilentlyContinue'
         $gpus = (Get-CimInstance Win32_VideoController).Name -join ', '
-        $chassis = (Get-CimInstance Win32_SystemEnclosure | Select-Object -First 1).ChassisTypes[0]
+        $chassisTypes = (Get-CimInstance Win32_SystemEnclosure | Select-Object -First 1).ChassisTypes
+        $chassis = if ($chassisTypes -and $chassisTypes.Count -gt 0) { $chassisTypes[0] } else { 3 }
         $mhz = (Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1).Speed
+        if (!$mhz) { $mhz = 0 }
         Write-Output "$gpus|$chassis|$mhz"
     "#;
     
@@ -99,7 +101,6 @@ fn get_hardware_info() -> Result<HardwareData, String> {
     let gpu = parts.first().unwrap_or(&"GPU Desconocida").trim().to_string();
     let chassis_str = parts.get(1).unwrap_or(&"3").trim();
     let chassis_int: u32 = chassis_str.parse().unwrap_or(3);
-    
     
     let ram_speed_str = parts.get(2).unwrap_or(&"0").trim();
     let ram_speed: u32 = ram_speed_str.parse().unwrap_or(0);
