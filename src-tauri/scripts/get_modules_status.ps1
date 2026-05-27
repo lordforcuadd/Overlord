@@ -29,16 +29,16 @@ function Get-UserRegistryValue($subPath, $name) {
 }
 
 $Status = @{
-    perifericos    = $false
-    telemetria     = $false
-    red            = $false
-    rendimiento    = $false
-    gpu            = $false
-    irq            = $false
-    almacenamiento = $false
-    bloatware      = $false
-    energia        = $false
-    ifeo           = $false
+    peripheralLatency  = $false
+    debloat            = $false
+    networkOptimized   = $false
+    generalPerformance = $false
+    gpuDisplay         = $false
+    irqAffinity        = $false
+    smartStorage       = $false
+    deepTelemetry      = $false
+    powerProfiles      = $false
+    gameHooks          = $false
 }
 
 $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
@@ -49,7 +49,7 @@ if (Test-Path $MouPath) {
     $KbdSize = (Get-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize").KeyboardDataQueueSize
     $PriSep  = (Get-ItemProperty -Path $PriPath -Name "Win32PrioritySeparation").Win32PrioritySeparation
     if ($MouSize -eq 20 -and $KbdSize -eq 20 -and $PriSep -eq 38) {
-        $Status.perifericos = $true
+        $Status.peripheralLatency = $true
     }
 }
 
@@ -57,15 +57,15 @@ $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
 if (Test-Path $DataPath) {
     $Tele = (Get-ItemProperty -Path $DataPath -Name "AllowTelemetry").AllowTelemetry
     if ($Tele -eq 0) {
-        $Status.telemetria = $true
+        $Status.debloat = $true
     }
 }
 
 $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
 if (Test-Path $DnsPath) {
     $Ttl = (Get-ItemProperty -Path $DnsPath -Name "MaxCacheTtl").MaxCacheTtl
-    if ($Ttl -eq 300) {
-        $Status.red = $true
+    if ($Ttl -eq 86400) {
+        $Status.networkOptimized = $true
     }
 }
 
@@ -73,20 +73,20 @@ $MitPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Manage
 if (Test-Path $MitPath) {
     $Feat = (Get-ItemProperty -Path $MitPath -Name "FeatureSettingsOverride").FeatureSettingsOverride
     if ($Feat -eq 3) {
-        $Status.rendimiento = $true
+        $Status.generalPerformance = $true
     }
 }
 
 $Beh = Get-UserRegistryValue "System\GameConfigStore" "GameDVR_FSEBehaviorMode"
 if ($Beh -eq 2) {
-    $Status.gpu = $true
+    $Status.gpuDisplay = $true
 }
 
 $SysPPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
 if (Test-Path $SysPPath) {
     $Resp = (Get-ItemProperty -Path $SysPPath -Name "SystemResponsiveness").SystemResponsiveness
     if ($Resp -eq 0) {
-        $Status.irq = $true
+        $Status.irqAffinity = $true
     }
 }
 
@@ -94,7 +94,7 @@ $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
 if (Test-Path $NtfsPath) {
     $Last = (Get-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate").NtfsDisableLastAccessUpdate
     if ($Last -eq 1) {
-        $Status.almacenamiento = $true
+        $Status.smartStorage = $true
     }
 }
 
@@ -102,22 +102,14 @@ $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
 if (Test-Path $VbsPath) {
     $VbsEnabled = (Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity
     if ($VbsEnabled -eq 0) {
-        $Status.bloatware = $true
-    }
-}
-
-$WubPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
-if (Test-Path $WubPath) {
-    $DisableUp = (Get-ItemProperty -Path $WubPath -Name "DisableWindowsUpdateAccess").DisableWindowsUpdateAccess
-    if ($DisableUp -eq 1) {
-        $Status.energia = $true
+        $Status.deepTelemetry = $true
     }
 }
 
 try {
     $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
     if ($ActivePlan) {
-        $Status.energia = $true
+        $Status.powerProfiles = $true
     }
 } catch {}
 
@@ -127,7 +119,7 @@ foreach ($Game in $TargetGames) {
     if (Test-Path $HookPath) {
         $CpuP = (Get-ItemProperty -Path $HookPath -Name "CpuPriorityClass").CpuPriorityClass
         if ($CpuP -eq 3) {
-            $Status.ifeo = $true
+            $Status.gameHooks = $true
             break
         }
     }

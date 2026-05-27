@@ -73,14 +73,14 @@ Try {
         $AdapterID = $Adapter.PSChildName
         $OrigHdcp = (Get-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" -ErrorAction SilentlyContinue).RMHdcpKeyLocalZero
         
-        if ((Get-ItemProperty -Path $HdcpBackupKey -Name $AdapterID -ErrorAction SilentlyContinue) -eq $null) {
-            $BckVal = if ($OrigHdcp -eq $null) { 999 } else { $OrigHdcp }
-            Set-ItemProperty -Path $HdcpBackupKey -Name $AdapterID -Type DWord -Value $BckVal -Force
-        }
-        Set-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" -Type DWord -Value 1 -Force
+        if ($RamGB -le 6) {
+        Write-Host "    -> RAM Crítica ($RamGB GB) detectada: Apagando efectos..."
+        $ColorPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+        if (!(Test-Path $ColorPath)) { New-Item -Path $ColorPath -Force | Out-Null }
+        Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0 -Force
     }
 
-    Write-Host "[+] Subsistema gráfico estabilizado, prioridades normalizadas y latencia HDCP eliminada."
+    Write-Host "[+] Subsistema gráfico estabilizado y prioridades normalizadas."
     exit 0
 } Catch {
     Write-Error "[-] Error crítico en Módulo GPU: $_"

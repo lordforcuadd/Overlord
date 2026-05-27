@@ -1,6 +1,28 @@
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 
+interface HardwarePayload {
+  cpu: string;
+  gpu: string;
+  motherboard: string;
+  ram_gb: number;
+  ram_speed: number;
+  is_laptop: boolean;
+}
+
+interface TelemetryPayload {
+  cpu_usage: number;
+  ram_used_gb: number;
+  ram_total_gb: number;
+  ram_percent: number;
+}
+
+interface GamePayload {
+  name: string;
+  exe: string;
+  detected: boolean;
+}
+
 export const useOverlordStore = defineStore("overlord", {
   state: () => ({
     hardwareInfo: {
@@ -55,7 +77,7 @@ export const useOverlordStore = defineStore("overlord", {
   actions: {
     async detectHardware() {
       try {
-        const info: any = await invoke("get_hardware_info");
+        const info = await invoke<HardwarePayload>("get_hardware_info");
         this.hardwareInfo.cpu = info.cpu;
         this.hardwareInfo.gpu = info.gpu;
         this.hardwareInfo.motherboard = info.motherboard;
@@ -64,13 +86,25 @@ export const useOverlordStore = defineStore("overlord", {
         this.hardwareInfo.isLaptop = info.is_laptop;
 
         const lowerCpu = info.cpu.toLowerCase();
+        const lowerGpu = info.gpu.toLowerCase();
+
         if (
           lowerCpu.includes("12700k") ||
           lowerCpu.includes("i7") ||
+          lowerCpu.includes("i9") ||
+          lowerCpu.includes("ryzen 7") ||
+          lowerCpu.includes("ryzen 9") ||
+          lowerGpu.includes("rtx") ||
+          lowerGpu.includes("rx 7") ||
+          lowerGpu.includes("rx 6") ||
           info.ram_gb >= 32
         ) {
           this.hardwareInfo.tier = "Gama Alta Extreme";
-        } else if (info.ram_gb >= 16) {
+        } else if (
+          info.ram_gb >= 16 ||
+          lowerGpu.includes("gtx 16") ||
+          lowerGpu.includes("gtx 10")
+        ) {
           this.hardwareInfo.tier = "Gama Media-Alta";
         } else {
           this.hardwareInfo.tier = "Gama Estándar";
@@ -81,8 +115,8 @@ export const useOverlordStore = defineStore("overlord", {
     },
     async scanGames() {
       try {
-        const games: any = await invoke("scan_games");
-        this.gameList = games.map((g: any) => ({
+        const games = await invoke<GamePayload[]>("scan_games");
+        this.gameList = games.map((g) => ({
           ...g,
           optimize: g.detected,
         }));
@@ -94,7 +128,7 @@ export const useOverlordStore = defineStore("overlord", {
       if (this.telemetryInterval) return;
       this.telemetryInterval = setInterval(async () => {
         try {
-          const metrics: any = await invoke("get_live_telemetry");
+          const metrics = await invoke<TelemetryPayload>("get_live_telemetry");
           this.liveTelemetry.cpuUsage = metrics.cpu_usage;
           this.liveTelemetry.ramUsed = metrics.ram_used_gb;
           this.liveTelemetry.ramTotal = metrics.ram_total_gb;

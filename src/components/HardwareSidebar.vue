@@ -113,7 +113,9 @@
         </span>
       </div>
 
-      <div class="flex items-center justify-between pt-1">
+      <div
+        class="flex items-center justify-between border-b border-white/5 pb-2"
+      >
         <div class="flex items-center gap-2 text-gray-500">
           <svg
             class="w-4 h-4"
@@ -142,6 +144,47 @@
           >
             @ {{ store.hardwareInfo.ramSpeed }} MT/s
           </span>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5 pt-2">
+        <div
+          class="flex justify-between text-xs font-bold uppercase tracking-wider"
+        >
+          <span class="text-gray-500">Uso CPU</span>
+          <span class="text-white"
+            >{{ Number(store.liveTelemetry.cpuUsage).toFixed(1) }}%</span
+          >
+        </div>
+        <div
+          class="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5"
+        >
+          <div
+            class="bg-yellow-500 h-full transition-all duration-500 ease-out"
+            :style="{ width: store.liveTelemetry.cpuUsage + '%' }"
+          ></div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5 pt-1">
+        <div
+          class="flex justify-between text-xs font-bold uppercase tracking-wider"
+        >
+          <span class="text-gray-500">Uso RAM</span>
+          <span class="text-white">
+            {{ Number(store.liveTelemetry.ramUsed).toFixed(2) }} /
+            {{ Number(store.liveTelemetry.ramTotal).toFixed(2) }} GB ({{
+              Number(store.liveTelemetry.ramPercent).toFixed(1)
+            }}%)
+          </span>
+        </div>
+        <div
+          class="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5"
+        >
+          <div
+            class="bg-blue-500 h-full transition-all duration-500 ease-out"
+            :style="{ width: store.liveTelemetry.ramPercent + '%' }"
+          ></div>
         </div>
       </div>
     </div>

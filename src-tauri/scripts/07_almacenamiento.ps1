@@ -48,7 +48,10 @@ Try {
 
     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -Type DWord -Value 0 -Force
 
-    dism.exe /online /Cleanup-Image /StartComponentCleanup
+    Write-Host "    -> Ejecutando limpieza DISM (Timeout 3 min)..."
+    $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
+    $DismProcess | Wait-Process -Timeout 180 -ErrorAction SilentlyContinue
+    if (!$DismProcess.HasExited) { $DismProcess | Stop-Process -Force }
 
     try {
         Stop-Service wuauserv -Force -ErrorAction SilentlyContinue

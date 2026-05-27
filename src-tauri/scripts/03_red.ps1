@@ -33,7 +33,7 @@ Try {
 
     $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
     if (!(Test-Path $DnsPath)) { New-Item -Path $DnsPath -Force | Out-Null }
-    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 300 -Force
+    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 86400 -Force
     Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 30 -Force
 
     Disable-NetAdapterRsc -Name "*" -IPv4 -ErrorAction SilentlyContinue

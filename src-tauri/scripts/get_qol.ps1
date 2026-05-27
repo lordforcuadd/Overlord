@@ -1,4 +1,5 @@
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Continue"
+
 
 $Username = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
 if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
@@ -17,13 +18,20 @@ $Targets = @()
 if (-not [string]::IsNullOrWhiteSpace($UserSID)) { $Targets += "Registry::HKEY_USERS\$UserSID" }
 $Targets += "HKCU:"
 
-function Get-RegistryValue($subPath, $name, $expectedValue) {
-    foreach ($base in $Targets) {
-        $fullPath = Join-Path $base $subPath
-        if (Test-Path $fullPath) {
-            $val = (Get-ItemProperty -Path $fullPath -Name $name -ErrorAction SilentlyContinue).$name
-            if ($null -ne $val) {
-                if ($val.ToString().Trim() -eq $expectedValue.ToString().Trim()) {
+function Get-RegistryValue($basePath, $subPath, $name, $expectedValue) {
+    $paths = @()
+    if ($null -eq $basePath) {
+        foreach ($base in $Targets) { $paths += Join-Path $base $subPath }
+    } else {
+        $paths += Join-Path $basePath $subPath
+    }
+    foreach ($path in $paths) {
+        if (Test-Path $path) {
+            $item = Get-Item -Path $path -ErrorAction SilentlyContinue
+            if ($null -ne $item) {
+                if ($name -eq "" -and $expectedValue -eq "") { return $true }
+                $val = $item.GetValue($name)
+                if ($null -ne $val -and $val.ToString().Trim() -eq $expectedValue.ToString().Trim()) {
                     return $true
                 }
             }
@@ -32,28 +40,49 @@ function Get-RegistryValue($subPath, $name, $expectedValue) {
     return $false
 }
 
+function Test-ClassicMenuEnabled {
+    $buildVer = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+    if ($buildVer -lt 26000) {
+        foreach ($base in $Targets) {
+            $path = Join-Path $base "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32"
+            if (Test-Path $path) { return $true }
+        }
+    }
+    if (Test-Path "$env:APPDATA\ExplorerPatcher\ep_setup.ini") {
+        $ini = Get-Content "$env:APPDATA\ExplorerPatcher\ep_setup.ini" -Raw -ErrorAction SilentlyContinue
+        if ($ini -match 'ControlInterface=1') { return $true }
+    }
+    if (Get-Process "ExplorerPatcher" -ErrorAction SilentlyContinue) { return $true }
+    if (Test-Path "$env:APPDATA\StartAllBack\Config.cfg") { return $true }
+    if (Get-Process "StartAllBack" -ErrorAction SilentlyContinue) { return $true }
+    return $false
+}
+
+$buildVer = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+
 $Qol = @{
-    darkMode           = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" 0
-    showExtensions     = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" 0
-    classicMenu        = Get-RegistryValue "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32" "" ""
-    disableBing        = Get-RegistryValue "Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" 1
-    disableLockScreen  = ((Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -Name "NoLockScreen" -ErrorAction SilentlyContinue).NoLockScreen -eq 1)
-    disableStickyKeys  = Get-RegistryValue "Control Panel\Accessibility\StickyKeys" "Flags" "506"
-    cleanAltTab        = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" 3
-    taskbarLeft        = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" 0
-    showHiddenFiles    = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" 1
-    launchToThisPC     = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" 1
-    disableExplorerAds = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" 0
-    disableScoobe      = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" 0
-    disableFilterKeys  = Get-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "122"
-    disableCopilot     = ((Get-RegistryValue "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1) -or (Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" 0) -or ((Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue).TurnOffWindowsCopilot -eq 1))
-    disableRecall      = ((Get-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" 1) -or ((Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "TurnOffUserCameraCapture" -ErrorAction SilentlyContinue).TurnOffUserCameraCapture -eq 1))
-    detailedBSoD       = ((Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -Name "DisplayParameters" -ErrorAction SilentlyContinue).DisplayParameters -eq 1)
-    disableOneDrive    = ((Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue).DisableFileSyncNGSC -eq 1)
-    disableWidgets     = (Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarDa" 0)
-    zeroStartupDelay   = Get-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" 0
-    enableGameMode     = Get-RegistryValue "Software\Microsoft\GameBar" "AllowAutoGameMode" 1
-    barebonesVisual    = Get-RegistryValue "Control Panel\Desktop\WindowMetrics" "MinAnimate" "0"
+    darkMode           = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" 0
+    showExtensions     = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" 0
+    classicMenu        = Test-ClassicMenuEnabled
+    disableBing        = Get-RegistryValue $null "Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" 1
+    disableLockScreen  = Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\Personalization" "NoLockScreen" 1
+    disableStickyKeys  = Get-RegistryValue $null "Control Panel\Accessibility\StickyKeys" "Flags" "506"
+    cleanAltTab        = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" 3
+    taskbarLeft        = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" 0
+    showHiddenFiles    = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" 1
+    launchToThisPC     = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" 1
+    disableExplorerAds = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" 0
+    disableScoobe      = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" 0
+    disableFilterKeys  = Get-RegistryValue $null "Control Panel\Accessibility\Keyboard Response" "Flags" "122"
+    disableWidgets     = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" 0
+    zeroStartupDelay   = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" 0
+    enableGameMode     = Get-RegistryValue $null "Software\Microsoft\GameBar" "AllowAutoGameMode" 1
+    barebonesVisual    = Get-RegistryValue $null "Control Panel\Desktop\WindowMetrics" "MinAnimate" "0"
+    disableCopilot     = ((Get-RegistryValue $null "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1) -or (Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" 0) -or (Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1))
+    disableRecall      = ((Get-RegistryValue $null "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" 1) -or (Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" 1))
+    detailedBSoD       = Get-RegistryValue "HKLM:" "SYSTEM\CurrentControlSet\Control\CrashControl" "DisplayParameters" 1
+    disableOneDrive    = Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" 1
+    windowsBuild       = $buildVer
 }
 
 ConvertTo-Json $Qol -Compress

@@ -42,13 +42,12 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-            ></path>
+            />
           </svg>
           <h3 class="text-xs font-bold uppercase tracking-widest">
             Interfaz & UI
           </h3>
         </div>
-
         <div
           v-for="item in uiToggles"
           :key="item.id"
@@ -60,14 +59,14 @@
               {{ item.title }}
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
-              {{ item.desc }}
+              {{ getDescription(item.id) }}
             </div>
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning"
+            :disabled="isScanning || qolStatus[item.id] === 'loading'"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
-            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50"
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
               :class="qol[item.id] ? 'translate-x-5' : 'translate-x-0'"
@@ -90,13 +89,12 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            ></path>
+            />
           </svg>
           <h3 class="text-xs font-bold uppercase tracking-widest">
             Privacidad & Sistema
           </h3>
         </div>
-
         <div
           v-for="item in privacyToggles"
           :key="item.id"
@@ -108,14 +106,14 @@
               {{ item.title }}
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
-              {{ item.desc }}
+              {{ getDescription(item.id) }}
             </div>
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning"
+            :disabled="isScanning || qolStatus[item.id] === 'loading'"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
-            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50"
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
               :class="qol[item.id] ? 'translate-x-5' : 'translate-x-0'"
@@ -138,13 +136,12 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M13 10V3L4 14h7v7l9-11h-7z"
-            ></path>
+            />
           </svg>
           <h3 class="text-xs font-bold uppercase tracking-widest">
             Gaming & Atajos
           </h3>
         </div>
-
         <div
           v-for="item in gamingToggles"
           :key="item.id"
@@ -156,14 +153,14 @@
               {{ item.title }}
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
-              {{ item.desc }}
+              {{ getDescription(item.id) }}
             </div>
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning"
+            :disabled="isScanning || qolStatus[item.id] === 'loading'"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
-            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50"
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
               :class="qol[item.id] ? 'translate-x-5' : 'translate-x-0'"
@@ -172,6 +169,7 @@
           </button>
         </div>
       </div>
+
       <div class="flex flex-col gap-3">
         <div class="flex items-center gap-2 mb-1 text-yellow-500 pl-1">
           <svg
@@ -185,13 +183,12 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-            ></path>
+            />
           </svg>
           <h3 class="text-xs font-bold uppercase tracking-widest">
             Explorador
           </h3>
         </div>
-
         <div
           v-for="item in explorerToggles"
           :key="item.id"
@@ -203,14 +200,14 @@
               {{ item.title }}
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
-              {{ item.desc }}
+              {{ getDescription(item.id) }}
             </div>
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning"
+            :disabled="isScanning || qolStatus[item.id] === 'loading'"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
-            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50"
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
               :class="qol[item.id] ? 'translate-x-5' : 'translate-x-0'"
@@ -228,6 +225,7 @@ import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 
 const isScanning = ref(true);
+const windowsBuild = ref(0);
 
 type QolKeys =
   | "darkMode"
@@ -251,6 +249,10 @@ type QolKeys =
   | "zeroStartupDelay"
   | "enableGameMode"
   | "barebonesVisual";
+
+type QolStatusKeys = {
+  [K in QolKeys]: "idle" | "loading" | "success" | "error";
+};
 
 const qol = ref<Record<QolKeys, boolean>>({
   darkMode: false,
@@ -276,9 +278,7 @@ const qol = ref<Record<QolKeys, boolean>>({
   barebonesVisual: false,
 });
 
-const qolStatus = ref<
-  Record<QolKeys, "idle" | "loading" | "success" | "error">
->({
+const qolStatus = ref<QolStatusKeys>({
   darkMode: "idle",
   showExtensions: "idle",
   classicMenu: "idle",
@@ -302,121 +302,140 @@ const qolStatus = ref<
   barebonesVisual: "idle",
 });
 
-const uiToggles: { id: QolKeys; title: string; desc: string }[] = [
+const uiToggles = [
   {
-    id: "barebonesVisual",
+    id: "barebonesVisual" as const,
     title: "Rendimiento Visual (Barebones)",
-    desc: "Apaga transparencias y animaciones para reducir latencia.",
+    desc: "Apaga transparencias y animaciones.",
   },
   {
-    id: "darkMode",
+    id: "darkMode" as const,
     title: "Modo Oscuro Global",
     desc: "Fuerza el tema oscuro nativo.",
   },
   {
-    id: "showExtensions",
+    id: "showExtensions" as const,
     title: "Mostrar Extensiones",
     desc: "Hace visibles formatos como .exe, .ps1.",
   },
+  { id: "classicMenu" as const, title: "Menú Clásico Win 11", desc: "" },
   {
-    id: "classicMenu",
-    title: "Menú Clásico Win 11",
-    desc: "Recupera el clic derecho de Windows 10.",
-  },
-  {
-    id: "taskbarLeft",
+    id: "taskbarLeft" as const,
     title: "Barra a la Izquierda (Win11)",
     desc: "Mueve los iconos al estilo clásico.",
   },
   {
-    id: "cleanAltTab",
+    id: "cleanAltTab" as const,
     title: "Alt+Tab Limpio",
     desc: "Oculta las pestañas de Edge del atajo.",
   },
   {
-    id: "detailedBSoD",
+    id: "detailedBSoD" as const,
     title: "Pantallazo Azul Detallado",
-    desc: "Muestra los códigos de error reales en vez de una carita triste.",
+    desc: "Muestra códigos de error reales.",
   },
 ];
 
-const privacyToggles: { id: QolKeys; title: string; desc: string }[] = [
+const privacyToggles = [
   {
-    id: "disableBing",
+    id: "disableBing" as const,
     title: "Erradicar Bing",
     desc: "Acelera el buscador del Menú Inicio.",
   },
   {
-    id: "disableLockScreen",
+    id: "disableLockScreen" as const,
     title: "Ocultar Lock Screen",
     desc: "Va directo a la pantalla de contraseña.",
   },
   {
-    id: "disableExplorerAds",
+    id: "disableExplorerAds" as const,
     title: "Bloquear Ads Nativos",
     desc: "Oculta banners de OneDrive y Office.",
   },
   {
-    id: "disableScoobe",
+    id: "disableScoobe" as const,
     title: 'Ocultar "Terminemos de Configurar"',
-    desc: "Elimina las pantallas azules de bienvenida.",
+    desc: "Elimina las pantallas azules.",
   },
   {
-    id: "disableCopilot",
+    id: "disableCopilot" as const,
     title: "Erradicar MS Copilot",
-    desc: "Bloquea el uso y la telemetría de Copilot IA.",
+    desc: "Bloquea el uso y telemetría de Copilot.",
   },
   {
-    id: "disableRecall",
+    id: "disableRecall" as const,
     title: "Bloquear Windows Recall",
-    desc: "Impide que Windows tome capturas de tu pantalla.",
-  },
-];
-const explorerToggles: { id: QolKeys; title: string; desc: string }[] = [
-  {
-    id: "showHiddenFiles",
-    title: "Mostrar Archivos Ocultos",
-    desc: "Revela carpetas ocultas del sistema.",
-  },
-  {
-    id: "launchToThisPC",
-    title: 'Iniciar en "Este Equipo"',
-    desc: "Evita la vista de historial de Inicio.",
-  },
-  {
-    id: "disableOneDrive",
-    title: "Erradicar OneDrive",
-    desc: "Fuerza el cierre y bloquea la sincronización en la nube.",
-  },
-  {
-    id: "zeroStartupDelay",
-    title: "Cero Retraso de Arranque",
-    desc: "Fuerza a las apps de inicio a cargar instantáneamente en SSDs.",
+    desc: "Impide capturas de pantalla.",
   },
 ];
 
-const gamingToggles: { id: QolKeys; title: string; desc: string }[] = [
+const explorerToggles = [
   {
-    id: "disableStickyKeys",
-    title: "Desactivar Sticky Keys",
-    desc: "Evita minimizar juegos al presionar Shift.",
+    id: "showHiddenFiles" as const,
+    title: "Mostrar Archivos Ocultos",
+    desc: "Revela carpetas ocultas.",
   },
   {
-    id: "disableFilterKeys",
-    title: "Desactivar Teclas Filtro",
-    desc: "Bloquea la alerta al mantener Shift presionado.",
+    id: "launchToThisPC" as const,
+    title: 'Iniciar en "Este Equipo"',
+    desc: "Evita la vista de historial.",
   },
   {
-    id: "disableWidgets",
-    title: "Erradicar Widgets (Clima)",
-    desc: "Elimina el panel de noticias y libera RAM de WebView2.",
+    id: "disableOneDrive" as const,
+    title: "Erradicar OneDrive",
+    desc: "Desinstala y bloquea la nube.",
   },
   {
-    id: "enableGameMode",
-    title: "Modo Juego (Game Mode)",
-    desc: "Pausa procesos de fondo. Útil en gama media/baja, apágalo si notas tirones.",
+    id: "zeroStartupDelay" as const,
+    title: "Cero Retraso de Arranque",
+    desc: "Apps de inicio instantáneas.",
   },
 ];
+
+const gamingToggles = [
+  {
+    id: "disableStickyKeys" as const,
+    title: "Desactivar Sticky Keys",
+    desc: "Evita minimizar juegos.",
+  },
+  {
+    id: "disableFilterKeys" as const,
+    title: "Desactivar Teclas Filtro",
+    desc: "Bloquea alertas de Shift.",
+  },
+  {
+    id: "disableWidgets" as const,
+    title: "Erradicar Widgets",
+    desc: "Elimina el panel de noticias.",
+  },
+  {
+    id: "enableGameMode" as const,
+    title: "Modo Juego",
+    desc: "Pausa procesos de fondo.",
+  },
+];
+
+function getDescription(id: QolKeys): string {
+  if (id === "classicMenu") {
+    if (windowsBuild.value >= 27000) {
+      return "⚠️ Usa ExplorerPatcher. El toggle refleja el estado real.";
+    } else if (windowsBuild.value >= 26000) {
+      return "⚠️ Solo con ExplorerPatcher. El toggle refleja el estado real.";
+    } else if (windowsBuild.value >= 22000) {
+      return "Recupera el clic derecho de Windows 10.";
+    } else {
+      return "Ya es clásico en Windows 10.";
+    }
+  }
+  const all = [
+    ...uiToggles,
+    ...privacyToggles,
+    ...explorerToggles,
+    ...gamingToggles,
+  ];
+  const found = all.find((t) => t.id === id);
+  return found ? found.desc : "";
+}
 
 function getRowClass(id: QolKeys) {
   const status = qolStatus.value[id];
@@ -432,16 +451,20 @@ onMounted(async () => {
       scriptName: "get_qol.ps1",
       argsList: [],
     });
-    qol.value = JSON.parse(jsonOutput as string);
+    const data = JSON.parse(jsonOutput as string);
+    const { windowsBuild: build, ...rest } = data;
+    qol.value = rest as Record<QolKeys, boolean>;
+    windowsBuild.value = build || 0;
   } catch (e) {
-    console.error("[QoL] Error escáner:", e);
-  }
-  {
+    console.error("[CRITICAL QOL SCAN ERROR]:", e);
+  } finally {
     isScanning.value = false;
   }
 });
 
 async function applyToggle(settingKey: QolKeys) {
+  if (qolStatus.value[settingKey] === "loading") return;
+  const previousState = qol.value[settingKey];
   qol.value[settingKey] = !qol.value[settingKey];
   qolStatus.value[settingKey] = "loading";
 
@@ -450,22 +473,22 @@ async function applyToggle(settingKey: QolKeys) {
       "-ToggleName",
       settingKey,
       "-IsEnabledStr",
-      qol.value[settingKey] ? "$true" : "$false",
+      qol.value[settingKey] ? "true" : "false",
     ];
-
-    await invoke("run_powershell_generic", {
+    const output = await invoke<string>("run_powershell_generic", {
       scriptName: "set_qol.ps1",
       argsList: args,
     });
-
+    console.log(`[QoL Toggle Success] ${settingKey} | Output:`, output);
     qolStatus.value[settingKey] = "success";
     setTimeout(() => {
       if (qolStatus.value[settingKey] === "success")
         qolStatus.value[settingKey] = "idle";
     }, 1500);
   } catch (e) {
+    console.error(`[ERROR] ${settingKey}:`, e);
     qolStatus.value[settingKey] = "error";
-    qol.value[settingKey] = !qol.value[settingKey];
+    qol.value[settingKey] = previousState;
     setTimeout(() => {
       if (qolStatus.value[settingKey] === "error")
         qolStatus.value[settingKey] = "idle";

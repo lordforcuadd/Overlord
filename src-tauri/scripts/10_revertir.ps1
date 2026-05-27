@@ -2,7 +2,7 @@
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8
 )
-$ErrorActionPreference = "SilentlyContinue"
+
 
 Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
@@ -224,9 +224,10 @@ Try {
         }
     }
 
-    Remove-Item -Path "HKLM:\SOFTWARE\Overlord" -Recurse -Force
+    Remove-Item -Path "HKLM:\SOFTWARE\Overlord" -Recurse -Force -ErrorAction SilentlyContinue
     Stop-Process -Name explorer -Force
     exit 0
 } Catch {
+    Write-Error "[-] Error critico durante la reversion de fabrica: $_"
     exit 1
 }

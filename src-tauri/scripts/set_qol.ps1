@@ -2,7 +2,17 @@ param(
     [string]$ToggleName,
     [string]$IsEnabledStr
 )
-$ErrorActionPreference = "SilentlyContinue"
+
+$ErrorActionPreference = "Continue"
+
+
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+$isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Write-Error "ERROR: Se requieren permisos de administrador."
+    exit 1
+}
+
 
 $Username = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
 if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
@@ -40,23 +50,54 @@ function Remove-RegistryKey($subPath) {
 }
 
 $RequiresExplorerRestart = $false
+$buildVer = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
 
 switch ($ToggleName) {
     "darkMode" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $themeVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" "DWord" $themeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" "DWord" $themeVal
+        $RequiresExplorerRestart = $true
     }
     "showExtensions" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $extVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" "DWord" $extVal
         $RequiresExplorerRestart = $true
     }
     "classicMenu" {
-        if ($Value -eq 1) {
-            Set-RegistryValue "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32" "" "String" ""
-        } else {
-            Remove-RegistryKey "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}"
+        if ($buildVer -lt 26000) {
+            if ($Value -eq 1) {
+                Set-RegistryValue "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32" "" "String" ""
+            } else {
+                Remove-RegistryKey "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}"
+            }
+            $RequiresExplorerRestart = $true
         }
-        $RequiresExplorerRestart = $true
+        else {
+            if ($Value -eq 1) {
+                Write-Warning "Windows $buildVer : El menú clásico nativo no es soportado."
+                $epExists = (Test-Path "$env:APPDATA\ExplorerPatcher\ep_setup.ini") -or (Get-Process "ExplorerPatcher" -ErrorAction SilentlyContinue)
+                if (-not $epExists) {
+                    Write-Output "INFO: Instala ExplorerPatcher: https://github.com/valinet/ExplorerPatcher"
+                } else {
+                    $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+                    if (Test-Path $epConfig) {
+                        $content = Get-Content $epConfig -Raw
+                        $content = $content -replace 'ControlInterface=.*', 'ControlInterface=1'
+                        Set-Content $epConfig -Value $content -Force
+                        $RequiresExplorerRestart = $true
+                    }
+                }
+            } else {
+                $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+                if (Test-Path $epConfig) {
+                    $content = Get-Content $epConfig -Raw
+                    $content = $content -replace 'ControlInterface=.*', 'ControlInterface=0'
+                    Set-Content $epConfig -Value $content -Force
+                    $RequiresExplorerRestart = $true
+                }
+            }
+        }
     }
     "disableBing" {
         Set-RegistryValue "Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" "DWord" $Value
@@ -67,36 +108,50 @@ switch ($ToggleName) {
         Set-ItemProperty -Path $Path -Name "NoLockScreen" -Type DWord -Value $Value -Force | Out-Null
     }
     "disableStickyKeys" {
-        Set-RegistryValue "Control Panel\Accessibility\StickyKeys" "Flags" "String" (if ($Value -eq 1) { "506" } else { "510" })
+        $stickyVal = if ($Value -eq 1) { "506" } else { "510" }
+        Set-RegistryValue "Control Panel\Accessibility\StickyKeys" "Flags" "String" $stickyVal
     }
     "cleanAltTab" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" "DWord" (if ($Value -eq 1) { 3 } else { 0 })
+        $altTabVal = if ($Value -eq 1) { 3 } else { 0 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" "DWord" $altTabVal
     }
     "taskbarLeft" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $taskbarVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" "DWord" $taskbarVal
     }
     "showHiddenFiles" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" "DWord" (if ($Value -eq 1) { 1 } else { 2 })
+        $hiddenVal = if ($Value -eq 1) { 1 } else { 2 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" "DWord" $hiddenVal
         $RequiresExplorerRestart = $true
     }
     "launchToThisPC" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" "DWord" (if ($Value -eq 1) { 1 } else { 2 })
+        $launchVal = if ($Value -eq 1) { 1 } else { 2 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" "DWord" $launchVal
     }
     "disableExplorerAds" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $adsVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" "DWord" $adsVal
     }
     "disableScoobe" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $scoobeVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" "DWord" $scoobeVal
     }
     "disableFilterKeys" {
-        Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" (if ($Value -eq 1) { "122" } else { "126" })
+        $filterVal = if ($Value -eq 1) { "122" } else { "126" }
+        Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" $filterVal
     }
     "disableCopilot" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" $(if ($Value -eq 1) {0} else {1})
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
         if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
         Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
+        if ($Value -eq 1) {
+            Stop-Service "CopilotService" -Force -ErrorAction SilentlyContinue
+            Set-Service "CopilotService" -StartupType Disabled -ErrorAction SilentlyContinue
+        } else {
+            Set-Service "CopilotService" -StartupType Manual -ErrorAction SilentlyContinue
+        }
         $RequiresExplorerRestart = $true
     }
     "disableRecall" {
@@ -110,15 +165,26 @@ switch ($ToggleName) {
         Set-ItemProperty -Path $Path -Name "DisplayParameters" -Type DWord -Value $Value -Force | Out-Null
     }
     "disableOneDrive" {
-        $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
-        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-        Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value $Value -Force | Out-Null
+        if ($Value -eq 1) {
+            Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue
+            $setupPath = "$env:LOCALAPPDATA\Microsoft\OneDrive\Update\OneDriveSetup.exe"
+            if (Test-Path $setupPath) {
+                Start-Process -FilePath $setupPath -ArgumentList "/uninstall" -NoNewWindow -Wait
+            }
+            Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue
+            $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
+            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+            Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value 1 -Force | Out-Null
+        } else {
+            Start-Process "ms-windows-store://pdp/?productid=9wzdncrfj1p3"
+        }
     }
     "disableWidgets" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarDa" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $widgetsVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" "DWord" $widgetsVal
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh"
         if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-        Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value (if ($Value -eq 1) { 0 } else { 1 }) -Force | Out-Null
+        Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value $widgetsVal -Force | Out-Null
         $RequiresExplorerRestart = $true
     }
     "zeroStartupDelay" {
@@ -128,16 +194,27 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\GameBar" "AllowAutoGameMode" "DWord" $Value
     }
     "barebonesVisual" {
-        Set-RegistryValue "Control Panel\Desktop\WindowMetrics" "MinAnimate" "String" (if ($Value -eq 1) { "0" } else { "1" })
+        $visualVal = if ($Value -eq 1) { "0" } else { "1" }
+        Set-RegistryValue "Control Panel\Desktop\WindowMetrics" "MinAnimate" "String" $visualVal
+    }
+    default {
+        Write-Error "ERROR: Toggle desconocido: $ToggleName"
+        exit 1
     }
 }
 
 if ($RequiresExplorerRestart) {
     Stop-Process -Name explorer -Force
 } else {
-    $User32 = Add-Type -MemberDefinition '[DllImport("user32.dll", EntryPoint="SendMessageTimeoutA")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);' -Name "User32" -Namespace "Win32" -PassThru
+    if (-not ([System.Management.Automation.PSTypeName]'Win32.User32').Type) {
+        Add-Type -MemberDefinition @'
+[DllImport("user32.dll", EntryPoint = "SendMessageTimeoutA")]
+public static extern System.IntPtr SendMessageTimeout(System.IntPtr hWnd, uint Msg, System.IntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out System.IntPtr lpdwResult);
+'@ -Name "User32" -Namespace "Win32"
+    }
     $result = [IntPtr]::Zero
-    [Win32.User32]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, "Environment", 2, 5000, out $result)
+    [Win32.User32]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, "Environment", 2, 5000, [ref] $result)
 }
 
+Write-Output "OK: $ToggleName establecido a $($Value -eq 1)"
 exit 0
