@@ -14,11 +14,9 @@ Try {
     foreach ($Game in $Games) {
         if (![string]::IsNullOrWhiteSpace($Game)) {
             
-            # Mapear rutas e inyectar persistencia simétrica de resguardo
             $IfeoPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game\PerfOptions"
             $GameKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game"
             
-            # Guardar valores previos si la máquina del usuario ya contaba con IFEO de terceros
             if (Test-Path $IfeoPath) {
                 $OrigCpuPriority = (Get-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -ErrorAction SilentlyContinue).CpuPriorityClass
                 $OrigIoPriority = (Get-ItemProperty -Path $IfeoPath -Name "IoPriority" -ErrorAction SilentlyContinue).IoPriority
@@ -31,7 +29,6 @@ Try {
                 if ($OrigFsoBypass -ne $null) { Set-ItemProperty -Path $BackupPath -Name "${Game}_FsoBypass" -Value $OrigFsoBypass -Force }
             }
 
-            # Inyección limpia y asíncrona de Overlord
             if (!(Test-Path $IfeoPath)) { New-Item -Path $IfeoPath -Force | Out-Null }
             Set-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force
             Set-ItemProperty -Path $IfeoPath -Name "IoPriority" -Type DWord -Value 3 -Force
@@ -39,12 +36,12 @@ Try {
             if (!(Test-Path $GameKey)) { New-Item -Path $GameKey -Force | Out-Null }
             Set-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -Type DWord -Value 1 -Force
 
-            Write-Host "    -> Hooks de rendimiento y FSO Bypass inyectados para: $Game"
+            Write-Host "    -> Hooks inyectados para: $Game"
         }
     }
 
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo de Game Hooks: $_"
+    Write-Error "[-] Error critico en Modulo de Game Hooks: $_"
     exit 1
 }

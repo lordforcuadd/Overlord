@@ -206,7 +206,7 @@ const runAction = async (actionId) => {
   status.value[actionId] = "loading";
 
   try {
-    if (actionId === "PurgeRAM" || actionId === "ram") {
+    if (actionId === "PurgeRAM") {
       await invoke("purge_ram_native");
       console.log("[Overlord] RAM purgada nativamente desde Rust.");
     } else {

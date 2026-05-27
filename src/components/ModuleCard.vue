@@ -1,79 +1,78 @@
 <template>
   <div
-    class="flex flex-col h-full rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group"
-    :class="
-      modelValue
-        ? 'border-yellow-500/40 bg-[#121212] shadow-[0_4px_20px_rgba(250,204,21,0.05)]'
-        : 'border-neutral-800 bg-[#0a0a0a]/80 hover:bg-[#121212] hover:border-neutral-700 hover:-translate-y-1'
-    "
+    class="bg-[#0a0a0a]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col justify-between gap-5 relative hover:border-white/10 transition-colors group"
   >
-    <div
-      class="absolute top-0 left-0 w-1 h-full transition-all duration-300"
-      :class="
-        modelValue
-          ? 'bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.5)]'
-          : 'bg-transparent'
-      "
-    ></div>
-
-    <div class="flex-grow pl-3 flex flex-col">
-      <div class="flex justify-between items-start gap-4 pr-1">
-        <h3
-          class="text-lg font-bold leading-tight transition-colors duration-300"
-          :class="
-            modelValue
-              ? 'text-yellow-400'
-              : 'text-gray-200 group-hover:text-yellow-400'
-          "
-        >
-          {{ title }}
+    <div class="flex flex-col gap-3">
+      <div class="flex justify-between items-start gap-4">
+        <h3 class="text-xl font-bold text-white tracking-wide leading-tight">
+          {{ meta.title }}
         </h3>
-
-        <button
-          @click="$emit('update:modelValue', !modelValue)"
-          :class="modelValue ? 'bg-yellow-500' : 'bg-neutral-700'"
-          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-        >
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            @click="toggleDoc"
+            class="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+            title="Ver Documentación Oficial"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              ></path>
+            </svg>
+          </button>
           <span
-            :class="modelValue ? 'translate-x-5' : 'translate-x-0'"
-            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-          ></span>
-        </button>
+            class="px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider"
+            :class="badgeClass"
+          >
+            {{ meta.riesgo }}
+          </span>
+        </div>
       </div>
 
-      <div v-if="riesgo" class="flex items-center gap-2 mt-2">
-        <span
-          class="text-[10px] uppercase tracking-wider text-gray-500 font-medium font-mono"
-          >Impacto:</span
-        >
-        <span
-          :class="{
-            'px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide rounded border border-green-500/30 text-green-400 bg-green-950/20 shadow-[0_0_10px_rgba(34,197,94,0.05)]':
-              riesgo === 'Seguro',
-            'px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide rounded border border-yellow-500/30 text-yellow-400 bg-yellow-950/20 shadow-[0_0_10px_rgba(234,179,8,0.05)]':
-              riesgo === 'Avanzado',
-            'px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide rounded border border-red-500/30 text-red-400 bg-red-950/20 shadow-[0_0_10px_rgba(239,68,68,0.05)]':
-              riesgo === 'Kernel',
-          }"
-        >
-          {{ riesgo }}
-        </span>
-      </div>
-
-      <p class="text-xs md:text-sm text-gray-400 mt-3 leading-relaxed">
-        {{ description }}
+      <p class="text-gray-400 text-sm leading-relaxed">
+        {{ meta.description }}
       </p>
 
-      <div class="mt-3" v-if="$slots.default">
-        <slot></slot>
+      <div
+        v-if="showDoc"
+        class="mt-2 p-4 bg-white/[0.02] border border-white/5 rounded-xl flex flex-col gap-3 text-xs font-mono text-gray-400"
+      >
+        <div>
+          <span class="text-yellow-500 font-bold">REVERSIÓN:</span>
+          {{ meta.metodoReversion }}
+        </div>
+        <div>
+          <span class="text-blue-400 font-bold">HARDWARE:</span>
+          {{ meta.hardwareRecomendado }}
+        </div>
+        <div>
+          <span class="text-purple-400 font-bold">COMPATIBILIDAD:</span>
+          {{ meta.windowsVersion }}
+        </div>
+        <a
+          :href="meta.fuenteOficial"
+          target="_blank"
+          class="text-yellow-500/70 hover:text-yellow-400 underline truncate block mt-1"
+        >
+          Documentación Oficial de Microsoft →
+        </a>
       </div>
 
-      <details class="mt-4 group/details">
-        <summary
-          class="text-xs text-yellow-500 font-semibold cursor-pointer select-none hover:text-yellow-400 transition-colors list-none flex items-center gap-1.5 outline-none"
+      <ul class="flex flex-col gap-2 mt-2">
+        <li
+          v-for="(detail, i) in meta.details"
+          :key="i"
+          class="flex items-center gap-2 text-xs font-medium text-gray-300"
         >
           <svg
-            class="w-3.5 h-3.5 transition-transform duration-200 group-open/details:rotate-90"
+            class="w-3.5 h-3.5 text-yellow-500 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -81,125 +80,86 @@
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5l7 7-7 7"
+              stroke-width="3"
+              d="M5 13l4 4L19 7"
             ></path>
           </svg>
-          Ver Más Detalle
-        </summary>
-        <ul class="mt-3 pl-4 border-l border-white/10 flex flex-col gap-1.5">
-          <li
-            v-for="(detail, index) in details"
-            :key="index"
-            class="text-[11px] md:text-xs text-gray-400 font-mono"
-          >
-            <span class="text-yellow-600/80 mr-1.5">-></span>{{ detail }}
-          </li>
-        </ul>
-      </details>
+          <span>{{ detail }}</span>
+        </li>
+      </ul>
+
+      <slot></slot>
     </div>
 
-    <div class="mt-auto pt-6 flex justify-end items-center pl-3">
-      <span
-        v-if="status === 'loading'"
-        class="text-xs font-bold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1.5 rounded-full flex items-center gap-1.5"
-      >
-        <svg
-          class="animate-spin h-3.5 w-3.5 text-yellow-400"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          ></circle>
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
-        </svg>
-        Aplicando...
+    <div
+      class="flex justify-between items-center border-t border-white/5 pt-4 mt-2"
+    >
+      <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">
+        {{ statusText }}
       </span>
-
-      <span
-        v-else-if="status === 'error'"
-        class="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-full flex items-center gap-1.5"
-      >
-        <svg
-          class="w-3.5 h-3.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          ></path>
-        </svg>
-        Error
-      </span>
-
-      <span
-        v-else-if="status === 'success'"
-        class="text-xs font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-full flex items-center gap-1.5"
-      >
-        <svg
-          class="w-3.5 h-3.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 13l4 4L19 7"
-          ></path>
-        </svg>
-        Optimizado
-      </span>
-
-      <span
-        v-else
-        class="text-xs font-medium text-gray-500 uppercase tracking-wider bg-neutral-800/50 px-3 py-1.5 rounded-full border border-neutral-700/50"
-      >
-        No Aplicado
-      </span>
+      <label class="relative inline-flex items-center cursor-pointer">
+        <input
+          type="checkbox"
+          :checked="modelValue"
+          @change="emitUpdate"
+          :disabled="status === 'loading'"
+          class="sr-only peer"
+        />
+        <div
+          class="w-10 h-5 bg-neutral-800 rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500 peer-checked:after:bg-black"
+        ></div>
+      </label>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps({
-  title: String,
-  description: String,
-  scriptName: String,
-  details: {
-    type: Array as () => string[],
-    default: () => [],
-  },
-  modelValue: {
-    type: Boolean,
-    default: false,
-  },
-  status: {
-    type: String as () => "idle" | "loading" | "success" | "error",
-    default: "idle",
-  },
+import { ref, computed } from "vue";
+import { tweaksMetadata } from "../data/tweaksMetadata";
 
-  riesgo: {
-    type: String as () => "Seguro" | "Avanzado" | "Kernel",
-    default: "Seguro",
-  },
+const props = defineProps<{
+  id: string;
+  modelValue: boolean;
+  status: "idle" | "loading" | "success" | "error";
+}>();
+
+const emit = defineEmits(["update:modelValue"]);
+const showDoc = ref(false);
+
+const meta = computed(() => tweaksMetadata[props.id]);
+
+const toggleDoc = () => {
+  showDoc.value = !showDoc.value;
+};
+
+const emitUpdate = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  emit("update:modelValue", target.checked);
+};
+
+const badgeClass = computed(() => {
+  switch (meta.value.riesgo) {
+    case "Seguro":
+      return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+    case "Avanzado":
+      return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+    case "Kernel":
+      return "bg-red-500/10 text-red-400 border border-red-500/20";
+    default:
+      return "bg-white/5 text-gray-400";
+  }
 });
 
-defineEmits(["update:modelValue"]);
+const statusText = computed(() => {
+  switch (props.status) {
+    case "loading":
+      return "Inyectando...";
+    case "success":
+      return "Optimizado";
+    case "error":
+      return "Fallo";
+    default:
+      return "Listo";
+  }
+});
 </script>

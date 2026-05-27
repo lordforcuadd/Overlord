@@ -2,12 +2,11 @@
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Erradicando telemetría e hilos de recolección en caliente..."
+    Write-Host "[*] Erradicando telemetria e hilos de recoleccion..."
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Telemetry"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # Respaldo dinámico completo de VBS y HVCI
     $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
     $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
     
@@ -24,12 +23,10 @@ Try {
         }
     }
 
-    # 1. DESTRUCCIÓN DE CAPAS DE SEGURIDAD VIRTUAL QUE FRENAN FPS
     Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force
     if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
     Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force
 
-    # 2. DETENCIÓN DEL MOTOR DE SEGUIMIENTO (DIAGTRACK)
     try {
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
@@ -39,7 +36,6 @@ Try {
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force
 
-    # 3. AISLAMIENTO PERIMETRAL EN FIREWALL
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
         "$env:SystemRoot\System32\DeviceCensus.exe",
@@ -54,7 +50,6 @@ Try {
         }
     }
     
-    # 4. PURGA DE SESIONES ETW AUTOLOGGERS
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog",
@@ -68,9 +63,8 @@ Try {
         logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null
     }
 
-    Write-Host "[+] Recolectores muertos, Firewall configurado y VBS apagado de raíz."
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo de Telemetría: $_"
+    Write-Error "[-] Error critico en Modulo de Telemetria: $_"
     exit 1
 }

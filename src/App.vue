@@ -23,10 +23,9 @@
             <path
               fill-rule="evenodd"
               clip-rule="evenodd"
-              d="M2 21L2 9L8.5 14L12 2L15.5 14L22 9L22 21H2ZM13 8L9 14H11.5L11 20L15 14H12.5L13 8Z"
+              d="M2 21L2 9L8.5 14L12 2 15.5 14L22 9L22 21H2ZM13 8L9 14H11.5L11 20L15 14H12.5L13 8Z"
             />
           </svg>
-
           <div>
             <h1
               class="text-5xl md:text-6xl font-black tracking-tighter text-white"
@@ -41,494 +40,33 @@
           </div>
         </div>
 
-        <div
-          class="bg-[#0a0a0a]/80 backdrop-blur-xl border border-yellow-500/20 p-5 rounded-2xl flex flex-col gap-4 shadow-[0_0_30px_rgba(250,204,21,0.05)] w-full lg:w-auto lg:min-w-[380px]"
-        >
-          <div
-            class="flex items-center justify-between border-b border-white/5 pb-3"
-          >
-            <div class="flex items-center gap-3">
-              <div class="relative flex h-3 w-3">
-                <span
-                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"
-                ></span>
-                <span
-                  class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"
-                ></span>
-              </div>
-              <span
-                class="text-sm font-bold text-yellow-400 tracking-widest uppercase"
-              >
-                Perfil: {{ store.hardwareInfo.tier }}
-              </span>
-            </div>
-            <span
-              class="px-2 py-1 bg-white/5 rounded text-xs font-bold text-gray-300 uppercase tracking-wider"
-            >
-              {{ store.hardwareInfo.isLaptop ? "Laptop" : "Desktop" }}
-            </span>
-          </div>
-
-          <div
-            class="flex flex-col gap-3 text-xs md:text-sm font-mono text-gray-400"
-          >
-            <div
-              class="flex items-center justify-between border-b border-white/5 pb-2 gap-4"
-            >
-              <div class="flex items-center gap-2 text-gray-500">
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                  ></path>
-                </svg>
-                <span>PLACA</span>
-              </div>
-              <span
-                class="text-gray-200 text-right truncate max-w-[600px]"
-                :title="store.hardwareInfo.motherboard"
-              >
-                {{ store.hardwareInfo.motherboard || "Buscando..." }}
-              </span>
-            </div>
-
-            <div
-              class="flex items-center justify-between border-b border-white/5 pb-2 gap-4"
-            >
-              <div class="flex items-center gap-2 text-gray-500">
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                  ></path>
-                </svg>
-                <span>CPU</span>
-              </div>
-              <span
-                class="text-white text-right truncate max-w-[600px]"
-                :title="store.hardwareInfo.cpu"
-              >
-                {{ store.hardwareInfo.cpu || "Buscando..." }}
-              </span>
-            </div>
-
-            <div
-              class="flex items-center justify-between border-b border-white/5 pb-2 gap-4"
-            >
-              <div class="flex items-center gap-2 text-gray-500">
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  ></path>
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  ></path>
-                </svg>
-                <span>GPU</span>
-              </div>
-              <span
-                class="text-yellow-400 font-bold text-right truncate max-w-[600px]"
-                :title="store.hardwareInfo.gpu"
-              >
-                {{ store.hardwareInfo.gpu || "Buscando..." }}
-              </span>
-            </div>
-
-            <div class="flex items-center justify-between pt-1">
-              <div class="flex items-center gap-2 text-gray-500">
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
-                  ></path>
-                </svg>
-                <span>RAM</span>
-              </div>
-              <div class="text-right">
-                <span class="text-white font-bold text-sm">
-                  {{
-                    store.hardwareInfo.ram
-                      ? `${store.hardwareInfo.ram} GB`
-                      : "..."
-                  }}
-                </span>
-                <span
-                  v-if="store.hardwareInfo.ramSpeed"
-                  class="text-gray-500 text-xs ml-2"
-                >
-                  @ {{ store.hardwareInfo.ramSpeed }} MT/s
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <HardwareSidebar />
       </header>
 
       <QuickActions />
 
       <QolPanel />
 
-      <section class="mb-12">
-        <div class="flex items-center gap-3 mb-5">
-          <svg
-            class="w-6 h-6 text-yellow-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            ></path>
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            ></path>
-          </svg>
-          <h2 class="text-xl md:text-2xl font-bold text-white tracking-wide">
-            Perfiles de Optimización
-          </h2>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <button
-            v-for="profile in [
-              'Competitivo',
-              'Programador & Competitivo',
-              'Programador',
-              'Home Office / Laptops',
-              'Usuario Casual',
-              'Personalizado',
-            ]"
-            :key="profile"
-            @click="store.applyProfile(profile)"
-            class="px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 border text-center flex items-center justify-center min-h-[60px]"
-            :class="
-              store.activeProfile === profile
-                ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.15)]'
-                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-            "
-          >
-            <span class="leading-tight">{{ profile }}</span>
-          </button>
-        </div>
-
-        <div
-          class="mt-5 px-4 py-3 bg-white/5 rounded-lg border border-white/5 flex items-start gap-3"
-        >
-          <svg
-            class="w-5 h-5 text-gray-400 shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
-          </svg>
-          <p class="text-sm text-gray-300 font-medium leading-relaxed">
-            <span v-if="store.activeProfile === 'Competitivo'"
-              >Inyección máxima. Aísla el CPU y apaga seguridad virtual para 0%
-              input lag. Recomendado para setups de alta gama.</span
-            >
-            <span
-              v-else-if="store.activeProfile === 'Programador & Competitivo'"
-              >Equilibrio perfecto. Mantiene VBS activo para Docker/Máquinas
-              Virtuales, pero inyecta baja latencia y hooks a los motores de
-              juego.</span
-            >
-            <span v-else-if="store.activeProfile === 'Programador'"
-              >Optimiza el compilador y la RAM liberando servicios de telemetría
-              sin tocar el comportamiento del Kernel.</span
-            >
-            <span v-else-if="store.activeProfile === 'Home Office / Laptops'"
-              >Prioriza la duración de la batería en Laptops y la estabilidad de
-              la red para videollamadas.</span
-            >
-            <span v-else-if="store.activeProfile === 'Usuario Casual'"
-              >El estándar. Windows 11 ultraligero para navegación y multimedia
-              sin tweaks arriesgados.</span
-            >
-            <span v-else
-              >Modo personalizado. Activa o desactiva los módulos manualmente
-              según tus necesidades técnicas.</span
-            >
-          </p>
-        </div>
-      </section>
-
-      <main
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-32"
+      <div
+        class="mb-6 flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-xl max-w-xs"
       >
-        <ModuleCard
-          title="Respuesta de Teclado y Ratón"
-          description="Elimina por completo el retraso al hacer clic o presionar teclas. Optimiza tus puertos USB y quita los frenos de Windows para que el puntero se mueva exactamente como tu mano."
-          scriptName="01_perifericos.ps1"
-          :riesgo="store.moduleSpecs.peripheralLatency.riesgo"
-          v-model="store.modules.peripheralLatency"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.peripheralLatency || 'idle'"
-          :details="[
-            'Respuesta inmediata de teclado y ratón',
-            'Puertos USB en modo de alto rendimiento',
-            'Aceleración del ratón 100% desactivada',
-            'Desactiva teclas pegajosas molestas',
-          ]"
+        <span class="text-sm font-bold uppercase tracking-wider text-gray-300"
+          >Modo Simulación (Dry-Run)</span
         >
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="isDryRun" class="sr-only peer" />
           <div
-            class="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-2 text-blue-400 text-xs"
-          >
-            <p>
-              <b>PERFECTAMENTE SEGURO:</b> Sentirás los movimientos en tus
-              juegos de disparos (FPS) mucho más fluidos, directos y precisos.
-            </p>
-          </div>
-        </ModuleCard>
+            class="w-9 h-5 bg-zinc-700 rounded-full relative peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"
+          ></div>
+        </label>
+      </div>
 
-        <ModuleCard
-          title="Limpieza del Sistema (Debloat)"
-          description="Elimina programas basura que vienen preinstalados de fábrica y apaga funciones ocultas que vigilan tu actividad, liberando espacio en el procesador y la memoria RAM."
-          scriptName="02_debloat.ps1"
-          :riesgo="store.moduleSpecs.debloat.riesgo"
-          v-model="store.modules.debloat"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.debloat || 'idle'"
-          :details="[
-            'Apaga el rastreo de datos oculto de Windows',
-            'Elimina aplicaciones preinstaladas inútiles',
-            'Detiene servicios pesados en segundo plano',
-          ]"
-        >
-          <div
-            class="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 text-emerald-400 text-xs"
-          >
-            <p>
-              <b>COMPLETAMENTE SEGURO:</b> El Bluetooth, la conexión a
-              impresoras y los sistemas antitrampas de tus juegos están 100%
-              protegidos.
-            </p>
-          </div>
-        </ModuleCard>
+      <ProfileSelector />
 
-        <ModuleCard
-          title="Optimización de Internet"
-          description="Estabiliza la conexión para evitar subidas repentinas de Ping en tus partidas en línea. Elimina los límites ocultos de Windows para que aproveches toda la velocidad de tu red."
-          scriptName="03_red.ps1"
-          :riesgo="store.moduleSpecs.networkOptimized.riesgo"
-          v-model="store.modules.networkOptimized"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.networkOptimized || 'idle'"
-          :details="[
-            'Envío instantáneo de paquetes de datos',
-            'Elimina los límites de velocidad de Windows',
-            'Acelera la respuesta al buscar páginas (DNS)',
-            'Estabiliza el internet frente a micro-cortes',
-          ]"
-        />
-
-        <ModuleCard
-          title="Potencia Bruta y Procesador"
-          description="Desbloquea el plan de energía oculto de máximo rendimiento y regula el consumo excesivo del antivirus en segundo plano para que no cause caídas de fotogramas (FPS)."
-          scriptName="04_rendimiento.ps1"
-          :riesgo="store.moduleSpecs.generalPerformance.riesgo"
-          v-model="store.modules.generalPerformance"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.generalPerformance || 'idle'"
-          :details="[
-            'Activa el Plan de Energía Máxima del sistema',
-            'Evita tirones y congelamientos en juegos',
-            'Quita frenos de seguridad del procesador',
-            'Limpia archivos temporales acumulados',
-          ]"
-        />
-
-        <ModuleCard
-          title="Fluidez de Pantalla y Gráficos"
-          description="Mejora la suavidad visual de tus juegos eliminando las micro-congelaciones en la pantalla. Le otorga prioridad absoluta a tu tarjeta de video para procesar las imágenes primero."
-          scriptName="05_gpu_display.ps1"
-          :riesgo="store.moduleSpecs.gpuDisplay.riesgo"
-          v-model="store.modules.gpuDisplay"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.gpuDisplay || 'idle'"
-          :details="[
-            'Elimina pequeños tirones visuales en juegos',
-            'Otorga prioridad máxima a la tarjeta de video',
-            'Apaga funciones pesadas de la barra de juegos',
-          ]"
-        >
-          <div
-            class="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-start gap-2 text-yellow-400 text-xs"
-          >
-            <p>
-              <b>AVISO:</b> Al aplicar este ajuste, es completamente normal si
-              tu pantalla parpadea por un segundo. Requiere reiniciar la PC.
-            </p>
-          </div>
-        </ModuleCard>
-
-        <ModuleCard
-          title="Organización del Procesador"
-          description="Reordena la forma en que trabaja tu computadora. Evita que las tareas del internet saturen el núcleo principal donde corre tu juego, distribuyendo el esfuerzo eficientemente."
-          scriptName="06_irq_affinity.ps1"
-          :riesgo="store.moduleSpecs.irqAffinity.riesgo"
-          v-model="store.modules.irqAffinity"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.irqAffinity || 'idle'"
-          :details="[
-            'Enfoca el 100% del sistema en tus tareas',
-            'Separa el tráfico de internet de tus juegos',
-            'Acelera la velocidad de lectura de archivos',
-          ]"
-        />
-
-        <ModuleCard
-          title="Aceleración de Disco y Almacenamiento"
-          description="Duplica la memoria interna dedicada a leer datos para que tus programas abran más rápido, y ejecuta un limpiador profundo que borra gigabytes de actualizaciones viejas."
-          scriptName="07_almacenamiento.ps1"
-          :riesgo="store.moduleSpecs.smartStorage.riesgo"
-          v-model="store.modules.smartStorage"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.smartStorage || 'idle'"
-          :details="[
-            'Duplica la velocidad de lectura de archivos',
-            'Borra carpetas basura ocultas de Windows Update',
-            'Evita desgastes y escrituras inútiles en tu SSD',
-            'Apaga la hibernación en computadoras de mesa',
-          ]"
-        />
-
-        <ModuleCard
-          title="Seguridad Virtual y Filtros"
-          description="Desactiva las capas de seguridad invisibles de Windows 11 que frenan el rendimiento gráfico en juegos y apaga por completo los grabadores que registran tu historial en disco."
-          scriptName="08_telemetria.ps1"
-          :riesgo="store.moduleSpecs.deepTelemetry.riesgo"
-          v-model="store.modules.deepTelemetry"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.deepTelemetry || 'idle'"
-          :details="[
-            'Desactiva la seguridad virtual que frena los FPS',
-            'Bloquea el envío automático de datos a Microsoft',
-            'Apaga grabadores de eventos en segundo plano',
-          ]"
-        >
-          <div
-            class="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-xs"
-          >
-            <p>
-              <b>PRECAUCIÓN PROGRAMADORES:</b> No activar si trabajas con
-              herramientas de desarrollo como Docker Desktop, WSL2 (Linux dentro
-              de Windows), VirtualBox o VMware, ya que requiere de estas
-              funciones activas.
-            </p>
-          </div>
-        </ModuleCard>
-
-        <ModuleCard
-          title="Energía Inteligente Antiparos"
-          description="Evita que tus piezas se pongan en 'modo de ahorro' o se duerman en mitad de una partida. Mantiene tu procesador despierto para responder instantáneamente ante cargas pesadas."
-          scriptName="09_energia.ps1"
-          :riesgo="store.moduleSpecs.powerProfiles.riesgo"
-          v-model="store.modules.powerProfiles"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.powerProfiles || 'idle'"
-          :details="[
-            'Mantiene la tarjeta de video a máxima velocidad',
-            'Evita que los núcleos del procesador se duerman',
-            'Protección inteligente automática para Laptops',
-          ]"
-        >
-          <div
-            class="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 text-emerald-400 text-xs"
-          >
-            <p>
-              <b>INTELIGENTE:</b> Si el programa detecta que estás usando una
-              Laptop, desactivará este ajuste automáticamente para proteger la
-              duración de tu batería.
-            </p>
-          </div>
-        </ModuleCard>
-
-        <ModuleCard
-          title="Prioridad Absoluta para Juegos"
-          description="Cuando abres tus juegos favoritos, el sistema detecta su ejecución y enfoca de inmediato toda la potencia del procesador en ellos, suspendiendo alertas molestas."
-          scriptName="11_game_hooks.ps1"
-          :riesgo="store.moduleSpecs.gameHooks.riesgo"
-          v-model="store.modules.gameHooks"
-          @update:modelValue="store.activeProfile = 'Personalizado'"
-          :status="cardStatus.gameHooks || 'idle'"
-          :details="[
-            'Fuerza prioridad del procesador exclusiva al jugar',
-            'Desactiva funciones de pantalla completa lentas',
-          ]"
-        >
-          <div
-            class="flex flex-col gap-3 mt-4 bg-[#0a0a0a] p-4 rounded-xl border border-white/10"
-          >
-            <div
-              v-for="(game, index) in store.gameList"
-              :key="index"
-              class="flex items-center justify-between"
-            >
-              <span
-                class="text-xs font-mono font-medium"
-                :class="game.detected ? 'text-yellow-400' : 'text-gray-600'"
-              >
-                {{ game.name }}
-              </span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  v-model="game.optimize"
-                  :disabled="!game.detected"
-                  class="sr-only peer"
-                />
-                <div
-                  class="w-8 h-4 bg-neutral-700 rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-500"
-                ></div>
-              </label>
-            </div>
-          </div>
-        </ModuleCard>
-      </main>
+      <OptimizationGrid
+        :cardStatus="cardStatus"
+        @trigger-warning="openWarningModal"
+      />
 
       <footer
         class="mb-24 flex flex-col items-center gap-6 border-t border-white/5 pt-10"
@@ -622,28 +160,6 @@
             }}</span>
           </button>
         </div>
-
-        <div
-          class="flex items-center gap-2 text-gray-500 bg-white/5 px-4 py-2 rounded-lg"
-        >
-          <svg
-            class="w-4 h-4 text-yellow-500/70"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            ></path>
-          </svg>
-          <p class="text-sm font-medium">
-            Las modificaciones de Kernel son irreversibles sin un punto de
-            restauración. Proceda con precaución.
-          </p>
-        </div>
       </footer>
     </div>
   </div>
@@ -695,84 +211,20 @@
           isExecutingAll ||
           Object.values(store.modules).filter((v) => v).length === 0
         "
-        class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-3 md:py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:shadow-[0_0_35px_rgba(250,204,21,0.6)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 w-full md:w-auto justify-center text-sm md:text-base"
+        class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-3 md:py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] disabled:opacity-50 flex items-center gap-3"
       >
-        <span v-if="isExecutingAll" class="flex items-center gap-2">
-          <svg
-            class="animate-spin h-5 w-5 text-black"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          Optimizando...
-        </span>
+        <span v-if="isExecutingAll">Optimizando...</span>
         <span v-else>EJECUTAR OVERLORD</span>
       </button>
     </div>
   </div>
 
-  <div
-    class="fixed bottom-28 right-6 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-6 hover:border-yellow-500/30 transition-colors group cursor-default"
-  >
-    <div class="flex flex-col">
-      <span
-        class="text-xs text-gray-500 font-bold tracking-widest uppercase mb-1 flex items-center gap-2"
-      >
-        <div
-          class="w-2 h-2 rounded-full animate-pulse"
-          :class="
-            store.liveTelemetry.cpuUsage > 80 ? 'bg-red-500' : 'bg-yellow-400'
-          "
-        ></div>
-        CPU
-      </span>
-      <span
-        class="text-2xl font-mono font-bold"
-        :class="
-          store.liveTelemetry.cpuUsage > 80 ? 'text-red-400' : 'text-white'
-        "
-      >
-        {{ store.liveTelemetry.cpuUsage.toFixed(1)
-        }}<span class="text-sm text-gray-500 ml-1">%</span>
-      </span>
-    </div>
-
-    <div
-      class="w-px h-10 bg-white/10 group-hover:bg-yellow-500/20 transition-colors"
-    ></div>
-
-    <div class="flex flex-col items-start w-28">
-      <span
-        class="text-xs text-gray-500 font-bold tracking-widest uppercase mb-1"
-        >RAM</span
-      >
-      <span
-        class="text-2xl font-mono font-bold text-white leading-none flex items-baseline"
-      >
-        {{ store.liveTelemetry.ramUsed.toFixed(1)
-        }}<span class="text-xs text-yellow-500 ml-1">GB</span>
-      </span>
-      <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
-        <div
-          class="h-full bg-yellow-500 transition-all duration-500"
-          :style="{ width: store.liveTelemetry.ramPercent + '%' }"
-        ></div>
-      </div>
-    </div>
-  </div>
+  <WarningModal
+    :isOpen="warningModalOpen"
+    :message="warningModalMessage"
+    @confirm="confirmDangerousTweak"
+    @cancel="cancelDangerousTweak"
+  />
 </template>
 
 <script setup lang="ts">
@@ -781,18 +233,24 @@ import QolPanel from "./components/QolPanel.vue";
 import Swal from "sweetalert2";
 import QuickActions from "./components/QuickActions.vue";
 import { invoke } from "@tauri-apps/api/core";
-import ModuleCard from "./components/ModuleCard.vue";
 import { useOverlordStore } from "./stores/overlordStore";
-import { info, error as logError } from "@tauri-apps/plugin-log";
+import HardwareSidebar from "./components/HardwareSidebar.vue";
+import ProfileSelector from "./components/ProfileSelector.vue";
+import OptimizationGrid from "./components/OptimizationGrid.vue";
+import WarningModal from "./components/WarningModal.vue";
 
 const store = useOverlordStore();
-
 const cardStatus = ref<
   Record<string, "idle" | "loading" | "success" | "error">
 >({});
 const isBackingUp = ref(false);
 const isReverting = ref(false);
 const isExecutingAll = ref(false);
+const isDryRun = ref(false);
+
+const warningModalOpen = ref(false);
+const warningModalMessage = ref("");
+const pendingTweakKey = ref("");
 
 const scriptMap: Record<string, string> = {
   peripheralLatency: "01_perifericos.ps1",
@@ -825,8 +283,63 @@ const overlordSwalConfig = {
   },
 };
 
+const openWarningModal = (payload: { key: string; message: string }) => {
+  pendingTweakKey.value = payload.key;
+  warningModalMessage.value = payload.message;
+  warningModalOpen.value = true;
+};
+
+const confirmDangerousTweak = () => {
+  const key = pendingTweakKey.value as keyof typeof store.modules;
+  store.modules[key] = true;
+  warningModalOpen.value = false;
+};
+
+const cancelDangerousTweak = () => {
+  const key = pendingTweakKey.value as keyof typeof store.modules;
+  store.modules[key] = false;
+  warningModalOpen.value = false;
+};
+
 async function ejecutarTodo() {
   if (isExecutingAll.value) return;
+
+  const modulosActivos = Object.entries(store.modules)
+    .filter(([_, isEnabled]) => isEnabled)
+    .map(([key]) => key);
+
+  if (modulosActivos.length === 0) return;
+
+  if (isDryRun.value) {
+    isExecutingAll.value = true;
+
+    Swal.fire({
+      title: "SIMULACIÓN ACTIVA",
+      text: "Procesando entorno de prueba secuencial...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      ...overlordSwalConfig,
+    });
+
+    for (const modKey of modulosActivos) {
+      cardStatus.value[modKey] = "loading";
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      cardStatus.value[modKey] = "success";
+      store.modules[modKey as keyof typeof store.modules] = false;
+    }
+
+    isExecutingAll.value = false;
+
+    await Swal.fire({
+      title: "SIMULACIÓN COMPLETADA",
+      text: "Modo Dry-Run finalizado. Las tarjetas visuales respondieron correctamente sin alterar el registro real.",
+      icon: "success",
+      ...overlordSwalConfig,
+    });
+    return;
+  }
 
   if (!store.restorePointCreated) {
     const alertConfirm = await Swal.fire({
@@ -840,25 +353,17 @@ async function ejecutarTodo() {
     });
 
     if (!alertConfirm.isConfirmed) return;
-
     await crearRespaldo();
-
     if (!store.restorePointCreated) return;
   }
 
   isExecutingAll.value = true;
 
-  const modulosActivos = Object.entries(store.modules)
-    .filter(([_, isEnabled]) => isEnabled)
-    .map(([key]) => key);
-
   for (const modKey of modulosActivos) {
     const scriptName = scriptMap[modKey];
     if (!scriptName) continue;
 
-    info(`[MASTER] Ejecutando: ${scriptName}...`);
     cardStatus.value[modKey] = "loading";
-
     try {
       let gameListOpt = null;
       if (modKey === "gameHooks") {
@@ -875,12 +380,9 @@ async function ejecutarTodo() {
         gameList: gameListOpt,
       });
 
-      info(`[MASTER] Éxito en ${scriptName}`);
       cardStatus.value[modKey] = "success";
+      store.modules[modKey as keyof typeof store.modules] = false;
     } catch (errorOutput) {
-      logError(
-        `[MASTER] Error real capturado en ${scriptName}: ${errorOutput}`,
-      );
       cardStatus.value[modKey] = "error";
     }
   }
@@ -900,10 +402,10 @@ async function ejecutarTodo() {
 
     if (result.isConfirmed) {
       await invoke("run_powershell_async", {
-        scriptName: "shutdown",
+        scriptName: "shutdown.ps1",
         isLaptop: false,
         ramGb: 0,
-        gameList: "/r /t 0",
+        gameList: "",
       });
     }
   }
@@ -921,20 +423,17 @@ onMounted(async () => {
     });
 
     const realStatus = JSON.parse(jsonStatus);
-
     Object.keys(realStatus).forEach((key) => {
       const moduleKey = key as keyof typeof store.modules;
-      store.modules[moduleKey] = realStatus[moduleKey];
-
       if (realStatus[moduleKey]) {
         cardStatus.value[moduleKey] = "success";
+        store.modules[moduleKey] = false;
+      } else {
+        cardStatus.value[moduleKey] = "idle";
+        store.modules[moduleKey] = false;
       }
     });
-
-    console.log("[MASTER] Auditoría de Kernel sincronizada con Vue.");
-  } catch (e) {
-    console.error("[MASTER] Fallo la auditoría de estado.");
-  }
+  } catch (e) {}
 });
 
 onUnmounted(() => {
@@ -948,9 +447,7 @@ async function crearRespaldo() {
       scriptName: "crear_respaldo.ps1",
       argsList: [],
     });
-
     store.restorePointCreated = true;
-
     await Swal.fire({
       title: "¡Punto Creado!",
       text: "El sistema ha sido blindado con éxito.",
@@ -959,7 +456,6 @@ async function crearRespaldo() {
     });
   } catch (error) {
     store.restorePointCreated = false;
-    logError("Error de respaldo: " + error);
     await Swal.fire({
       title: "ERROR DE RESPALDO",
       text: "No se pudo comprobar la integridad del servicio VSS.",
@@ -990,8 +486,12 @@ async function revertirStock() {
       scriptName: "10_revertir.ps1",
       argsList: [],
     });
-
     store.restorePointCreated = false;
+
+    Object.keys(cardStatus.value).forEach((key) => {
+      cardStatus.value[key] = "idle";
+      store.modules[key as keyof typeof store.modules] = false;
+    });
 
     await Swal.fire({
       title: "SISTEMA REVERTIDO",
@@ -1000,7 +500,6 @@ async function revertirStock() {
       ...overlordSwalConfig,
     });
   } catch (error) {
-    logError("Error de reversión: " + error);
   } finally {
     isReverting.value = false;
   }
@@ -1013,20 +512,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 ::-webkit-scrollbar {
   width: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: #050505;
 }
-
 ::-webkit-scrollbar-thumb {
   background: #222;
   border-radius: 10px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: #fab005;
 }

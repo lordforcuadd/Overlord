@@ -1,293 +1,232 @@
-﻿param([bool]$IsLaptop = $false, [int]$RamGB = 8)
+﻿param(
+    [bool]$IsLaptop = $false,
+    [int]$RamGB = 8
+)
 $ErrorActionPreference = "SilentlyContinue"
 
-Write-Host "[*] Iniciando purga total de optimizaciones de Overlord y volviendo a Stock..."
+Try {
+    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
 
-$BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
+    $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
+    $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
+    $MouSize = 100
+    $KbdSize = 100
+    if (Test-Path "$BackupPath\mouclass") { $MouSize = (Get-ItemProperty -Path "$BackupPath\mouclass" -Name "MouseDataQueueSize").MouseDataQueueSize }
+    if (Test-Path "$BackupPath\kbdclass") { $KbdSize = (Get-ItemProperty -Path "$BackupPath\kbdclass" -Name "KeyboardDataQueueSize").KeyboardDataQueueSize }
+    Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value $MouSize
+    Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value $KbdSize
 
-# 🚀 CIM UPDATE: Consulta nativa segura del plan energético sin overhead
-try {
-    $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
-    $PowerGuid = if ($ActivePlan) { $ActivePlan.InstanceID.Split('\')[1] } else { "381b4222-f694-41f0-9685-ff5bb260df2e" }
-} catch {
-    $PowerGuid = "381b4222-f694-41f0-9685-ff5bb260df2e"
-}
+    $PriorityControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
+    $OrigPrioritySep = (Get-ItemProperty -Path $BackupPath -Name "Win32PrioritySeparation").Win32PrioritySeparation
+    if ($OrigPrioritySep -ne $null) {
+        Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value $OrigPrioritySep
+    } else {
+        Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 2
+    }
 
-# =========================================================================
-# 1. REVERTIR PERIFÉRICOS, ACCESIBILIDAD Y PRIORIDAD MULTIMEDIA
-# =========================================================================
-Write-Host "[*] Restableciendo colas de periféricos y respuesta USB desde copia de seguridad..."
-
-$RestMouQueue = (Get-ItemProperty -Path "$BackupPath\mouclass" -Name "MouseDataQueueSize" -ErrorAction SilentlyContinue).MouseDataQueueSize
-$RestKbdQueue = (Get-ItemProperty -Path "$BackupPath\kbdclass" -Name "KeyboardDataQueueSize" -ErrorAction SilentlyContinue).KeyboardDataQueueSize
-$RestPrioritySep = (Get-ItemProperty -Path $BackupPath -Name "Win32PrioritySeparation" -ErrorAction SilentlyContinue).Win32PrioritySeparation
-
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" -Name "MouseDataQueueSize" -Type DWord -Value (if ($RestMouQueue) { $RestMouQueue } else { 100 })
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" -Name "KeyboardDataQueueSize" -Type DWord -Value (if ($RestKbdQueue) { $RestKbdQueue } else { 100 })
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Type DWord -Value (if ($RestPrioritySep -ne $null) { $RestPrioritySep } else { 2 })
-
-Write-Host "[*] Re-inyectando configuraciones MSI de fábrica para estabilidad de controladores..."
-$MsiBackupKey = "$BackupPath\MSI"
-$Devices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters" -ErrorAction SilentlyContinue
-foreach ($Device in $Devices) {
-    $DeviceID = ($Device.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
-    $MsiPath = "$($Device.PSPath)\Interrupt Management\MessageSignaledInterruptProperties"
-    
-    $BackupVal = (Get-ItemProperty -Path $MsiBackupKey -Name $DeviceID -ErrorAction SilentlyContinue).$DeviceID
-    if ($BackupVal -ne $null) {
-        if ($BackupVal -eq 999) {
-            if (Test-Path $MsiPath) { Remove-ItemProperty -Path $MsiPath -Name "MSISupported" -ErrorAction SilentlyContinue }
-        } else {
-            if (!(Test-Path $MsiPath)) { New-Item -Path $MsiPath -Force | Out-Null }
-            Set-ItemProperty -Path $MsiPath -Name "MSISupported" -Type DWord -Value $BackupVal -Force
+    $MsiBackupKey = "$BackupPath\MSI"
+    if (Test-Path $MsiBackupKey) {
+        $Devices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters"
+        foreach ($Device in $Devices) {
+            $Class = (Get-ItemProperty -Path $Device.PSParentPath).Class
+            if ($Class -eq "Display" -or $Class -eq "USB") {
+                $DeviceID = ($Device.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
+                $MsiPath = "$($Device.PSPath)\Interrupt Management\MessageSignaledInterruptProperties"
+                $SavedMsi = (Get-ItemProperty -Path $MsiBackupKey -Name $DeviceID).$DeviceID
+                if ($SavedMsi -ne $null) {
+                    if ($SavedMsi -eq 999) {
+                        Remove-Item -Path "$($Device.PSPath)\Interrupt Management" -Recurse
+                    } else {
+                        Set-ItemProperty -Path $MsiPath -Name "MSISupported" -Type DWord -Value $SavedMsi
+                    }
+                }
+            }
         }
     }
-}
 
-# Restaurar curvas y parámetros del ratón nativos
-$MousePath = "HKCU:\Control Panel\Mouse"
-Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "1"
-Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "6"
-Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "10"
-$CurvesX = [byte[]](0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xC0,0xCC,0x0C,0x00,0x00,0x00,0x00,0x00,0x80,0x99,0x19,0x00,0x00,0x00,0x00,0x00,0x40,0x66,0x26,0x00,0x00,0x00,0x00,0x00,0x00,0x33,0x33,0x00,0x00,0x00,0x00,0x00)
-$CurvesY = [byte[]](0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x38,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x70,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xA8,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xE0,0x00,0x00,0x00,0x00,0x00)
-Set-ItemProperty -Path $MousePath -Name "SmoothMouseXCurve" -Type Binary -Value $CurvesX
-Set-ItemProperty -Path $MousePath -Name "SmoothMouseYCurve" -Type Binary -Value $CurvesY
+    bcdedit /deletevalue useplatformtick
+    bcdedit /deletevalue disabledynamictick
 
-Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Type String -Value "510"
-Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "62"
-Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\Keyboard Response" -Name "Flags" -Type String -Value "126"
+    $MousePath = "HKCU:\Control Panel\Mouse"
+    Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "1"
+    Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "6"
+    Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "10"
+    Remove-ItemProperty -Path $MousePath -Name "SmoothMouseXCurve"
+    Remove-ItemProperty -Path $MousePath -Name "SmoothMouseYCurve"
 
-# 🚀 FIX QUIRÚRGICO: Remueve solo las sub-propiedades inyectadas a CSRSS evitando corromper la clave raíz
-if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe\PerfOptions") {
-    Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe\PerfOptions" -Recurse -Force
-}
-bcdedit /deletevalue useplatformtick | Out-Null
-bcdedit /deletevalue disabledynamictick | Out-Null
-bcdedit /deletevalue useplatformclock | Out-Null
+    Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Type String -Value "510"
+    Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "62"
+    Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\Keyboard Response" -Name "Flags" -Type String -Value "126"
 
-if (-not $IsLaptop) {
-    powercfg /SETACVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 1
-    powercfg /SETDCVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 1
-}
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Type DWord -Value 1
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Type DWord -Value 1
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Type DWord -Value 1
 
-# =========================================================================
-# 2. REVERTIR LIMPIEZA (DEBLOAT) Y PLANIFICADOR DE TAREAS
-# =========================================================================
-Write-Host "[*] Re-activando telemetría básica y tareas del sistema..."
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Type DWord -Value 0
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Type DWord -Value 1
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Type DWord -Value 1
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Type DWord -Value 1
+    $Tasks = @(
+        "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+        "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+        "Microsoft\Windows\Application Experience\ProgramDataUpdater",
+        "Microsoft\Windows\Autochk\Proxy"
+    )
+    foreach ($Task in $Tasks) { Enable-ScheduledTask -TaskName $Task }
 
-$Tasks = @(
-    "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-    "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-    "Microsoft\Windows\Application Experience\ProgramDataUpdater",
-    "Microsoft\Windows\Autochk\Proxy"
-)
-foreach ($Task in $Tasks) { Enable-ScheduledTask -TaskName $Task }
-
-# =========================================================================
-# 3. REVERTIR RED COMPLETA DESDE BACKUP GRANULAR INTERFAZ POR INTERFAZ
-# =========================================================================
-Write-Host "[*] Normalizando la pila de red TCP/IP desde almacenamiento de persistencia..."
-$NetworkBackupPath = "$BackupPath\Network"
-$Interfaces = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
-foreach ($Interface in $Interfaces) {
-    $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$($Interface.SettingID)"
-    $InterfaceBackupKey = "$NetworkBackupPath\$($Interface.SettingID)"
-    
-    if (Test-Path $InterfaceBackupKey) {
-        $BckAck = (Get-ItemProperty -Path $InterfaceBackupKey -Name "TcpAckFrequency" -ErrorAction SilentlyContinue).TcpAckFrequency
-        $BckDelay = (Get-ItemProperty -Path $InterfaceBackupKey -Name "TCPNoDelay" -ErrorAction SilentlyContinue).TCPNoDelay
-        
-        if ($BckAck -eq 999) { Remove-ItemProperty -Path $TcpPath -Name "TcpAckFrequency" } elseif ($BckAck -ne $null) { Set-ItemProperty -Path $TcpPath -Name "TcpAckFrequency" -Type DWord -Value $BckAck }
-        if ($BckDelay -eq 999) { Remove-ItemProperty -Path $TcpPath -Name "TCPNoDelay" } elseif ($BckDelay -ne $null) { Set-ItemProperty -Path $TcpPath -Name "TCPNoDelay" -Type DWord -Value $BckDelay }
-    }
-}
-
-$OrigQos = (Get-ItemProperty -Path $NetworkBackupPath -Name "NonBestEffortLimit" -ErrorAction SilentlyContinue).NonBestEffortLimit
-if ($OrigQos -ne $null) {
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit" -Type DWord -Value $OrigQos
-} else {
-    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit"
-}
-
-Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name "MaxCacheTtl"
-Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name "MaxNegativeCacheTtl"
-
-Enable-NetAdapterRsc -Name "*" -IPv4 -ErrorAction SilentlyContinue
-Enable-NetAdapterRsc -Name "*" -IPv6 -ErrorAction SilentlyContinue
-Enable-NetAdapterLso -Name "*" -IPv4 -ErrorAction SilentlyContinue
-Enable-NetAdapterLso -Name "*" -IPv6 -ErrorAction SilentlyContinue
-Enable-NetAdapterChecksumOffload -Name "*" -IpIPv4 -ErrorAction SilentlyContinue
-
-netsh int tcp set global autotuninglevel=normal | Out-Null
-netsh int tcp set global ecncapability=disabled | Out-Null
-
-# =========================================================================
-# 4. REVERTIR RENDIMIENTO, CPU Y MITIGACIONES DE FABRICA
-# =========================================================================
-Write-Host "[*] Restableciendo mitigaciones de procesador y archivos de paginación..."
-$PerfBackupPath = "$BackupPath\Performance"
-$MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-
-$RestPaging = (Get-ItemProperty -Path $PerfBackupPath -Name "DisablePagingExecutive" -ErrorAction SilentlyContinue).DisablePagingExecutive
-$RestCache = (Get-ItemProperty -Path $PerfBackupPath -Name "LargeSystemCache" -ErrorAction SilentlyContinue).LargeSystemCache
-$RestSpec = (Get-ItemProperty -Path $PerfBackupPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue).FeatureSettingsOverride
-$RestSpecMask = (Get-ItemProperty -Path $PerfBackupPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue).FeatureSettingsOverrideMask
-
-Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value (if ($RestPaging -ne $null) { $RestPaging } else { 0 })
-Set-ItemProperty -Path $MemPath -Name "LargeSystemCache" -Type DWord -Value (if ($RestCache -ne $null) { $RestCache } else { 0 })
-
-if ($RestSpec -ne $null) { Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value $RestSpec } else { Remove-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" }
-if ($RestSpecMask -ne $null) { Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value $RestSpecMask } else { Remove-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" }
-
-Enable-MMAgent -MemoryCompression
-Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -Type DWord -Value 1
-Set-ItemProperty -Path "HKLM:\Software\Microsoft\FTH" -Name "Enabled" -Type DWord -Value 1
-
-# =========================================================================
-# 5. REVERTIR CONFIGURACIÓN DE GPU, ENTORNO VISUAL Y PROTECCIÓN HDCP
-# =========================================================================
-Write-Host "[*] Re-encendiendo MPO y restaurando aceleración de hardware por GPU (HAGS)..."
-$RestHags = (Get-ItemProperty -Path "$BackupPath\GPU" -Name "HwSchMode" -ErrorAction SilentlyContinue).HwSchMode
-if ($RestHags -ne $null) { Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "HwSchMode" -Type DWord -Value $RestHags }
-
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" -Name "OverlayTestMode"
-Remove-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_FSEBehaviorMode"
-Remove-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_HonorUserFSEBehaviorMode"
-Remove-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_FSEBehavior"
-if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions") {
-    Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions" -Recurse -Force
-}
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1
-
-# [SANEADO]: Eliminada la duplicación de código en la lectura limpia de HDCP Adapters
-$HdcpBackupKey = "$BackupPath\GPU\HDCP"
-$DisplayClass = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
-$Adapters = Get-ChildItem -Path $DisplayClass -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' }
-foreach ($Adapter in $Adapters) {
-    $AdapterID = $Adapter.PSChildName
-    $BackupHdcp = (Get-ItemProperty -Path $HdcpBackupKey -Name $AdapterID -ErrorAction SilentlyContinue).$AdapterID
-    if ($BackupHdcp -ne $null) {
-        if ($BackupHdcp -eq 999) { Remove-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" } else { Set-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" -Type DWord -Value $BackupHdcp -Force }
-    }
-}
-
-# =========================================================================
-# 6. REVERTIR ORGANIZACIÓN DEL PROCESADOR (IRQ SIMÉTRICO)
-# =========================================================================
-Write-Host "[*] Limpiando asignaciones multimedia y restaurando políticas IRQ..."
-$CpuBackupPath = "$BackupPath\CPU"
-$SysProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
-
-$RestResp = (Get-ItemProperty -Path $CpuBackupPath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue).SystemResponsiveness
-$RestThrot = (Get-ItemProperty -Path $CpuBackupPath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue).NetworkThrottlingIndex
-
-Set-ItemProperty -Path $SysProfilePath -Name "SystemResponsiveness" -Type DWord -Value (if ($RestResp -ne $null) { $RestResp } else { 20 })
-Set-ItemProperty -Path $SysProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value (if ($RestThrot -ne $null) { $RestThrot } else { 10 })
-
-$TasksPath = "$SysProfilePath\Tasks\Games"
-Set-ItemProperty -Path $TasksPath -Name "GPU Priority" -Type DWord -Value 8
-Set-ItemProperty -Path $TasksPath -Name "Priority" -Type DWord -Value 2
-Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "Medium"
-Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "Normal"
-
-# 🚀 RESTAURACIÓN IRQ GRANULAR: Devuelve las políticas originales de red del Kernel en vez de borrarlas a ciegas
-$NetBackupKey = "$CpuBackupPath\NetworkAffinity"
-$NetDevices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters\Interrupt Management\Affinity Policy" -ErrorAction SilentlyContinue
-foreach ($Net in $NetDevices) {
-    $DeviceID = ($Net.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
-    $BckPolicy = (Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Policy" -ErrorAction SilentlyContinue)."${DeviceID}_Policy"
-    $BckOverride = (Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Override" -ErrorAction SilentlyContinue)."${DeviceID}_Override"
-    
-    if ($BckPolicy -ne $null) {
-        if ($BckPolicy -eq 999) {
-            Remove-ItemProperty -Path $Net.PSPath -Name "DevicePolicy"
-            Remove-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride"
-        } else {
-            Set-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -Type DWord -Value $BckPolicy
-            if ($BckOverride) { Set-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -Type Binary -Value $BckOverride } else { Remove-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" }
+    $NetBackup = "$BackupPath\Network"
+    if (Test-Path $NetBackup) {
+        $Interfaces = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
+        foreach ($Interface in $Interfaces) {
+            $InterfaceBackupKey = "$NetBackup\$($Interface.SettingID)"
+            $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$($Interface.SettingID)"
+            if (Test-Path $InterfaceBackupKey) {
+                $SavedAck = (Get-ItemProperty -Path $InterfaceBackupKey -Name "TcpAckFrequency").TcpAckFrequency
+                $SavedDelay = (Get-ItemProperty -Path $InterfaceBackupKey -Name "TCPNoDelay").TCPNoDelay
+                if ($SavedAck -eq 999) { Remove-ItemProperty -Path $TcpPath -Name "TcpAckFrequency" } elseif ($SavedAck -ne $null) { Set-ItemProperty -Path $TcpPath -Name "TcpAckFrequency" -Type DWord -Value $SavedAck }
+                if ($SavedDelay -eq 999) { Remove-ItemProperty -Path $TcpPath -Name "TCPNoDelay" } elseif ($SavedDelay -ne $null) { Set-ItemProperty -Path $TcpPath -Name "TCPNoDelay" -Type DWord -Value $SavedDelay }
+            }
         }
     }
-}
 
-# =========================================================================
-# 7. REVERTIR ALMACENAMIENTO E INTELIGENCIA NTFS
-# =========================================================================
-Write-Host "[*] Restableciendo marcas de tiempo y buffers del sistema de archivos..."
-$StorageBackupPath = "$BackupPath\Storage"
-$NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+    $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
+    Remove-ItemProperty -Path $DnsPath -Name "MaxCacheTtl"
+    Remove-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl"
+    Enable-NetAdapterRsc -Name "*" -IPv4
+    Enable-NetAdapterRsc -Name "*" -IPv6
+    Enable-NetAdapterLso -Name "*" -IPv4
+    Enable-NetAdapterLso -Name "*" -IPv6
+    Enable-NetAdapterChecksumOffload -Name "*"
+    netsh int tcp set global autotuninglevel=normal
+    netsh int tcp set global ecncapability=default
 
-$RestLastAccess = (Get-ItemProperty -Path $StorageBackupPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue).NtfsDisableLastAccessUpdate
-$RestMemoryUsage = (Get-ItemProperty -Path $StorageBackupPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue).NtfsMemoryUsage
+    $PerfBackup = "$BackupPath\Performance"
+    $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+    if (Test-Path $PerfBackup) {
+        $SavedPaging = (Get-ItemProperty -Path $PerfBackup -Name "DisablePagingExecutive").DisablePagingExecutive
+        $SavedSpec = (Get-ItemProperty -Path $PerfBackup -Name "FeatureSettingsOverride").FeatureSettingsOverride
+        $SavedMask = (Get-ItemProperty -Path $PerfBackup -Name "FeatureSettingsOverrideMask").FeatureSettingsOverrideMask
+        if ($SavedPaging -ne $null) { Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value $SavedPaging }
+        if ($SavedSpec -ne $null) { Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value $SavedSpec }
+        if ($SavedMask -ne $null) { Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value $SavedMask }
+    }
+    Enable-MMAgent -MemoryCompression
+    Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -Type DWord -Value 1
+    Set-ItemProperty -Path "HKLM:\Software\Microsoft\FTH" -Name "Enabled" -Type DWord -Value 1
 
-if ($RestLastAccess -ne $null) { Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value $RestLastAccess }
-fsutil behavior set disablelastaccess (if ($RestLastAccess -eq 1) { 1 } else { 0 }) | Out-Null
-fsutil behavior set disable8dot3 0 | Out-Null
-fsutil behavior set memoryusage (if ($RestMemoryUsage -ne $null) { $RestMemoryUsage } else { 0 }) | Out-Null
+    $GpuBackup = "$BackupPath\GPU"
+    $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
+    if (Test-Path $GpuBackup) {
+        $SavedHags = (Get-ItemProperty -Path $GpuBackup -Name "HwSchMode").HwSchMode
+        if ($SavedHags -ne $null) { Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value $SavedHags }
+    }
+    $FsoPath = "HKCU:\System\GameConfigStore"
+    Set-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehaviorMode" -Type DWord -Value 0
+    Set-ItemProperty -Path $FsoPath -Name "GameDVR_HonorUserFSEBehaviorMode" -Type DWord -Value 0
+    Set-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehavior" -Type DWord -Value 0
+    Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Policies\Microsoft\Windows\GameDVR" -Recurse
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 1
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1
 
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnablePrefetcher" -Type DWord -Value 3
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableSuperfetch" -Type DWord -Value 3
-powercfg.exe /hibernate on
+    $HdcpBackupKey = "$GpuBackup\HDCP"
+    if (Test-Path $HdcpBackupKey) {
+        $DisplayClass = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+        $Adapters = Get-ChildItem -Path $DisplayClass | Where-Object { $_.PSChildName -match '^\d{4}$' }
+        foreach ($Adapter in $Adapters) {
+            $AdapterID = $Adapter.PSChildName
+            $SavedHdcp = (Get-ItemProperty -Path $HdcpBackupKey -Name $AdapterID).$AdapterID
+            if ($SavedHdcp -ne $null) {
+                if ($SavedHdcp -eq 999) { Remove-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" } else { Set-ItemProperty -Path $Adapter.PSPath -Name "RMHdcpKeyLocalZero" -Type DWord -Value $SavedHdcp }
+            }
+        }
+    }
 
-# =========================================================================
-# 8. REVERTIR TELEMETRÍA PROFUNDA Y FILTROS VBS/HVCI
-# =========================================================================
-Write-Host "[*] Encendiendo filtros de seguridad virtual (VBS / HVCI)..."
-$TelemetryBackupPath = "$BackupPath\Telemetry"
-$RestVbs = (Get-ItemProperty -Path $TelemetryBackupPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue).EnableVirtualizationBasedSecurity
-$RestHvci = (Get-ItemProperty -Path $TelemetryBackupPath -Name "Hvci_Enabled" -ErrorAction SilentlyContinue).Hvci_Enabled
+    $CpuBackup = "$BackupPath\CPU"
+    $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+    if (Test-Path $CpuBackup) {
+        $SavedResp = (Get-ItemProperty -Path $CpuBackup -Name "SystemResponsiveness").SystemResponsiveness
+        $SavedThrot = (Get-ItemProperty -Path $CpuBackup -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
+        if ($SavedResp -ne $null) { Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value $SavedResp }
+        if ($SavedThrot -ne $null) { Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value $SavedThrot }
+    }
+    $TasksPath = "$ProfilePath\Tasks\Games"
+    Set-ItemProperty -Path $TasksPath -Name "GPU Priority" -Type DWord -Value 8
+    Set-ItemProperty -Path $TasksPath -Name "Priority" -Type DWord -Value 2
+    Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "Medium"
+    Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "Normal"
 
-Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\DeviceGuard" -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value (if ($RestVbs -ne $null) { $RestVbs } else { 1 })
-Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Type DWord -Value (if ($RestHvci -ne $null) { $RestHvci } else { 1 })
+    $NetBackupKey = "$CpuBackup\NetworkAffinity"
+    if (Test-Path $NetBackupKey) {
+        $NetDevices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters"
+        foreach ($NDevice in $NetDevices) {
+            $NClass = (Get-ItemProperty -Path $NDevice.PSParentPath).Class
+            if ($NClass -eq "Net") {
+                $DeviceID = ($NDevice.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
+                $AffinityPath = "$($NDevice.PSPath)\Interrupt Management\Affinity Policy"
+                $SavedPolicy = (Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Policy")."${DeviceID}_Policy"
+                $SavedOverride = (Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Override")."${DeviceID}_Override"
+                if ($SavedPolicy -ne $null) {
+                    if ($SavedPolicy -eq 999) { Remove-Item -Path $AffinityPath -Recurse } else { Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value $SavedPolicy }
+                    if ($SavedOverride) { Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $SavedOverride } else { Remove-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" }
+                }
+            }
+        }
+    }
 
-try {
+    $StorageBackup = "$BackupPath\Storage"
+    $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+    if (Test-Path $StorageBackup) {
+        $SavedLastAccess = (Get-ItemProperty -Path $StorageBackup -Name "NtfsDisableLastAccessUpdate").NtfsDisableLastAccessUpdate
+        $SavedMemoryUsage = (Get-ItemProperty -Path $StorageBackup -Name "NtfsMemoryUsage").NtfsMemoryUsage
+        if ($SavedLastAccess -ne $null) { Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value $SavedLastAccess }
+        if ($SavedMemoryUsage -ne $null) { Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value $SavedMemoryUsage }
+    }
+    fsutil behavior set disable8dot3 0
+    powercfg.exe /hibernate on
+    $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
+    Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value 3
+    Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value 3
+
+    $TelemetryBackup = "$BackupPath\Telemetry"
+    $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
+    $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
+    if (Test-Path $TelemetryBackup) {
+        $SavedVbs = (Get-ItemProperty -Path $TelemetryBackup -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity
+        $SavedHvci = (Get-ItemProperty -Path $TelemetryBackup -Name "Hvci_Enabled").Hvci_Enabled
+        if ($SavedVbs -ne $null) { Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value $SavedVbs }
+        if ($SavedHvci -ne $null) { Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value $SavedHvci }
+    }
     Set-Service "DiagTrack" -StartupType Automatic
     Start-Service "DiagTrack"
-} catch {}
-Set-MpPreference -ScanAvgCPULoadFactor 50 
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities"
-Get-NetFirewallRule -DisplayName "Overlord_Block_*" | Remove-NetFirewallRule
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -Type DWord -Value 1
+    Get-NetFirewallRule -DisplayName "Overlord_Block_*" | Remove-NetFirewallRule
 
-$AutologgerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
-$Loggers = @("AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog", "Circular Kernel Context Logger", "ReadyBoot", "SetupPlatformTel", "WdiContextLog")
-foreach ($Logger in $Loggers) { reg.exe add "$AutologgerPath\$Logger" /v "Start" /t REG_DWORD /d 1 /f | Out-Null }
-
-if (-not $IsLaptop) {
-    powercfg /SETACVALUEINDEX $PowerGuid 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a558deb 1
-    $PowerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
-    $RestMax = (Get-ItemProperty -Path "$BackupPath\Power" -Name "ValueMax" -ErrorAction SilentlyContinue).ValueMax
-    $RestMin = (Get-ItemProperty -Path "$BackupPath\Power" -Name "ValueMin" -ErrorAction SilentlyContinue).ValueMin
-    if ($RestMax -ne $null) { Set-ItemProperty -Path $PowerPath -Name "ValueMax" -Type DWord -Value $RestMax }
-    if ($RestMin -ne $null) { Set-ItemProperty -Path $PowerPath -Name "ValueMin" -Type DWord -Value $RestMin }
-}
-powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e
-
-# =========================================================================
-# 9. REVERTIR GAME HOOKS (IFEO NO DESTRUCTIVO DESDE BACKUP)
-# =========================================================================
-Write-Host "[*] Removiendo inyecciones competitivas eSports de forma simétrica..."
-$HooksBackupPath = "$BackupPath\GameHooks"
-$TargetGames = @("League of Legends.exe", "VALORANT-Win64-Shipping.exe", "cs2.exe", "FortniteClient-Win64-Shipping.exe", "r5apex.exe", "Overwatch.exe")
-foreach ($Game in $TargetGames) {
-    $GameKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game"
-    if (Test-Path $GameKey) {
-        if (Test-Path "$GameKey\PerfOptions") { Remove-Item -Path "$GameKey\PerfOptions" -Recurse -Force }
-        Remove-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE"
-        
-        # Si había configuraciones previas inyectadas por el usuario, restaurarlas
-        $BckFso = (Get-ItemProperty -Path $HooksBackupPath -Name "${Game}_FsoBypass" -ErrorAction SilentlyContinue)."${Game}_FsoBypass"
-        if ($BckFso -ne $null) { Set-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -Type DWord -Value $BckFso }
-
-        $KeyObj = Get-Item -Path $GameKey
-        if ($KeyObj.SubKeyCount -eq 0 -and $KeyObj.ValueCount -eq 0) { Remove-Item -Path $GameKey -Force }
+    $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
+    $Loggers = @("AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog", "Circular Kernel Context Logger", "ReadyBoot", "SetupPlatformTel", "WdiContextLog")
+    foreach ($Logger in $Loggers) {
+        if (Test-Path "$LoggersPath\$Logger") { Set-ItemProperty -Path "$LoggersPath\$Logger" -Name "Start" -Type DWord -Value 1 }
     }
-}
 
-# BORRADO QUIRÚRGICO FINAL DE LA PERSISTENCIA DE OVERLORD
-Remove-Item -Path "HKLM:\SOFTWARE\Overlord" -Recurse -Force
-Write-Host "[+] Desinfección completa. Sistema operativo restaurado a valores puros de fábrica al 100%."
-exit 0
+    $PowerBackup = "$BackupPath\Power"
+    $PowerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
+    if (Test-Path $PowerBackup) {
+        $SavedMax = (Get-ItemProperty -Path $PowerBackup -Name "ValueMax").ValueMax
+        $SavedMin = (Get-ItemProperty -Path $PowerBackup -Name "ValueMin").ValueMin
+        if ($SavedMax -ne $null) { Set-ItemProperty -Path $PowerPath -Name "ValueMax" -Type DWord -Value $SavedMax }
+        if ($SavedMin -ne $null) { Set-ItemProperty -Path $PowerPath -Name "ValueMin" -Type DWord -Value $SavedMin }
+    }
+    powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e
+
+    $GameHooksBackup = "$BackupPath\GameHooks"
+    if (Test-Path $GameHooksBackup) {
+        $HookedGames = Get-ItemProperty -Path $GameHooksBackup
+        foreach ($Prop in $HookedGames.PSObject.Properties) {
+            if ($Prop.Name -match "_CpuPriority$") {
+                $GName = $Prop.Name -replace "_CpuPriority$", ""
+                Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$GName" -Recurse
+            }
+        }
+    }
+
+    Remove-Item -Path "HKLM:\SOFTWARE\Overlord" -Recurse -Force
+    Stop-Process -Name explorer -Force
+    exit 0
+} Catch {
+    exit 1
+}

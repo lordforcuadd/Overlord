@@ -2,14 +2,12 @@
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Iniciando inyección de Latencia de Periféricos de Bajo Nivel..."
+    Write-Host "[*] Iniciando inyeccion de Latencia de Perifericos..."
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # 1. INTELIGENCIA DE ENERGÍA USB (API CIM MODERNIZADA)
     if (-not $IsLaptop) {
-        Write-Host "    -> Desktop detectada: Desactivando USB Selective Suspend para 0ms lag."
         try {
             $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
             $PowerGuid = if ($ActivePlan) { $ActivePlan.InstanceID.Split('\')[1] } else { "381b4222-f694-41f0-9685-ff5bb260df2e" }
@@ -19,7 +17,6 @@ Try {
         } catch {}
     }
 
-    # 2. SELECCIÓN MSI MODE QUIRÚRGICA CON RESPALDO
     $MsiBackupKey = "$BackupPath\MSI"
     if (!(Test-Path $MsiBackupKey)) { New-Item -Path $MsiBackupKey -Force | Out-Null }
 
@@ -41,23 +38,19 @@ Try {
                     Set-ItemProperty -Path $MsiBackupKey -Name $DeviceID -Type DWord -Value $BackupVal -Force
                 }
 
-                if (!(Test-Path $MsiPath)) { New-Item -Path $MsiPath -Force -ErrorAction Stop | Out-Null }
-                Set-ItemProperty -Path $MsiPath -Name "MSISupported" -Type DWord -Value 1 -ErrorAction Stop
+                if (!(Test-Path $MsiPath)) { New-Item -Path $MsiPath -Force | Out-Null }
+                Set-ItemProperty -Path $MsiPath -Name "MSISupported" -Type DWord -Value 1 -Force
             } catch { continue }
         }
     }
 
-    # 3. TIMER RESOLUTION Y RELOJ DE SISTEMA ADAPTATIVO
     try {
-        bcdedit /set useplatformclock false | Out-Null
         bcdedit /set useplatformtick yes | Out-Null
         if (-not $IsLaptop) {
-            # 🚀 PROTECCIÓN LÓGICA: Desactivar ticks dinámicos solo en desktops para proteger la suspensión y el calor móvil
             bcdedit /set disabledynamictick yes | Out-Null
         }
     } catch {}
 
-    # 4. COLAS DE BUFFER I/O PERIFÉRICOS CON RESPALDO GRANULAR
     $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
     if (Test-Path $MouPath) {
         $OrigMou = (Get-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -ErrorAction SilentlyContinue).MouseDataQueueSize
@@ -78,7 +71,6 @@ Try {
     }
     Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value 20 -Force
 
-    # Respaldo simétrico de separación de prioridades antes de mutarla
     $PriorityControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
     $OrigPrioritySep = (Get-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -ErrorAction SilentlyContinue).Win32PrioritySeparation
     if ($OrigPrioritySep -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "Win32PrioritySeparation" -ErrorAction SilentlyContinue) -eq $null) {
@@ -86,13 +78,6 @@ Try {
     }
     Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 38 -Force
 
-    # 5. PRIORIDAD AL SUBSISTEMA DE VENTANAS CRÍTICO (CSRSS)
-    $CsrssPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe\PerfOptions"
-    if (!(Test-Path $CsrssPath)) { New-Item -Path $CsrssPath -Force | Out-Null }
-    Set-ItemProperty -Path $CsrssPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force
-    Set-ItemProperty -Path $CsrssPath -Name "IoPriority" -Type DWord -Value 3 -Force
-
-    # 6. DESTRUCCIÓN DE ACELERACIÓN Y REGLAS DE ACCESIBILIDAD
     $MousePath = "HKCU:\Control Panel\Mouse"
     Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -Force
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force
@@ -104,9 +89,8 @@ Try {
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "58" -Force
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\Keyboard Response" -Name "Flags" -Type String -Value "122" -Force
 
-    Write-Host "[+] Input Lag destruido. Tracking 1:1 asegurado. MSI Mode activado."
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo de Periféricos: $_"
+    Write-Error "[-] Error critico en Modulo de Perifericos: $_"
     exit 1
 }

@@ -1,200 +1,143 @@
 param(
-    [Parameter(Position=0, Mandatory=$false)][string]$ToggleName = "",
-    [Parameter(Position=1, Mandatory=$false)][string]$IsEnabledStr = ""
+    [string]$ToggleName,
+    [string]$IsEnabledStr
 )
 $ErrorActionPreference = "SilentlyContinue"
 
-$LogFile = "$env:TEMP\overlord_qol_debug.txt"
-$SemaphoreFile = "$env:TEMP\overlord_explorer_restart.lock"
+$Username = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
+if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+if ([string]::IsNullOrWhiteSpace($Username)) { $Username = $env:USERNAME }
 
-$ToggleName = $ToggleName.Trim()
-$IsEnabledStr = $IsEnabledStr.Replace('$', '').Trim().ToLower()
-$IsEnabled = if ($IsEnabledStr -eq "true" -or $IsEnabledStr -eq "1") { $true } else { $false }
-
-Add-Content -Path $LogFile -Value "======================================"
-Add-Content -Path $LogFile -Value "[$(Get-Date)] GLOBAL EXECUTION -> $ToggleName | Enabled: $IsEnabled"
-
-function Set-Reg {
-    param([string]$Key, [string]$Value, [string]$Data, [string]$Type="REG_DWORD")
-    
-    $QolBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\QoL"
-    if (!(Test-Path $QolBackupPath)) { New-Item -Path $QolBackupPath -Force | Out-Null }
-    
-    # Normalizar la clave para usarla de forma segura como nombre de propiedad en el respaldo
-    $SanitizedKey = $Key -replace "\\", "_" -replace ":", ""
-    $BackupValueName = "${SanitizedKey}_${Value}"
-    
-    # Validar el formato de ruta de PowerShell para lecturas precisas de fábrica
-    $ReadPath = if ($Key -notmatch ":") { $Key -replace "HKCU", "HKCU:" -replace "HKLM", "HKLM:" } else { $Key }
-
-    # Si no existe un respaldo previo de esta sesión de QoL, capturamos el estado original
-    if ((Get-ItemProperty -Path $QolBackupPath -Name $BackupValueName -ErrorAction SilentlyContinue) -eq $null) {
-        $CurrentVal = (Get-ItemProperty -Path $ReadPath -Name $Value -ErrorAction SilentlyContinue).$Value
-        if ($CurrentVal -eq $null) {
-            # El valor 999 indica de manera unificada que la propiedad no existía de fábrica en el SO del usuario
-            Set-ItemProperty -Path $QolBackupPath -Name $BackupValueName -Type DWord -Value 999 -Force
-        } else {
-            Set-ItemProperty -Path $QolBackupPath -Name $BackupValueName -Value $CurrentVal -Force
-        }
+$UserSID = (Get-CimInstance -ClassName Win32_UserAccount | Where-Object { $_.Name -eq $Username }).SID
+if ([string]::IsNullOrWhiteSpace($UserSID)) {
+    $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" | Select-Object -First 1
+    if ($Explorer) {
+        $Owner = Invoke-CimMethod -InputObject $Explorer -MethodName GetOwner
+        $UserSID = (Get-CimInstance -ClassName Win32_UserAccount | Where-Object { $_.Name -eq $Owner.User }).SID
     }
-
-    reg.exe add "$Key" /v "$Value" /t $Type /d "$Data" /f | Out-Null
-    Add-Content -Path $LogFile -Value "  [REG] $Key -> $Value = $Data ($Type)"
 }
+
+$Targets = @()
+if (-not [string]::IsNullOrWhiteSpace($UserSID)) { $Targets += "Registry::HKEY_USERS\$UserSID" }
+$Targets += "HKCU:"
+
+$NormalizedInput = $IsEnabledStr.ToLower().Replace("$", "").Trim()
+$Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
+
+function Set-RegistryValue($subPath, $name, $type, $val) {
+    foreach ($base in $Targets) {
+        $fullPath = Join-Path $base $subPath
+        if (!(Test-Path $fullPath)) { New-Item -Path $fullPath -Force | Out-Null }
+        Set-ItemProperty -Path $fullPath -Name $name -Type $type -Value $val -Force | Out-Null
+    }
+}
+
+function Remove-RegistryKey($subPath) {
+    foreach ($base in $Targets) {
+        $fullPath = Join-Path $base $subPath
+        if (Test-Path $fullPath) { Remove-Item -Path $fullPath -Recurse -Force | Out-Null }
+    }
+}
+
+$RequiresExplorerRestart = $false
 
 switch ($ToggleName) {
     "darkMode" {
-        $val = if ($IsEnabled) { "0" } else { "1" }
-        Set-Reg "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" $val
-        Set-Reg "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" $val
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
     }
     "showExtensions" {
-        $val = if ($IsEnabled) { "0" } else { "1" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" $val
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $RequiresExplorerRestart = $true
     }
     "classicMenu" {
-        $Key = "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
-        $QolBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\QoL"
-        if (!(Test-Path $QolBackupPath)) { New-Item -Path $QolBackupPath -Force | Out-Null }
-        
-        if ((Get-ItemProperty -Path $QolBackupPath -Name "classicMenu_Status" -ErrorAction SilentlyContinue) -eq $null) {
-            $Exists = Test-Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
-            Set-ItemProperty -Path $QolBackupPath -Name "classicMenu_Status" -Type DWord -Value (if ($Exists) { 1 } else { 0 }) -Force
-        }
-
-        if ($IsEnabled) {
-            reg.exe add "$Key" /ve /f | Out-Null
+        if ($Value -eq 1) {
+            Set-RegistryValue "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32" "" "String" ""
         } else {
-            reg.exe delete "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}" /f | Out-Null
+            Remove-RegistryKey "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}"
         }
+        $RequiresExplorerRestart = $true
     }
     "disableBing" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKCU\Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" $val
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" (if ($IsEnabled) { "0" } else { "1" })
+        Set-RegistryValue "Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" "DWord" $Value
     }
     "disableLockScreen" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization" "NoLockScreen" $val
+        $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization"
+        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+        Set-ItemProperty -Path $Path -Name "NoLockScreen" -Type DWord -Value $Value -Force | Out-Null
     }
     "disableStickyKeys" {
-        $val = if ($IsEnabled) { "506" } else { "510" }
-        Set-Reg "HKCU\Control Panel\Accessibility\StickyKeys" "Flags" $val "REG_SZ"
-    }
-    "showHiddenFiles" {
-        $val = if ($IsEnabled) { "1" } else { "2" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" $val
-    }
-    "launchToThisPC" {
-        $val = if ($IsEnabled) { "1" } else { "2" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" $val
-    }
-    "taskbarLeft" {
-        $val = if ($IsEnabled) { "0" } else { "1" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" $val
+        Set-RegistryValue "Control Panel\Accessibility\StickyKeys" "Flags" "String" (if ($Value -eq 1) { "506" } else { "510" })
     }
     "cleanAltTab" {
-        $val = if ($IsEnabled) { "3" } else { "0" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" $val
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" "DWord" (if ($Value -eq 1) { 3 } else { 0 })
+    }
+    "taskbarLeft" {
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+    }
+    "showHiddenFiles" {
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" "DWord" (if ($Value -eq 1) { 1 } else { 2 })
+        $RequiresExplorerRestart = $true
+    }
+    "launchToThisPC" {
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" "DWord" (if ($Value -eq 1) { 1 } else { 2 })
     }
     "disableExplorerAds" {
-        $val = if ($IsEnabled) { "0" } else { "1" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" $val
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
     }
     "disableScoobe" {
-        $val = if ($IsEnabled) { "0" } else { "1" }
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" $val
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
     }
     "disableFilterKeys" {
-        $val = if ($IsEnabled) { "122" } else { "126" }
-        Set-Reg "HKCU\Control Panel\Accessibility\Keyboard Response" "Flags" $val "REG_SZ"
+        Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" (if ($Value -eq 1) { "122" } else { "126" })
     }
     "disableCopilot" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKCU\Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" $val
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" (if ($IsEnabled) { "0" } else { "1" })
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" "DWord" $Value
+        $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
+        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+        Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
+        $RequiresExplorerRestart = $true
     }
     "disableRecall" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKCU\Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" $val
+        Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" "DWord" $Value
+        $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
+        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+        Set-ItemProperty -Path $Path -Name "TurnOffUserCameraCapture" -Type DWord -Value $Value -Force | Out-Null
     }
     "detailedBSoD" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKLM\System\CurrentControlSet\Control\CrashControl" "DisplayParameters" $val
+        $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl"
+        Set-ItemProperty -Path $Path -Name "DisplayParameters" -Type DWord -Value $Value -Force | Out-Null
     }
     "disableOneDrive" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" $val
-        
-        if ($IsEnabled) {
-            taskkill /F /IM OneDrive.exe | Out-Null
-            reg.exe delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "OneDrive" /f | Out-Null
-        } else {
-            Set-Reg "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" "0"
-        }
+        $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
+        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+        Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value $Value -Force | Out-Null
     }
     "disableWidgets" {
-        $val = if ($IsEnabled) { "0" } else { "1" }
-        Set-Reg "HKLM\SOFTWARE\Policies\Microsoft\Dsh" "AllowNewsAndInterests" $val
-        Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarDa" $val
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarDa" "DWord" (if ($Value -eq 1) { 0 } else { 1 })
+        $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh"
+        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+        Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value (if ($Value -eq 1) { 0 } else { 1 }) -Force | Out-Null
+        $RequiresExplorerRestart = $true
     }
     "zeroStartupDelay" {
-        $Key = "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize"
-        if ($IsEnabled) {
-            Set-Reg $Key "StartupDelayInMSec" "0"
-        } else {
-            reg.exe delete "$Key" /v "StartupDelayInMSec" /f | Out-Null
-        }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" "DWord" 0
     }
     "enableGameMode" {
-        $val = if ($IsEnabled) { "1" } else { "0" }
-        Set-Reg "HKCU\Software\Microsoft\GameBar" "AutoGameModeEnabled" $val
-        Set-Reg "HKCU\System\GameConfigStore" "GameDVR_Enabled" "0"
-        Set-Reg "HKCU\System\GameConfigStore" "GameDVR_FSEBehaviorMode" "2"
+        Set-RegistryValue "Software\Microsoft\GameBar" "AllowAutoGameMode" "DWord" $Value
     }
     "barebonesVisual" {
-        if ($IsEnabled) {
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "EnableTransparency" "0"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" "2"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAnimations" "0"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ListviewAlphaSelect" "0"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ListviewShadow" "0"
-            Set-Reg "HKCU\Control Panel\Desktop\WindowMetrics" "MinAnimate" "0" "REG_SZ"
-            Set-Reg "HKCU\Control Panel\Desktop" "UserPreferencesMask" "9012038010000000" "REG_BINARY"
-            Set-Reg "HKCU\Software\Microsoft\Windows\DWM" "Composition" "0"
-            Set-Reg "HKCU\Software\Microsoft\Windows\DWM" "EnableAeroPeek" "0"
-        } else {
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "EnableTransparency" "1"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" "1"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAnimations" "1"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ListviewAlphaSelect" "1"
-            Set-Reg "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ListviewShadow" "1"
-            Set-Reg "HKCU\Control Panel\Desktop\WindowMetrics" "MinAnimate" "1" "REG_SZ"
-            Set-Reg "HKCU\Control Panel\Desktop" "UserPreferencesMask" "9E1E078012000000" "REG_BINARY"
-            Set-Reg "HKCU\Software\Microsoft\Windows\DWM" "Composition" "1"
-            Set-Reg "HKCU\Software\Microsoft\Windows\DWM" "EnableAeroPeek" "1"
-        }
+        Set-RegistryValue "Control Panel\Desktop\WindowMetrics" "MinAnimate" "String" (if ($Value -eq 1) { "0" } else { "1" })
     }
 }
 
-$NeedsRestart = @("darkMode", "showExtensions", "classicMenu", "showHiddenFiles", "taskbarLeft", "barebonesVisual", "disableWidgets")
-if ($ToggleName -in $NeedsRestart) {
-    $CurrentTimeTicks = (Get-Date).Ticks
-    Set-Content -Path $SemaphoreFile -Value $CurrentTimeTicks
-
-    Start-Sleep -Milliseconds 550
-
-    $LastTimeTicks = Get-Content -Path $SemaphoreFile
-    if ($CurrentTimeTicks -eq $LastTimeTicks) {
-        Add-Content -Path $LogFile -Value "  -> [DESPACHADOR TITUS]: Aplicando reseteo seguro de la interfaz de escritorio..."
-        Stop-Process -Name "ShellExperienceHost" -Force
-        Stop-Process -Name "StartMenuExperienceHost" -Force
-        taskkill /F /IM explorer.exe | Out-Null
-        Start-Sleep -Seconds 1.5
-        Start-Process "explorer.exe"
-        Remove-Item -Path $SemaphoreFile -Force
-        Add-Content -Path $LogFile -Value "  -> [ÉXITO TOTAL]: Shell reconstruido. Iconos de la bandeja resucitados."
-    }
+if ($RequiresExplorerRestart) {
+    Stop-Process -Name explorer -Force
+} else {
+    $User32 = Add-Type -MemberDefinition '[DllImport("user32.dll", EntryPoint="SendMessageTimeoutA")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);' -Name "User32" -Namespace "Win32" -PassThru
+    $result = [IntPtr]::Zero
+    [Win32.User32]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, "Environment", 2, 5000, out $result)
 }
 
 exit 0

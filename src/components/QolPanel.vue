@@ -435,7 +435,8 @@ onMounted(async () => {
     qol.value = JSON.parse(jsonOutput as string);
   } catch (e) {
     console.error("[QoL] Error escáner:", e);
-  } finally {
+  }
+  {
     isScanning.value = false;
   }
 });

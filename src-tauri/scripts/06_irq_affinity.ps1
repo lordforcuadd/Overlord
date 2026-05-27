@@ -8,7 +8,6 @@ Try {
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
-    
     if (Test-Path $ProfilePath) {
         $OrigResp = (Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue).SystemResponsiveness
         $OrigThrot = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue).NetworkThrottlingIndex
@@ -31,17 +30,19 @@ Try {
     Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High" -Force
     Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "High" -Force
 
-    # Distribución Dinámica de Tráfico de Red (IRQ Steering Adaptativo)
     $NetBackupKey = "$BackupPath\NetworkAffinity"
     if (!(Test-Path $NetBackupKey)) { New-Item -Path $NetBackupKey -Force | Out-Null }
 
-    $NetDevices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters\Interrupt Management\Affinity Policy" -ErrorAction SilentlyContinue
-    foreach ($Net in $NetDevices) {
-        try {
-            $DeviceID = ($Net.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
+    $Devices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters" -ErrorAction SilentlyContinue
+    foreach ($Device in $Devices) {
+        $Class = (Get-ItemProperty -Path $Device.PSParentPath -ErrorAction SilentlyContinue).Class
+        if ($Class -eq "Net") {
+            $AffinityPath = "$($Device.PSPath)\Interrupt Management\Affinity Policy"
+            if (!(Test-Path $AffinityPath)) { New-Item -Path $AffinityPath -Force | Out-Null }
             
-            $OrigPolicy = (Get-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -ErrorAction SilentlyContinue).DevicePolicy
-            $OrigOverride = (Get-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue).AssignmentSetOverride
+            $DeviceID = ($Device.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
+            $OrigPolicy = (Get-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -ErrorAction SilentlyContinue).DevicePolicy
+            $OrigOverride = (Get-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue).AssignmentSetOverride
 
             if ((Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Policy" -ErrorAction SilentlyContinue) -eq $null) {
                 $BckPolicy = if ($OrigPolicy -eq $null) { 999 } else { $OrigPolicy }
@@ -51,17 +52,15 @@ Try {
                 }
             }
 
-            Set-ItemProperty -Path $Net.PSPath -Name "DevicePolicy" -Type DWord -Value 4 -Force
-            
-            # 🚀 AFINIDAD QUIRÚRGICA: En Desktops enviamos a Núcleo 1 (0x02), en Laptops enviamos a Núcleo 2 (0x04) para mitigar ahogo térmico de hilos
+            Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value 4 -Force
             $AffinityMask = if ($IsLaptop) { [byte[]](0x04,0x00,0x00,0x00) } else { [byte[]](0x02,0x00,0x00,0x00) }
-            Set-ItemProperty -Path $Net.PSPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force
-        } catch {}
+            Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force
+        }
     }
 
     Write-Host "[+] Carga equilibrada en los núcleos del CPU. Prioridades multimedia inyectadas."
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Gestión IRQ y Procesador: $_"
+    Write-Error "[-] Error critico en Gestion IRQ y Procesador: $_"
     exit 1
 }

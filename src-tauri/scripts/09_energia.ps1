@@ -2,17 +2,16 @@
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Configurando inyecciones de energía avanzadas y Core Parking..."
+    Write-Host "[*] Configurando inyecciones de energia avanzadas y Core Parking..."
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Power"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # 🚀 API CIM UPGRADE: Mapeo nativo ultra rápido del plan actual
     $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
     $PowerGuid = if ($ActivePlan) { $ActivePlan.InstanceID.Split('\')[1] } else { "381b4222-f694-41f0-9685-ff5bb260df2e" }
 
     if ($IsLaptop) {
-        Write-Host "    -> Laptop detectada: Optimizando control térmico y límites de energía..."
+        Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
         powercfg /SETACVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 
         powercfg /SETDCVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1
     } else {
@@ -40,5 +39,6 @@ Try {
     powercfg /SETACTIVE $PowerGuid
     exit 0
 } Catch {
+    Write-Error "[-] Error critico en Modulo de Energia: $_"
     exit 1
 }
