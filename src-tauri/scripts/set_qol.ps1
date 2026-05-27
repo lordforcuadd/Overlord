@@ -33,6 +33,8 @@ $Targets += "HKCU:"
 
 $NormalizedInput = $IsEnabledStr.ToLower().Replace("$", "").Trim()
 $Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
+$ToggleName = $ToggleName.Trim().Replace("'", "").Replace('"', "")
+
 
 function Set-RegistryValue($subPath, $name, $type, $val) {
     foreach ($base in $Targets) {
@@ -186,7 +188,7 @@ switch ($ToggleName) {
         if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
         Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value $widgetsVal -Force | Out-Null
         $RequiresExplorerRestart = $true
-    }
+    } 
     "zeroStartupDelay" {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" "DWord" 0
     }

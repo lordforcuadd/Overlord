@@ -155,11 +155,11 @@ const statusText = computed(() => {
     case "loading":
       return "Inyectando...";
     case "success":
-      return "Optimizado";
+      return "Optimizado Al 100%";
     case "error":
       return "Fallo";
     default:
-      return "Listo";
+      return "No Optimizado";
   }
 });
 </script>

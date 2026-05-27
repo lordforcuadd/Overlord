@@ -383,6 +383,7 @@ async function ejecutarTodo() {
       cardStatus.value[modKey] = "success";
       store.modules[modKey as keyof typeof store.modules] = false;
     } catch (errorOutput) {
+      console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
       cardStatus.value[modKey] = "error";
     }
   }
