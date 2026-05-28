@@ -27,29 +27,28 @@ const SCRIPT_UTILS: &str = include_str!("../scripts/utils.ps1");
 pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u64) -> Result<String, String> {
     let path_str = script_path.replace("\\", "/");
     
-    let script_content = if path_str.contains("01_perifericos") { SCRIPT_01_PERIFERICOS }
-    else if path_str.contains("02_debloat") { SCRIPT_02_DEBLOAT }
-    else if path_str.contains("03_red") { SCRIPT_03_RED }
-    else if path_str.contains("04_rendimiento") { SCRIPT_04_RENDIMIENTO }
-    else if path_str.contains("05_gpu_display") { SCRIPT_05_GPU_DISPLAY }
-    else if path_str.contains("06_irq_affinity") { SCRIPT_06_IRQ_AFFINITY }
-    else if path_str.contains("07_almacenamiento") { SCRIPT_07_ALMACENAMIENTO }
-    else if path_str.contains("08_telemetria") { SCRIPT_08_TELEMETRIA }
-    else if path_str.contains("09_energia") { SCRIPT_09_ENERGIA }
-    else if path_str.contains("10_revertir") { SCRIPT_10_REVERTIR }
-    else if path_str.contains("11_game_hooks") { SCRIPT_11_GAME_HOOKS }
-    else if path_str.contains("crear_respaldo") { SCRIPT_CREAR_RESPALDO }
-    else if path_str.contains("get_modules_status") { SCRIPT_GET_MODULES_STATUS }
-    else if path_str.contains("get_qol") { SCRIPT_GET_QOL }
-    else if path_str.contains("set_qol") { SCRIPT_SET_QOL }
-    else if path_str.contains("quick_actions") { SCRIPT_QUICK_ACTIONS }
-    else if path_str.contains("shutdown") { SCRIPT_SHUTDOWN }
-    else if path_str.contains("utils") { SCRIPT_UTILS }
+    let target_name = if path_str.contains("01_perifericos") { "01_perifericos.ps1" }
+    else if path_str.contains("02_debloat") { "02_debloat.ps1" }
+    else if path_str.contains("03_red") { "03_red.ps1" }
+    else if path_str.contains("04_rendimiento") { "04_rendimiento.ps1" }
+    else if path_str.contains("05_gpu_display") { "05_gpu_display.ps1" }
+    else if path_str.contains("06_irq_affinity") { "06_irq_affinity.ps1" }
+    else if path_str.contains("07_almacenamiento") { "07_almacenamiento.ps1" }
+    else if path_str.contains("08_telemetria") { "08_telemetria.ps1" }
+    else if path_str.contains("09_energia") { "09_energia.ps1" }
+    else if path_str.contains("10_revertir") { "10_revertir.ps1" }
+    else if path_str.contains("11_game_hooks") { "11_game_hooks.ps1" }
+    else if path_str.contains("crear_respaldo") { "crear_respaldo.ps1" }
+    else if path_str.contains("get_modules_status") { "get_modules_status.ps1" }
+    else if path_str.contains("get_qol") { "get_qol.ps1" }
+    else if path_str.contains("set_qol") { "set_qol.ps1" }
+    else if path_str.contains("quick_actions") { "quick_actions.ps1" }
+    else if path_str.contains("shutdown") { "shutdown.ps1" }
+    else if path_str.contains("utils") { "utils.ps1" }
     else {
         return Err(format!("Script no mapeado en la suite: {}", path_str));
     };
 
-    // 1. Crear un directorio temporal puramente alfanumérico para evitar conflictos de tokens en PowerShell
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -59,7 +58,6 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
     let temp_run_dir = std::env::temp_dir().join(unique_folder_name);
     std::fs::create_dir_all(&temp_run_dir).map_err(|e| format!("Error de infraestructura temporal: {}", e))?;
 
-    // 2. Escribir los scripts inyectándoles un BOM UTF-8 para forzar la codificación correcta en Windows
     let scripts = vec![
         ("01_perifericos.ps1", SCRIPT_01_PERIFERICOS),
         ("02_debloat.ps1", SCRIPT_02_DEBLOAT),
@@ -83,38 +81,16 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
 
     for (name, content) in scripts {
         let file_path = temp_run_dir.join(name);
-        
-        // Creamos un vector dinámico para anteponer el BOM UTF-8 (\xEF\xBB\xBF)
         let mut bom_content = Vec::with_capacity(3 + content.len());
         bom_content.extend_from_slice(b"\xEF\xBB\xBF");
         bom_content.extend_from_slice(content.as_bytes());
         let _ = std::fs::write(file_path, bom_content);
     }
 
-    let target_name = if path_str.contains("01_perifericos") { "01_perifericos.ps1" }
-    else if path_str.contains("02_debloat") { "02_debloat.ps1" }
-    else if path_str.contains("03_red") { "03_red.ps1" }
-    else if path_str.contains("04_rendimiento") { "04_rendimiento.ps1" }
-    else if path_str.contains("05_gpu_display") { "05_gpu_display.ps1" }
-    else if path_str.contains("06_irq_affinity") { "06_irq_affinity.ps1" }
-    else if path_str.contains("07_almacenamiento") { "07_almacenamiento.ps1" }
-    else if path_str.contains("08_telemetria") { "08_telemetria.ps1" }
-    else if path_str.contains("09_energia") { "09_energia.ps1" }
-    else if path_str.contains("10_revertir") { "10_revertir.ps1" }
-    else if path_str.contains("11_game_hooks") { "11_game_hooks.ps1" }
-    else if path_str.contains("crear_respaldo") { "crear_respaldo.ps1" }
-    else if path_str.contains("get_modules_status") { "get_modules_status.ps1" }
-    else if path_str.contains("get_qol") { "get_qol.ps1" }
-    else if path_str.contains("set_qol") { "set_qol.ps1" }
-    else if path_str.contains("quick_actions") { "quick_actions.ps1" }
-    else if path_str.contains("shutdown") { "shutdown.ps1" }
-    else { "utils.ps1" };
-
     let target_script_path = temp_run_dir.join(target_name);
 
-    // 3. Ejecución directa e impecable usando la firma nativa original
     let mut cmd = Command::new("powershell.exe");
-    cmd.creation_flags(0x08000000); // Ocultar consola
+    cmd.creation_flags(0x08000000);
     
     cmd.arg("-NoProfile")
        .arg("-NonInteractive")
@@ -139,7 +115,7 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
 
     let start_time = Instant::now();
     let timeout = Duration::from_secs(timeout_secs);
-    let mut final_result = Err("Proceso terminado inesperadamente".to_string());
+    let final_result;
 
     loop {
         match child.try_wait() {
@@ -174,8 +150,20 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
         }
     }
 
-    // 4. Purga física total de la carpeta transitoria al finalizar la ejecución del hilo
+// 4. Purga física total de la carpeta transitoria al finalizar la ejecución del hilo
     let _ = std::fs::remove_dir_all(&temp_run_dir);
+
+    // [PUENTE DE LOGS PORTÁTIL]: Escribir el fallo en una zona común inmune a entornos de usuario
+    if let Err(ref err_msg) = final_result {
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("C:\\overlord_errors.log") 
+        {
+            use std::io::Write;
+            let _ = writeln!(file, "[FALLO CRÍTICO] Script: {} -> {}", target_name, err_msg);
+        }
+    }
 
     final_result
 }

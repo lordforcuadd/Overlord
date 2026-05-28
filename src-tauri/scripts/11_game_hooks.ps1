@@ -2,7 +2,10 @@
 $ErrorActionPreference = "Stop"
 
 Try {
-    if ([string]::IsNullOrWhiteSpace($GameList)) { exit 0 }
+    if ([string]::IsNullOrWhiteSpace($GameList)) { 
+        Write-Host "[-] No se especificaron ejecutables en GameList. Saltando inyección de hilos."
+        exit 0 
+    }
 
     Write-Host "[*] Aplicando IFEO Hooks de Alto Rendimiento para juegos detectados..."
     
@@ -13,7 +16,6 @@ Try {
 
     foreach ($Game in $Games) {
         if (![string]::IsNullOrWhiteSpace($Game)) {
-            
             $IfeoPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game\PerfOptions"
             $GameKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game"
             
