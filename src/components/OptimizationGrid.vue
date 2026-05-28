@@ -5,10 +5,10 @@
     <ModuleCard
       v-for="(_, tweakId) in tweaksMetadata"
       :key="tweakId"
-      :id="tweakId"
-      :modelValue="store.modules[tweakId as keyof typeof store.modules]"
-      :status="cardStatus[tweakId] || 'idle'"
-      @update:modelValue="handleModuleUpdate(tweakId, $event)"
+      :id="tweakId as string"
+      :modelValue="getModuleValue(tweakId)"
+      :status="cardStatus[tweakId as string] || 'idle'"
+      @update:modelValue="handleModuleUpdate(tweakId as string, $event)"
       @request-warning="handleWarningRequest"
     >
       <template v-if="tweakId === 'gameHooks'">
@@ -58,6 +58,10 @@ const emit = defineEmits<{
 }>();
 
 const store = useOverlordStore();
+
+const getModuleValue = (id: string | number | symbol) => {
+  return store.modules[id as keyof typeof store.modules];
+};
 
 const handleModuleUpdate = (tweakId: string, newValue: boolean) => {
   store.activeProfile = "Personalizado";

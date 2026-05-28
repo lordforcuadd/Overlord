@@ -2529,7 +2529,7 @@ dependencies = [
 
 [[package]]
 name = "overlord"
-version = "2.5.4"
+version = "2.6.0"
 dependencies = [
  "serde",
  "serde_json",
