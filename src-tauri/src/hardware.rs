@@ -102,7 +102,7 @@ pub fn get_system_hardware() -> HardwareResponse {
     if lower_cpu.contains("intel") {
         let physical_cores = sys.physical_core_count().unwrap_or(0);
         let total_cpus = sys.cpus().len();
-        if physical_cores > 0 && total_cpus > (physical_cores * 2) {
+        if physical_cores > 0 && total_cpus > physical_cores && total_cpus < (physical_cores * 2) {
             is_hybrid = true;
         }
         if lower_cpu.contains("i7-12") || lower_cpu.contains("i7-13") || lower_cpu.contains("i7-14") ||

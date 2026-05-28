@@ -477,9 +477,9 @@ async function revertirStock() {
 
   isReverting.value = true;
   try {
-    await invoke("run_powershell_generic", {
-      scriptName: "10_revertir.ps1",
-      argsList: [],
+    await invoke("revert_optimization", {
+      isLaptop: store.hardwareInfo.isLaptop,
+      ramGb: store.hardwareInfo.ram,
     });
     store.restorePointCreated = false;
 
@@ -501,6 +501,7 @@ async function revertirStock() {
   }
 }
 </script>
+
 <style>
 body {
   margin: 0;

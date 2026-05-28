@@ -47,4 +47,12 @@ if (Test-Path $ExePath) {
     }
 
     Remove-Item -Path $TempDir -Recurse -Force
+
+    if (Get-Module PSReadLine) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()
+        $HistoryPath = [Microsoft.PowerShell.PSConsoleReadLine]::GetHistorySavePath()
+        if (Test-Path $HistoryPath) {
+            Clear-Content -Path $HistoryPath -ErrorAction SilentlyContinue
+        }
+    }
 }
