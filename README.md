@@ -75,7 +75,7 @@ Inspirado en la filosofía de distribución moderna y limpia de herramientas lí
 Para ejecutar la suite de forma instantánea directamente desde la nube a la memoria RAM, abra una sesión de **PowerShell como Administrador** e inyecte el comando _one-liner_ oficial:
 
 ```powershell
-irm [https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1](https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1) | iex
+irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | iex
 ```
 
 ### Mechanism de Portabilidad Interno:
