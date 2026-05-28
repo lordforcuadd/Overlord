@@ -17,7 +17,7 @@ function Backup-RegistryValue {
         if ($OrigValue -ne $null -and $ExistingBackup -eq $null) {
             Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value $OrigValue -Force | Out-Null
         } elseif ($OrigValue -eq $null -and $ExistingBackup -eq $null) {
-            Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value 999 -Force | Out-Null
+            Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value '_ABSENT_' -Force | Out-Null
         }
     }
 }

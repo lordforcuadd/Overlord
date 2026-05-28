@@ -1,5 +1,13 @@
-﻿param([bool]$IsLaptop = $false, [int]$RamGB = 8)
+﻿param(
+    [bool]$IsLaptop = $false, 
+    [int]$RamGB = 8
+)
 $ErrorActionPreference = "Stop"
+
+$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
+if (Test-Path $BackupManagerPath) {
+    Import-Module $BackupManagerPath -Force
+}
 
 Try {
     Write-Host "[*] Reconfigurando perfiles multimedia y afinidad de Hardware (IRQ)..."
@@ -8,23 +16,16 @@ Try {
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
-    if (Test-Path $ProfilePath) {
-        $OrigResp = (Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue).SystemResponsiveness
-        $OrigThrot = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue).NetworkThrottlingIndex
-        
-        if ($OrigResp -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue) -eq $null) {
-            Set-ItemProperty -Path $BackupPath -Name "SystemResponsiveness" -Type DWord -Value $OrigResp -Force
-        }
-        if ($OrigThrot -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue) -eq $null) {
-            Set-ItemProperty -Path $BackupPath -Name "NetworkThrottlingIndex" -Type DWord -Value $OrigThrot -Force
-        }
-    }
-
-    Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 0 -Force
-    Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force
-
     $TasksPath = "$ProfilePath\Tasks\Games"
     if (!(Test-Path $TasksPath)) { New-Item -Path $TasksPath -Force | Out-Null }
+
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "GPU Priority" -BackupSubFolder "CPU"
+        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "Priority" -BackupSubFolder "CPU"
+        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "Scheduling Category" -BackupSubFolder "CPU"
+        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "SFIO Priority" -BackupSubFolder "CPU"
+    }
+
     Set-ItemProperty -Path $TasksPath -Name "GPU Priority" -Type DWord -Value 8 -Force
     Set-ItemProperty -Path $TasksPath -Name "Priority" -Type DWord -Value 6 -Force
     Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High" -Force
@@ -45,16 +46,16 @@ Try {
             $OrigOverride = (Get-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue).AssignmentSetOverride
 
             if ((Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Policy" -ErrorAction SilentlyContinue) -eq $null) {
-                $BckPolicy = if ($OrigPolicy -eq $null) { 999 } else { $OrigPolicy }
-                Set-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Policy" -Type DWord -Value $BckPolicy -Force
-                if ($OrigOverride) {
-                    Set-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Override" -Type Binary -Value $OrigOverride -Force
-                }
+                $BckPolicy = if ($OrigPolicy -eq $null) { '_ABSENT_' } else { $OrigPolicy }
+                Set-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Policy" -Value $BckPolicy -Force | Out-Null
+                
+                $BckOverride = if ($OrigOverride -eq $null) { '_ABSENT_' } else { $OrigOverride }
+                Set-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_Override" -Value $BckOverride -Force | Out-Null
             }
 
-            Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value 4 -Force
+            Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value 4 -Force | Out-Null
             $AffinityMask = if ($IsLaptop) { [byte[]](0x04,0x00,0x00,0x00) } else { [byte[]](0x02,0x00,0x00,0x00) }
-            Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force
+            Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force | Out-Null
         }
     }
 

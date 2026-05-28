@@ -35,7 +35,7 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v2.5
+              Optimizador de Windows v2.6
             </p>
           </div>
         </div>
@@ -56,12 +56,14 @@
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" v-model="isDryRun" class="sr-only peer" />
           <div
-            class="w-9 h-5 bg-zinc-700 rounded-full relative peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"
+            class="w-9 h-5 bg-zinc-700 rounded-full relative peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500"
           ></div>
         </label>
       </div>
 
       <ProfileSelector />
+
+      <BenchmarkPanel class="mb-6" />
 
       <OptimizationGrid
         :cardStatus="cardStatus"
@@ -229,11 +231,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import QolPanel from "./components/QolPanel.vue";
-import Swal from "sweetalert2";
-import QuickActions from "./components/QuickActions.vue";
+import BenchmarkPanel from "./components/BenchmarkPanel.vue";
 import { invoke } from "@tauri-apps/api/core";
+import Swal from "sweetalert2";
 import { useOverlordStore } from "./stores/overlordStore";
+import { tweaksMetadata } from "./data/tweaksMetadata";
+import QolPanel from "./components/QolPanel.vue";
+import QuickActions from "./components/QuickActions.vue";
 import HardwareSidebar from "./components/HardwareSidebar.vue";
 import ProfileSelector from "./components/ProfileSelector.vue";
 import OptimizationGrid from "./components/OptimizationGrid.vue";
@@ -251,19 +255,6 @@ const isDryRun = ref(false);
 const warningModalOpen = ref(false);
 const warningModalMessage = ref("");
 const pendingTweakKey = ref("");
-
-const scriptMap: Record<string, string> = {
-  peripheralLatency: "01_perifericos.ps1",
-  debloat: "02_debloat.ps1",
-  networkOptimized: "03_red.ps1",
-  generalPerformance: "04_rendimiento.ps1",
-  gpuDisplay: "05_gpu_display.ps1",
-  irqAffinity: "06_irq_affinity.ps1",
-  smartStorage: "07_almacenamiento.ps1",
-  deepTelemetry: "08_telemetria.ps1",
-  powerProfiles: "09_energia.ps1",
-  gameHooks: "11_game_hooks.ps1",
-};
 
 const overlordSwalConfig = {
   background: "rgba(15, 15, 15, 0.75)",
@@ -341,7 +332,9 @@ async function ejecutarTodo() {
     return;
   }
 
-  if (!store.restorePointCreated) {
+  await store.checkBackupStatus();
+
+  if (!store.backupExists) {
     const alertConfirm = await Swal.fire({
       title: "RESPALDO REQUERIDO",
       html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creará un <b class='text-yellow-400'>Punto de Restauración</b> de respaldo obligatorio.",
@@ -354,13 +347,14 @@ async function ejecutarTodo() {
 
     if (!alertConfirm.isConfirmed) return;
     await crearRespaldo();
-    if (!store.restorePointCreated) return;
+    await store.checkBackupStatus();
+    if (!store.backupExists) return;
   }
 
   isExecutingAll.value = true;
 
   for (const modKey of modulosActivos) {
-    const scriptName = scriptMap[modKey];
+    const scriptName = tweaksMetadata[modKey]?.scriptName;
     if (!scriptName) continue;
 
     cardStatus.value[modKey] = "loading";
@@ -459,7 +453,7 @@ async function crearRespaldo() {
     store.restorePointCreated = false;
     await Swal.fire({
       title: "ERROR DE RESPALDO",
-      text: "No se pudo comprobar la integridad del servicio VSS.",
+      text: "No se pudo comprobar la integridad del servicio VSS u Overlord no cuenta con privilegios de Administrador.",
       icon: "error",
       ...overlordSwalConfig,
     });
@@ -501,12 +495,12 @@ async function revertirStock() {
       ...overlordSwalConfig,
     });
   } catch (error) {
+    console.error("[FALLO EN REVERSIÓN]:", error);
   } finally {
     isReverting.value = false;
   }
 }
 </script>
-
 <style>
 body {
   margin: 0;

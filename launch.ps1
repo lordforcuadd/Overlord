@@ -23,19 +23,16 @@ if (!(Test-Path $TempDir)) {
 $ExePath = Join-Path $TempDir $FileName
 $GlobalLog = "C:\overlord_errors.log"
 
-
 if (Test-Path $GlobalLog) { Remove-Item $GlobalLog -Force }
 
 Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath -UseBasicParsing
 
 if (Test-Path $ExePath) {
-
     Start-Process -FilePath $ExePath -Wait
-    
     
     if (Test-Path $GlobalLog) {
         Write-Host "`n=======================================================" -ForegroundColor Red
-        Write-Host "⚠️  OVERLORD V2.5 - INFORME DE EXCEPCIONES EN LA LAPTOP" -ForegroundColor Yellow -BackgroundColor Black
+        Write-Host "⚠️  OVERLORD V2.6 - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
         Write-Host "=======================================================" -ForegroundColor Red
         
         Get-Content $GlobalLog | ForEach-Object {

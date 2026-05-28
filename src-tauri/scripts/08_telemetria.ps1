@@ -1,40 +1,41 @@
-﻿param([bool]$IsLaptop = $false, [int]$RamGB = 8)
+﻿param(
+    [bool]$IsLaptop = $false, 
+    [int]$RamGB = 8
+)
 $ErrorActionPreference = "Stop"
+
+$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
+if (Test-Path $BackupManagerPath) {
+    Import-Module $BackupManagerPath -Force
+}
 
 Try {
     Write-Host "[*] Erradicando telemetria e hilos de recoleccion..."
 
-    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Telemetry"
-    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
-
     $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
+    if (!(Test-Path $VbsPath)) { New-Item -Path $VbsPath -Force | Out-Null }
+
     $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
-    
-    if (Test-Path $VbsPath) {
-        $OrigVbs = (Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue).EnableVirtualizationBasedSecurity
-        if ($OrigVbs -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue) -eq $null) {
-            Set-ItemProperty -Path $BackupPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value $OrigVbs -Force
-        }
-    }
-    if (Test-Path $HvciPath) {
-        $OrigHvci = (Get-ItemProperty -Path $HvciPath -Name "Enabled" -ErrorAction SilentlyContinue).Enabled
-        if ($OrigHvci -ne $null -and (Get-ItemProperty -Path $BackupPath -Name "Hvci_Enabled" -ErrorAction SilentlyContinue) -eq $null) {
-            Set-ItemProperty -Path $BackupPath -Name "Hvci_Enabled" -Type DWord -Value $OrigHvci -Force
-        }
+    if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
+
+    $ActivityPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
+    if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
+
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $VbsPath -ValueName "EnableVirtualizationBasedSecurity" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey $HvciPath -ValueName "Enabled" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
     }
 
-    Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force
-    if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
-    Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force
+    Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
 
     try {
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
     } catch {}
 
-    $ActivityPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
-    if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
-    Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force
+    Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
 
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
@@ -49,7 +50,7 @@ Try {
             }
         }
     }
-    
+
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog",
@@ -58,7 +59,10 @@ Try {
     foreach ($Logger in $Loggers) {
         $LoggerKey = "$LoggersPath\$Logger"
         if (Test-Path $LoggerKey) {
-            reg.exe add "$LoggerKey" /v "Start" /t REG_DWORD /d 0 /f | Out-Null
+            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry"
+            }
+            Set-ItemProperty -Path $LoggerKey -Name "Start" -Type DWord -Value 0 -Force | Out-Null
         }
         logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null
     }

@@ -11,7 +11,7 @@
           <button
             @click="toggleDoc"
             class="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-            title="Ver Documentación Oficial"
+            title="Ver Detalles Técnicos"
           >
             <svg
               class="w-4 h-4"
@@ -45,21 +45,25 @@
         class="mt-2 p-4 bg-white/[0.02] border border-white/5 rounded-xl flex flex-col gap-3 text-xs font-mono text-gray-400"
       >
         <div>
-          <span class="text-yellow-500 font-bold">REVERSIÓN:</span>
-          {{ meta.metodoReversion }}
+          <span class="text-blue-400 font-bold">IMPACTO REAL:</span>
+          <span class="text-gray-300"> {{ meta.impactoRendimiento }}</span>
         </div>
         <div>
-          <span class="text-blue-400 font-bold">HARDWARE:</span>
-          {{ meta.hardwareRecomendado }}
+          <span class="text-yellow-500 font-bold">REVERSIÓN EXACTA:</span>
+          <span class="text-gray-300"> {{ meta.metodoReversion }}</span>
+        </div>
+        <div>
+          <span class="text-emerald-400 font-bold">HARDWARE RECOMENDADO:</span>
+          <span class="text-gray-300"> {{ meta.hardwareRecomendado }}</span>
         </div>
         <div>
           <span class="text-purple-400 font-bold">COMPATIBILIDAD:</span>
-          {{ meta.windowsVersion }}
+          <span class="text-gray-300"> {{ meta.windowsVersion }}</span>
         </div>
         <a
           :href="meta.fuenteOficial"
           target="_blank"
-          class="text-yellow-500/70 hover:text-yellow-400 underline truncate block mt-1"
+          class="text-yellow-500/70 hover:text-yellow-400 underline truncate block mt-1 font-sans"
         >
           Documentación Oficial de Microsoft →
         </a>
@@ -101,7 +105,7 @@
         <input
           type="checkbox"
           :checked="modelValue"
-          @change="emitUpdate"
+          @change="handleToggleAttempt"
           :disabled="status === 'loading'"
           class="sr-only peer"
         />
@@ -123,7 +127,11 @@ const props = defineProps<{
   status: "idle" | "loading" | "success" | "error";
 }>();
 
-const emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits<{
+  (e: "update:modelValue", value: boolean): void;
+  (e: "request-warning", payload: { id: string; warningText: string }): void;
+}>();
+
 const showDoc = ref(false);
 
 const meta = computed(() => tweaksMetadata[props.id]);
@@ -132,18 +140,29 @@ const toggleDoc = () => {
   showDoc.value = !showDoc.value;
 };
 
-const emitUpdate = (e: Event) => {
+const handleToggleAttempt = (e: Event) => {
   const target = e.target as HTMLInputElement;
-  emit("update:modelValue", target.checked);
+  const isChecking = target.checked;
+
+  if (meta.value.warning && isChecking) {
+    target.checked = false;
+
+    emit("request-warning", {
+      id: props.id,
+      warningText: meta.value.warning,
+    });
+  } else {
+    emit("update:modelValue", isChecking);
+  }
 };
 
 const badgeClass = computed(() => {
   switch (meta.value.riesgo) {
     case "Seguro":
       return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-    case "Avanzado":
-      return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
-    case "Kernel":
+    case "Balanceado":
+      return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+    case "Experimental":
       return "bg-red-500/10 text-red-400 border border-red-500/20";
     default:
       return "bg-white/5 text-gray-400";

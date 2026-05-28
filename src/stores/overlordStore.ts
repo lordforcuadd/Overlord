@@ -8,6 +8,8 @@ interface HardwarePayload {
   ram_gb: number;
   ram_speed: number;
   is_laptop: boolean;
+  is_hybrid: boolean;
+  is_x3d: boolean;
 }
 
 interface TelemetryPayload {
@@ -23,6 +25,12 @@ interface GamePayload {
   detected: boolean;
 }
 
+interface BenchmarkData {
+  networkLatency: number;
+  dnsResolution: number;
+  measured: boolean;
+}
+
 export const useOverlordStore = defineStore("overlord", {
   state: () => ({
     hardwareInfo: {
@@ -32,6 +40,8 @@ export const useOverlordStore = defineStore("overlord", {
       ram: 0,
       ramSpeed: 0,
       isLaptop: false,
+      isHybrid: false,
+      isX3d: false,
       tier: "Detectando...",
     },
     liveTelemetry: {
@@ -52,29 +62,41 @@ export const useOverlordStore = defineStore("overlord", {
       powerProfiles: false,
       gameHooks: false,
     },
-    moduleSpecs: {
-      peripheralLatency: { riesgo: "Seguro" },
-      debloat: { riesgo: "Seguro" },
-      networkOptimized: { riesgo: "Seguro" },
-      generalPerformance: { riesgo: "Avanzado" },
-      gpuDisplay: { riesgo: "Avanzado" },
-      irqAffinity: { riesgo: "Kernel" },
-      smartStorage: { riesgo: "Seguro" },
-      deepTelemetry: { riesgo: "Kernel" },
-      powerProfiles: { riesgo: "Avanzado" },
-      gameHooks: { riesgo: "Kernel" },
-    },
     gameList: [] as Array<{
       name: string;
       exe: string;
       detected: boolean;
       optimize: boolean;
     }>,
+    benchmarks: {
+      before: {
+        networkLatency: 0,
+        dnsResolution: 0,
+        measured: false,
+      } as BenchmarkData,
+      after: {
+        networkLatency: 0,
+        dnsResolution: 0,
+        measured: false,
+      } as BenchmarkData,
+    },
     activeProfile: "Personalizado",
     restorePointCreated: false,
+    backupExists: false,
     telemetryInterval: null as any,
   }),
   actions: {
+    async checkBackupStatus() {
+      try {
+        this.backupExists = await invoke<boolean>("check_backup_exists");
+        if (this.backupExists) {
+          this.restorePointCreated = true;
+        }
+      } catch (e) {
+        console.error("[ERROR CHECKING REGISTRY BACKUP]:", e);
+        this.backupExists = false;
+      }
+    },
     async detectHardware() {
       try {
         const info = await invoke<HardwarePayload>("get_hardware_info");
@@ -84,33 +106,32 @@ export const useOverlordStore = defineStore("overlord", {
         this.hardwareInfo.ram = info.ram_gb;
         this.hardwareInfo.ramSpeed = info.ram_speed;
         this.hardwareInfo.isLaptop = info.is_laptop;
+        this.hardwareInfo.isHybrid = info.is_hybrid;
+        this.hardwareInfo.isX3d = info.is_x3d;
 
         const lowerCpu = info.cpu.toLowerCase();
         const lowerGpu = info.gpu.toLowerCase();
 
         if (
+          info.is_x3d ||
           lowerCpu.includes("12700k") ||
-          lowerCpu.includes("i7") ||
           lowerCpu.includes("i9") ||
-          lowerCpu.includes("ryzen 7") ||
           lowerCpu.includes("ryzen 9") ||
-          lowerGpu.includes("rtx") ||
-          lowerGpu.includes("rx 7") ||
-          lowerGpu.includes("rx 6") ||
           info.ram_gb >= 32
         ) {
           this.hardwareInfo.tier = "Gama Alta Extreme";
         } else if (
           info.ram_gb >= 16 ||
-          lowerGpu.includes("gtx 16") ||
-          lowerGpu.includes("gtx 10")
+          lowerGpu.includes("rtx") ||
+          lowerGpu.includes("rx 6")
         ) {
           this.hardwareInfo.tier = "Gama Media-Alta";
         } else {
           this.hardwareInfo.tier = "Gama Estándar";
         }
+        await this.checkBackupStatus();
       } catch (e) {
-        console.error(e);
+        console.error("[ERROR DETECTANDO HARDWARE]:", e);
       }
     },
     async scanGames() {
@@ -121,7 +142,7 @@ export const useOverlordStore = defineStore("overlord", {
           optimize: g.detected,
         }));
       } catch (e) {
-        console.error(e);
+        console.error("[ERROR ESCANEANDO CATÁLOGO DE JUEGOS]:", e);
       }
     },
     startTelemetryPolling() {
@@ -134,7 +155,7 @@ export const useOverlordStore = defineStore("overlord", {
           this.liveTelemetry.ramTotal = metrics.ram_total_gb;
           this.liveTelemetry.ramPercent = metrics.ram_percent;
         } catch (e) {
-          console.error(e);
+          console.error("[TELEMETRY POLL FAIL]:", e);
         }
       }, 2000);
     },
@@ -152,6 +173,8 @@ export const useOverlordStore = defineStore("overlord", {
         this.modules[key as keyof typeof this.modules] = false;
       });
 
+      const isHighEnd = this.hardwareInfo.tier === "Gama Alta Extreme";
+
       switch (profile) {
         case "Competitivo":
           this.modules.peripheralLatency = true;
@@ -159,9 +182,12 @@ export const useOverlordStore = defineStore("overlord", {
           this.modules.networkOptimized = true;
           this.modules.generalPerformance = true;
           this.modules.gpuDisplay = true;
-          this.modules.irqAffinity = !this.hardwareInfo.isLaptop;
+          this.modules.irqAffinity =
+            isHighEnd &&
+            !this.hardwareInfo.isLaptop &&
+            !this.hardwareInfo.isHybrid;
           this.modules.smartStorage = true;
-          this.modules.deepTelemetry = true;
+          this.modules.deepTelemetry = isHighEnd;
           this.modules.powerProfiles = !this.hardwareInfo.isLaptop;
           this.modules.gameHooks = true;
           break;

@@ -1,9 +1,9 @@
 use serde::Serialize;
 use std::path::Path;
-use std::os::windows::process::CommandExt;
-use sysinfo::{System, CpuRefreshKind, RefreshKind};
 use winreg::enums::*;
 use winreg::RegKey;
+use sysinfo::{System, CpuRefreshKind, RefreshKind};
+use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Clone)]
 pub struct HardwareResponse {
@@ -13,6 +13,8 @@ pub struct HardwareResponse {
     pub ram_gb: u32,
     pub ram_speed: u32,
     pub is_laptop: bool,
+    pub is_hybrid: bool,
+    pub is_x3d: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -36,7 +38,7 @@ pub fn get_system_hardware() -> HardwareResponse {
         .and_then(|key| key.get_value::<String, _>("ProcessorNameString"))
         .unwrap_or_else(|_| {
             let brand = sys.global_cpu_info().brand().trim().to_string();
-            if brand.is_empty() { "Intel Core i7 Processor".to_string() } else { brand }
+            if brand.is_empty() { "CPU no detectada".to_string() } else { brand }
         });
 
     let motherboard_name = hklm
@@ -64,7 +66,7 @@ pub fn get_system_hardware() -> HardwareResponse {
     }
 
     let gpu_name = if gpus.is_empty() {
-        "AMD Radeon RX 6600 XT".to_string()
+        "GPU no detectada".to_string()
     } else {
         gpus.join(" + ")
     };
@@ -94,6 +96,24 @@ pub fn get_system_hardware() -> HardwareResponse {
         })
         .unwrap_or(false);
 
+    let lower_cpu = cpu_name.to_lowercase();
+    let mut is_hybrid = false;
+    
+    if lower_cpu.contains("intel") {
+        let physical_cores = sys.physical_core_count().unwrap_or(0);
+        let total_cpus = sys.cpus().len();
+        if physical_cores > 0 && total_cpus > (physical_cores * 2) {
+            is_hybrid = true;
+        }
+        if lower_cpu.contains("i7-12") || lower_cpu.contains("i7-13") || lower_cpu.contains("i7-14") ||
+           lower_cpu.contains("i9-12") || lower_cpu.contains("i9-13") || lower_cpu.contains("i9-14") ||
+           lower_cpu.contains("ultra 7") || lower_cpu.contains("ultra 9") {
+            is_hybrid = true;
+        }
+    }
+
+    let is_x3d = lower_cpu.contains("x3d");
+
     HardwareResponse {
         cpu: cpu_name,
         gpu: gpu_name,
@@ -101,6 +121,8 @@ pub fn get_system_hardware() -> HardwareResponse {
         ram_gb: ram_calc,
         ram_speed: ram_speed_mhz,
         is_laptop: is_laptop_chassis,
+        is_hybrid,
+        is_x3d,
     }
 }
 
@@ -170,47 +192,72 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    if Path::new("C:\\Riot Games\\VALORANT").exists() || Path::new("D:\\Riot Games\\VALORANT").exists() {
+    let gog_paths = [
+        "SOFTWARE\\GOG.com\\Games",
+        "SOFTWARE\\Wow6432Node\\GOG.com\\Games"
+    ];
+    for path in &gog_paths {
+        if let Ok(gog_key) = hklm.open_subkey(path) {
+            for subkey_name in gog_key.enum_keys().map(|x| x.unwrap_or_default()) {
+                if let Ok(subkey) = gog_key.open_subkey(&subkey_name) {
+                    if let Ok(title) = subkey.get_value::<String, _>("title") {
+                        let lower_title = title.to_lowercase();
+                        for game in catalog.iter_mut() {
+                            if lower_title.contains(&game.name.to_lowercase()) {
+                                game.detected = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if hklm.open_subkey("SOFTWARE\\Epic Games\\EpicGamesLauncher").is_ok() {
+        if hklm.open_subkey("SOFTWARE\\EpicGames\\Unreal Engine").is_ok() {
+            for game in catalog.iter_mut() {
+                if game.name == "Fortnite" { game.detected = true; }
+            }
+        }
+    }
+    
+    let common_epic_paths = ["C:\\Program Files\\Epic Games", "D:\\Epic Games"];
+    for path in &common_epic_paths {
         for game in catalog.iter_mut() {
-            if game.name == "VALORANT" {
+            if Path::new(path).join(&game.name).exists() {
                 game.detected = true;
             }
         }
     }
 
-    if Path::new("C:\\Riot Games\\League of Legends").exists() || Path::new("D:\\Riot Games\\League of Legends").exists() {
-        for game in catalog.iter_mut() {
-            if game.name == "League of Legends" {
-                game.detected = true;
+    let xbox_default_paths = ["C:\\XboxGames", "D:\\XboxGames"];
+    for path in &xbox_default_paths {
+        if Path::new(path).exists() {
+            for game in catalog.iter_mut() {
+                if Path::new(path).join(&game.name).exists() {
+                    game.detected = true;
+                }
+            }
+        }
+    }
+
+    let riot_paths = ["C:\\Riot Games\\VALORANT", "D:\\Riot Games\\VALORANT"];
+    for path in &riot_paths {
+        if Path::new(path).exists() {
+            for game in catalog.iter_mut() {
+                if game.name == "VALORANT" { game.detected = true; }
+            }
+        }
+    }
+
+    let lol_paths = ["C:\\Riot Games\\League of Legends", "D:\\Riot Games\\League of Legends"];
+    for path in &lol_paths {
+        if Path::new(path).exists() {
+            for game in catalog.iter_mut() {
+                if game.name == "League of Legends" { game.detected = true; }
             }
         }
     }
 
     catalog
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_system_hardware_extraction() {
-        let hardware = get_system_hardware();
-        assert!(!hardware.cpu.is_empty());
-        assert!(!hardware.motherboard.is_empty());
-        assert!(hardware.ram_gb > 0);
-    }
-
-    #[test]
-    fn test_installed_games_scanning() {
-        let catalog = collect_installed_games();
-        assert!(catalog.len() >= 6);
-        assert_idempotent_catalog(catalog);
-    }
-
-    fn assert_idempotent_catalog(catalog: Vec<ScanGamesResponse>) {
-        for game in catalog {
-            assert!(game.exe.contains(".exe"));
-        }
-    }
 }

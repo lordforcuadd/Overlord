@@ -1,7 +1,7 @@
 <div align="center">
   <img src="overlord_icon.png" alt="Overlord Logo" width="120">
   
-  # OVERLORD (v2.5.4)
+  # OVERLORD (v2.6)
   **Sistema Avanzado de Optimización, Gestión de Telemetría y Reducción de Latencia para Windows 10 y 11.**
   
   Una suite de ingeniería orientada al rendimiento competitivo de bajo nivel, depuración avanzada del sistema operativo y anulación del retraso de entrada (*input lag*), impulsada por un núcleo asíncrono en Rust, scripts sintonizados para Windows PowerShell 5.1 y una interfaz fluida basada en Vue 3, Tailwind CSS y Pinia.

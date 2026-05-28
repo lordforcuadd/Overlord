@@ -1,5 +1,14 @@
-﻿param([string]$GameList = "", [bool]$IsLaptop = $false, [int]$RamGB = 8)
+﻿param(
+    [string]$GameList = "", 
+    [bool]$IsLaptop = $false, 
+    [int]$RamGB = 8
+)
 $ErrorActionPreference = "Stop"
+
+$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
+if (Test-Path $BackupManagerPath) {
+    Import-Module $BackupManagerPath -Force
+}
 
 Try {
     if ([string]::IsNullOrWhiteSpace($GameList)) { 
@@ -19,24 +28,39 @@ Try {
             $IfeoPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game\PerfOptions"
             $GameKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game"
             
+            $OrigCpuPriority = $null
+            $OrigIoPriority = $null
             if (Test-Path $IfeoPath) {
                 $OrigCpuPriority = (Get-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -ErrorAction SilentlyContinue).CpuPriorityClass
                 $OrigIoPriority = (Get-ItemProperty -Path $IfeoPath -Name "IoPriority" -ErrorAction SilentlyContinue).IoPriority
-                
-                if ($OrigCpuPriority -ne $null) { Set-ItemProperty -Path $BackupPath -Name "${Game}_CpuPriority" -Value $OrigCpuPriority -Force }
-                if ($OrigIoPriority -ne $null) { Set-ItemProperty -Path $BackupPath -Name "${Game}_IoPriority" -Value $OrigIoPriority -Force }
             }
+
+            $OrigFsoBypass = $null
             if (Test-Path $GameKey) {
                 $OrigFsoBypass = (Get-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -ErrorAction SilentlyContinue).DISABLEDXMAXIMIZEDWINDOWEDMODE
-                if ($OrigFsoBypass -ne $null) { Set-ItemProperty -Path $BackupPath -Name "${Game}_FsoBypass" -Value $OrigFsoBypass -Force }
+            }
+
+            if ((Get-ItemProperty -Path $BackupPath -Name "${Game}_CpuPriority" -ErrorAction SilentlyContinue) -eq $null) {
+                $BckCpu = if ($OrigCpuPriority -eq $null) { '_ABSENT_' } else { $OrigCpuPriority }
+                Set-ItemProperty -Path $BackupPath -Name "${Game}_CpuPriority" -Value $BckCpu -Force | Out-Null
+            }
+
+            if ((Get-ItemProperty -Path $BackupPath -Name "${Game}_IoPriority" -ErrorAction SilentlyContinue) -eq $null) {
+                $BckIo = if ($OrigIoPriority -eq $null) { '_ABSENT_' } else { $OrigIoPriority }
+                Set-ItemProperty -Path $BackupPath -Name "${Game}_IoPriority" -Value $BckIo -Force | Out-Null
+            }
+
+            if ((Get-ItemProperty -Path $BackupPath -Name "${Game}_FsoBypass" -ErrorAction SilentlyContinue) -eq $null) {
+                $BckFso = if ($OrigFsoBypass -eq $null) { '_ABSENT_' } else { $OrigFsoBypass }
+                Set-ItemProperty -Path $BackupPath -Name "${Game}_FsoBypass" -Value $BckFso -Force | Out-Null
             }
 
             if (!(Test-Path $IfeoPath)) { New-Item -Path $IfeoPath -Force | Out-Null }
-            Set-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force
-            Set-ItemProperty -Path $IfeoPath -Name "IoPriority" -Type DWord -Value 3 -Force
+            Set-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force | Out-Null
+            Set-ItemProperty -Path $IfeoPath -Name "IoPriority" -Type DWord -Value 3 -Force | Out-Null
             
             if (!(Test-Path $GameKey)) { New-Item -Path $GameKey -Force | Out-Null }
-            Set-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -Type DWord -Value 1 -Force
+            Set-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -Type DWord -Value 1 -Force | Out-Null
 
             Write-Host "    -> Hooks inyectados para: $Game"
         }

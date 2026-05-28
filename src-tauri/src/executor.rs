@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 use std::io::Read;
 use std::time::{Duration, Instant, SystemTime};
 
-// Incrustación estática de toda la suite de scripts de PowerShell en el binario de Rust
+
 const SCRIPT_01_PERIFERICOS: &str = include_str!("../scripts/01_perifericos.ps1");
 const SCRIPT_02_DEBLOAT: &str = include_str!("../scripts/02_debloat.ps1");
 const SCRIPT_03_RED: &str = include_str!("../scripts/03_red.ps1");
@@ -27,6 +27,7 @@ const SCRIPT_UTILS: &str = include_str!("../scripts/utils.ps1");
 pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u64) -> Result<String, String> {
     let path_str = script_path.replace("\\", "/");
     
+    
     let target_name = if path_str.contains("01_perifericos") { "01_perifericos.ps1" }
     else if path_str.contains("02_debloat") { "02_debloat.ps1" }
     else if path_str.contains("03_red") { "03_red.ps1" }
@@ -49,6 +50,28 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
         return Err(format!("Script no mapeado en la suite: {}", path_str));
     };
 
+    
+    let target_content = match target_name {
+        "01_perifericos.ps1" => SCRIPT_01_PERIFERICOS,
+        "02_debloat.ps1" => SCRIPT_02_DEBLOAT,
+        "03_red.ps1" => SCRIPT_03_RED,
+        "04_rendimiento.ps1" => SCRIPT_04_RENDIMIENTO,
+        "05_gpu_display.ps1" => SCRIPT_05_GPU_DISPLAY,
+        "06_irq_affinity.ps1" => SCRIPT_06_IRQ_AFFINITY,
+        "07_almacenamiento.ps1" => SCRIPT_07_ALMACENAMIENTO,
+        "08_telemetria.ps1" => SCRIPT_08_TELEMETRIA,
+        "09_energia.ps1" => SCRIPT_09_ENERGIA,
+        "10_revertir.ps1" => SCRIPT_10_REVERTIR,
+        "11_game_hooks.ps1" => SCRIPT_11_GAME_HOOKS,
+        "crear_respaldo.ps1" => SCRIPT_CREAR_RESPALDO,
+        "get_modules_status.ps1" => SCRIPT_GET_MODULES_STATUS,
+        "get_qol.ps1" => SCRIPT_GET_QOL,
+        "set_qol.ps1" => SCRIPT_SET_QOL,
+        "quick_actions.ps1" => SCRIPT_QUICK_ACTIONS,
+        "shutdown.ps1" => SCRIPT_SHUTDOWN,
+        _ => SCRIPT_UTILS,
+    };
+
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -58,28 +81,13 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
     let temp_run_dir = std::env::temp_dir().join(unique_folder_name);
     std::fs::create_dir_all(&temp_run_dir).map_err(|e| format!("Error de infraestructura temporal: {}", e))?;
 
-    let scripts = vec![
-        ("01_perifericos.ps1", SCRIPT_01_PERIFERICOS),
-        ("02_debloat.ps1", SCRIPT_02_DEBLOAT),
-        ("03_red.ps1", SCRIPT_03_RED),
-        ("04_rendimiento.ps1", SCRIPT_04_RENDIMIENTO),
-        ("05_gpu_display.ps1", SCRIPT_05_GPU_DISPLAY),
-        ("06_irq_affinity.ps1", SCRIPT_06_IRQ_AFFINITY),
-        ("07_almacenamiento.ps1", SCRIPT_07_ALMACENAMIENTO),
-        ("08_telemetria.ps1", SCRIPT_08_TELEMETRIA),
-        ("09_energia.ps1", SCRIPT_09_ENERGIA),
-        ("10_revertir.ps1", SCRIPT_10_REVERTIR),
-        ("11_game_hooks.ps1", SCRIPT_11_GAME_HOOKS),
-        ("crear_respaldo.ps1", SCRIPT_CREAR_RESPALDO),
-        ("get_modules_status.ps1", SCRIPT_GET_MODULES_STATUS),
-        ("get_qol.ps1", SCRIPT_GET_QOL),
-        ("set_qol.ps1", SCRIPT_SET_QOL),
-        ("quick_actions.ps1", SCRIPT_QUICK_ACTIONS),
-        ("shutdown.ps1", SCRIPT_SHUTDOWN),
+    
+    let files_to_extract = vec![
         ("utils.ps1", SCRIPT_UTILS),
+        (target_name, target_content)
     ];
 
-    for (name, content) in scripts {
+    for (name, content) in files_to_extract {
         let file_path = temp_run_dir.join(name);
         let mut bom_content = Vec::with_capacity(3 + content.len());
         bom_content.extend_from_slice(b"\xEF\xBB\xBF");
@@ -150,18 +158,23 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
         }
     }
 
-// 4. Purga física total de la carpeta transitoria al finalizar la ejecución del hilo
     let _ = std::fs::remove_dir_all(&temp_run_dir);
 
-    // [PUENTE DE LOGS PORTÁTIL]: Escribir el fallo en una zona común inmune a entornos de usuario
+    
     if let Err(ref err_msg) = final_result {
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("C:\\overlord_errors.log") 
-        {
-            use std::io::Write;
-            let _ = writeln!(file, "[FALLO CRÍTICO] Script: {} -> {}", target_name, err_msg);
+        if let Some(program_data) = std::env::var_os("ProgramData") {
+            let log_dir = std::path::Path::new(&program_data).join("Overlord");
+            let _ = std::fs::create_dir_all(&log_dir);
+            let log_file = log_dir.join("errors.log");
+            
+            if let Ok(mut file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_file) 
+            {
+                use std::io::Write;
+                let _ = writeln!(file, "[FALLO CRÍTICO] Script: {} -> {}", target_name, err_msg);
+            }
         }
     }
 

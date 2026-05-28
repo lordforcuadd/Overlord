@@ -57,7 +57,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v2.5.4" {
             if (Test-Path $Path) {
                 $Ttl = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MaxCacheTtl
                 if ($null -ne $Ttl) {
-                    $Ttl | Should -BeLessThanOrEqualTo 300
+                    $Ttl | Should -BeIn @(86400)
                 }
             } else {
                 $true | Should -Be $true

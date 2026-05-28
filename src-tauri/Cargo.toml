@@ -1,6 +1,6 @@
 [package]
 name = "overlord"
-version = "2.5.4"
+version = "2.6.0"
 description = "A Tauri App for Advanced OS Optimization"
 authors = ["lordforcuadd"]
 edition = "2021"
