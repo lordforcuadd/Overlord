@@ -3,7 +3,6 @@ use std::process::{Command, Stdio};
 use std::io::Read;
 use std::time::{Duration, Instant, SystemTime};
 
-
 const SCRIPT_01_PERIFERICOS: &str = include_str!("../scripts/01_perifericos.ps1");
 const SCRIPT_02_DEBLOAT: &str = include_str!("../scripts/02_debloat.ps1");
 const SCRIPT_03_RED: &str = include_str!("../scripts/03_red.ps1");
@@ -23,10 +22,10 @@ const SCRIPT_SET_QOL: &str = include_str!("../scripts/set_qol.ps1");
 const SCRIPT_QUICK_ACTIONS: &str = include_str!("../scripts/quick_actions.ps1");
 const SCRIPT_SHUTDOWN: &str = include_str!("../scripts/shutdown.ps1");
 const SCRIPT_UTILS: &str = include_str!("../scripts/utils.ps1");
+const SCRIPT_BACKUP_MANAGER: &str = include_str!("../scripts/backup_manager.psm1");
 
 pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u64) -> Result<String, String> {
     let path_str = script_path.replace("\\", "/");
-    
     
     let target_name = if path_str.contains("01_perifericos") { "01_perifericos.ps1" }
     else if path_str.contains("02_debloat") { "02_debloat.ps1" }
@@ -50,7 +49,6 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
         return Err(format!("Script no mapeado en la suite: {}", path_str));
     };
 
-    
     let target_content = match target_name {
         "01_perifericos.ps1" => SCRIPT_01_PERIFERICOS,
         "02_debloat.ps1" => SCRIPT_02_DEBLOAT,
@@ -81,9 +79,9 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
     let temp_run_dir = std::env::temp_dir().join(unique_folder_name);
     std::fs::create_dir_all(&temp_run_dir).map_err(|e| format!("Error de infraestructura temporal: {}", e))?;
 
-    
     let files_to_extract = vec![
         ("utils.ps1", SCRIPT_UTILS),
+        ("backup_manager.psm1", SCRIPT_BACKUP_MANAGER),
         (target_name, target_content)
     ];
 
@@ -160,7 +158,6 @@ pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u
 
     let _ = std::fs::remove_dir_all(&temp_run_dir);
 
-    
     if let Err(ref err_msg) = final_result {
         if let Some(program_data) = std::env::var_os("ProgramData") {
             let log_dir = std::path::Path::new(&program_data).join("Overlord");

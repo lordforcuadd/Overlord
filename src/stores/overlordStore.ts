@@ -10,6 +10,7 @@ interface HardwarePayload {
   is_laptop: boolean;
   is_hybrid: boolean;
   is_x3d: boolean;
+  is_ssd: boolean;
 }
 
 interface TelemetryPayload {
@@ -42,6 +43,7 @@ export const useOverlordStore = defineStore("overlord", {
       isLaptop: false,
       isHybrid: false,
       isX3d: false,
+      isSsd: true,
       tier: "Detectando...",
     },
     liveTelemetry: {
@@ -108,6 +110,7 @@ export const useOverlordStore = defineStore("overlord", {
         this.hardwareInfo.isLaptop = info.is_laptop;
         this.hardwareInfo.isHybrid = info.is_hybrid;
         this.hardwareInfo.isX3d = info.is_x3d;
+        this.hardwareInfo.isSsd = info.is_ssd;
 
         const lowerCpu = info.cpu.toLowerCase();
         const lowerGpu = info.gpu.toLowerCase();

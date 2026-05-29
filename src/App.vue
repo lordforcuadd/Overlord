@@ -35,36 +35,17 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v2.6
+              Optimizador de Windows v3.0
             </p>
           </div>
         </div>
-
         <HardwareSidebar />
       </header>
 
       <QuickActions />
-
       <QolPanel />
-
-      <div
-        class="mb-6 flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-xl max-w-xs"
-      >
-        <span class="text-sm font-bold uppercase tracking-wider text-gray-300"
-          >Modo Simulación (Dry-Run)</span
-        >
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" v-model="isDryRun" class="sr-only peer" />
-          <div
-            class="w-9 h-5 bg-zinc-700 rounded-full relative peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500"
-          ></div>
-        </label>
-      </div>
-
       <ProfileSelector />
-
       <BenchmarkPanel class="mb-6" />
-
       <OptimizationGrid
         :cardStatus="cardStatus"
         @trigger-warning="openWarningModal"
@@ -206,17 +187,17 @@
           </p>
         </div>
       </div>
-
       <button
         @click="ejecutarTodo"
         :disabled="
           isExecutingAll ||
           Object.values(store.modules).filter((v) => v).length === 0
         "
-        class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-3 md:py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] disabled:opacity-50 flex items-center gap-3"
+        class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-3 py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] disabled:opacity-50 flex items-center gap-3"
       >
-        <span v-if="isExecutingAll">Optimizando...</span>
-        <span v-else>EJECUTAR OVERLORD</span>
+        <span>{{
+          isExecutingAll ? "Optimizando..." : "EJECUTAR OVERLORD"
+        }}</span>
       </button>
     </div>
   </div>
@@ -233,9 +214,8 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import BenchmarkPanel from "./components/BenchmarkPanel.vue";
 import { invoke } from "@tauri-apps/api/core";
-import Swal from "sweetalert2";
 import { useOverlordStore } from "./stores/overlordStore";
-import { tweaksMetadata } from "./data/tweaksMetadata";
+import { useOrchestrator } from "./composables/useOrchestrator";
 import QolPanel from "./components/QolPanel.vue";
 import QuickActions from "./components/QuickActions.vue";
 import HardwareSidebar from "./components/HardwareSidebar.vue";
@@ -244,13 +224,6 @@ import OptimizationGrid from "./components/OptimizationGrid.vue";
 import WarningModal from "./components/WarningModal.vue";
 
 const store = useOverlordStore();
-const cardStatus = ref<
-  Record<string, "idle" | "loading" | "success" | "error">
->({});
-const isBackingUp = ref(false);
-const isReverting = ref(false);
-const isExecutingAll = ref(false);
-const isDryRun = ref(false);
 
 const warningModalOpen = ref(false);
 const warningModalMessage = ref("");
@@ -274,6 +247,16 @@ const overlordSwalConfig = {
   },
 };
 
+const {
+  cardStatus,
+  isBackingUp,
+  isReverting,
+  isExecutingAll,
+  crearRespaldo,
+  ejecutarTodo,
+  revertirStock,
+} = useOrchestrator(overlordSwalConfig);
+
 const openWarningModal = (payload: { key: string; message: string }) => {
   pendingTweakKey.value = payload.key;
   warningModalMessage.value = payload.message;
@@ -291,120 +274,6 @@ const cancelDangerousTweak = () => {
   store.modules[key] = false;
   warningModalOpen.value = false;
 };
-
-async function ejecutarTodo() {
-  if (isExecutingAll.value) return;
-
-  const modulosActivos = Object.entries(store.modules)
-    .filter(([_, isEnabled]) => isEnabled)
-    .map(([key]) => key);
-
-  if (modulosActivos.length === 0) return;
-
-  if (isDryRun.value) {
-    isExecutingAll.value = true;
-
-    Swal.fire({
-      title: "SIMULACIÓN ACTIVA",
-      text: "Procesando entorno de prueba secuencial...",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-      ...overlordSwalConfig,
-    });
-
-    for (const modKey of modulosActivos) {
-      cardStatus.value[modKey] = "loading";
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      cardStatus.value[modKey] = "success";
-      store.modules[modKey as keyof typeof store.modules] = false;
-    }
-
-    isExecutingAll.value = false;
-
-    await Swal.fire({
-      title: "SIMULACIÓN COMPLETADA",
-      text: "Modo Dry-Run finalizado. Las tarjetas visuales respondieron correctamente sin alterar el registro real.",
-      icon: "success",
-      ...overlordSwalConfig,
-    });
-    return;
-  }
-
-  await store.checkBackupStatus();
-
-  if (!store.backupExists) {
-    const alertConfirm = await Swal.fire({
-      title: "RESPALDO REQUERIDO",
-      html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creará un <b class='text-yellow-400'>Punto de Restauración</b> de respaldo obligatorio.",
-      icon: "info",
-      showCancelButton: true,
-      confirmButtonText: "SÍ, BLINDAR SISTEMA",
-      cancelButtonText: "CANCELAR",
-      ...overlordSwalConfig,
-    });
-
-    if (!alertConfirm.isConfirmed) return;
-    await crearRespaldo();
-    await store.checkBackupStatus();
-    if (!store.backupExists) return;
-  }
-
-  isExecutingAll.value = true;
-
-  for (const modKey of modulosActivos) {
-    const scriptName = tweaksMetadata[modKey]?.scriptName;
-    if (!scriptName) continue;
-
-    cardStatus.value[modKey] = "loading";
-    try {
-      let gameListOpt = null;
-      if (modKey === "gameHooks") {
-        gameListOpt = store.gameList
-          .filter((g) => g.optimize)
-          .map((g) => g.exe)
-          .join(",");
-      }
-
-      await invoke("run_powershell_async", {
-        scriptName: scriptName,
-        isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ram,
-        gameList: gameListOpt,
-      });
-
-      cardStatus.value[modKey] = "success";
-      store.modules[modKey as keyof typeof store.modules] = false;
-    } catch (errorOutput) {
-      console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
-      cardStatus.value[modKey] = "error";
-    }
-  }
-
-  isExecutingAll.value = false;
-
-  if (modulosActivos.length > 0) {
-    const result = await Swal.fire({
-      title: "SISTEMA OPTIMIZADO",
-      html: "Es <b class='text-yellow-500'>OBLIGATORIO</b> reiniciar para inyectar los cambios en el Kernel.",
-      icon: "success",
-      confirmButtonText: "SÍ, REINICIAR AHORA",
-      cancelButtonText: "MÁS TARDE",
-      showCancelButton: true,
-      ...overlordSwalConfig,
-    });
-
-    if (result.isConfirmed) {
-      await invoke("run_powershell_async", {
-        scriptName: "shutdown.ps1",
-        isLaptop: false,
-        ramGb: 0,
-        gameList: "",
-      });
-    }
-  }
-}
 
 onMounted(async () => {
   await store.detectHardware();
@@ -434,72 +303,6 @@ onMounted(async () => {
 onUnmounted(() => {
   store.stopTelemetryPolling();
 });
-
-async function crearRespaldo() {
-  isBackingUp.value = true;
-  try {
-    await invoke("run_powershell_generic", {
-      scriptName: "crear_respaldo.ps1",
-      argsList: [],
-    });
-    store.restorePointCreated = true;
-    await Swal.fire({
-      title: "¡Punto Creado!",
-      text: "El sistema ha sido blindado con éxito.",
-      icon: "success",
-      ...overlordSwalConfig,
-    });
-  } catch (error) {
-    store.restorePointCreated = false;
-    await Swal.fire({
-      title: "ERROR DE RESPALDO",
-      text: "No se pudo comprobar la integridad del servicio VSS u Overlord no cuenta con privilegios de Administrador.",
-      icon: "error",
-      ...overlordSwalConfig,
-    });
-  } finally {
-    isBackingUp.value = false;
-  }
-}
-
-async function revertirStock() {
-  const result = await Swal.fire({
-    title: "ATENCIÓN",
-    text: "¿Estás seguro de revertir los cambios y volver a stock?",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "SÍ, REVERTIR",
-    cancelButtonText: "CANCELAR",
-    ...overlordSwalConfig,
-  });
-
-  if (!result.isConfirmed) return;
-
-  isReverting.value = true;
-  try {
-    await invoke("revert_optimization", {
-      isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ram,
-    });
-    store.restorePointCreated = false;
-
-    Object.keys(cardStatus.value).forEach((key) => {
-      cardStatus.value[key] = "idle";
-      store.modules[key as keyof typeof store.modules] = false;
-    });
-
-    await Swal.fire({
-      title: "SISTEMA REVERTIDO",
-      text: "Reinicia tu PC para aplicar los valores de fábrica.",
-      icon: "success",
-      ...overlordSwalConfig,
-    });
-  } catch (error) {
-    console.error("[FALLO EN REVERSIÓN]:", error);
-  } finally {
-    isReverting.value = false;
-  }
-}
 </script>
 
 <style>

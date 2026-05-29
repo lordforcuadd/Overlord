@@ -15,6 +15,7 @@ pub struct HardwareResponse {
     pub is_laptop: bool,
     pub is_hybrid: bool,
     pub is_x3d: bool,
+    pub is_ssd: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -96,6 +97,18 @@ pub fn get_system_hardware() -> HardwareResponse {
         })
         .unwrap_or(false);
 
+    let mut drive_is_ssd = true;
+    if let Ok(output) = std::process::Command::new("powershell.exe")
+        .creation_flags(0x08000000)
+        .args(&["-NoProfile", "-Command", "(Get-PhysicalDisk | Where-Object Size -GT 0 | Select-Object -First 1).MediaType"])
+        .output()
+    {
+        let media_str = String::from_utf8_lossy(&output.stdout).to_lowercase();
+        if media_str.contains("hdd") {
+            drive_is_ssd = false;
+        }
+    }
+
     let lower_cpu = cpu_name.to_lowercase();
     let mut is_hybrid = false;
     
@@ -123,6 +136,7 @@ pub fn get_system_hardware() -> HardwareResponse {
         is_laptop: is_laptop_chassis,
         is_hybrid,
         is_x3d,
+        is_ssd: drive_is_ssd,
     }
 }
 

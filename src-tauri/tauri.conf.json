@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Overlord",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "identifier": "com.lordforcuadd.overlord",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Overlord v2.6",
+        "title": "Overlord v3",
         "width": 1280,
         "height": 720,
         "resizable": true,
@@ -28,7 +28,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "publisher": "Lordforcuadd",
+    "publisher": "lordforcuadd",
     "shortDescription": "Optimizador de Sistema Avanzado",
     "icon": [
       "icons/32x32.png",

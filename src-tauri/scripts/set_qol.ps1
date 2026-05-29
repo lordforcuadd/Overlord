@@ -5,14 +5,12 @@ param(
 
 $ErrorActionPreference = "Continue"
 
-
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Error "ERROR: Se requieren permisos de administrador."
     exit 1
 }
-
 
 $Username = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
 if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
@@ -34,7 +32,6 @@ $Targets += "HKCU:"
 $NormalizedInput = $IsEnabledStr.ToLower().Replace("$", "").Trim()
 $Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
 $ToggleName = $ToggleName.Trim().Replace("'", "").Replace('"', "")
-
 
 function Set-RegistryValue($subPath, $name, $type, $val) {
     foreach ($base in $Targets) {
@@ -77,18 +74,12 @@ switch ($ToggleName) {
         }
         else {
             if ($Value -eq 1) {
-                Write-Warning "Windows $buildVer : El menú clásico nativo no es soportado."
-                $epExists = (Test-Path "$env:APPDATA\ExplorerPatcher\ep_setup.ini") -or (Get-Process "ExplorerPatcher" -ErrorAction SilentlyContinue)
-                if (-not $epExists) {
-                    Write-Output "INFO: Instala ExplorerPatcher: https://github.com/valinet/ExplorerPatcher"
-                } else {
-                    $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
-                    if (Test-Path $epConfig) {
-                        $content = Get-Content $epConfig -Raw
-                        $content = $content -replace 'ControlInterface=.*', 'ControlInterface=1'
-                        Set-Content $epConfig -Value $content -Force
-                        $RequiresExplorerRestart = $true
-                    }
+                $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+                if (Test-Path $epConfig) {
+                    $content = Get-Content $epConfig -Raw
+                    $content = $content -replace 'ControlInterface=.*', 'ControlInterface=1'
+                    Set-Content $epConfig -Value $content -Force
+                    $RequiresExplorerRestart = $true
                 }
             } else {
                 $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
@@ -148,12 +139,6 @@ switch ($ToggleName) {
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
         if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
         Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
-        if ($Value -eq 1) {
-            Stop-Service "CopilotService" -Force -ErrorAction SilentlyContinue
-            Set-Service "CopilotService" -StartupType Disabled -ErrorAction SilentlyContinue
-        } else {
-            Set-Service "CopilotService" -StartupType Manual -ErrorAction SilentlyContinue
-        }
         $RequiresExplorerRestart = $true
     }
     "disableRecall" {
@@ -169,9 +154,17 @@ switch ($ToggleName) {
     "disableOneDrive" {
         if ($Value -eq 1) {
             Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue
-            $setupPath = "$env:LOCALAPPDATA\Microsoft\OneDrive\Update\OneDriveSetup.exe"
-            if (Test-Path $setupPath) {
-                Start-Process -FilePath $setupPath -ArgumentList "/uninstall" -NoNewWindow -Wait
+            $Paths = @(
+                "$env:LOCALAPPDATA\Microsoft\OneDrive\Update\OneDriveSetup.exe",
+                "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDriveSetup.exe",
+                "C:\Windows\SysWOW64\OneDriveSetup.exe",
+                "C:\Windows\System32\OneDriveSetup.exe"
+            )
+            foreach ($Setup in $Paths) {
+                if (Test-Path $Setup) {
+                    Start-Process -FilePath $Setup -ArgumentList "/uninstall" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+                    break
+                }
             }
             Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue
             $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"

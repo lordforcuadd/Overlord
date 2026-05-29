@@ -48,7 +48,7 @@ Try {
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $DwmOptionsPath -ValueName "CpuPriorityClass" -BackupSubFolder "GPU"
     }
-    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 2 -Force
+    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force
 
     $DwmColorPath = "HKCU:\Software\Microsoft\Windows\DWM"
     if (!(Test-Path $DwmColorPath)) { New-Item -Path $DwmColorPath -Force | Out-Null }

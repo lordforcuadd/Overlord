@@ -39,6 +39,7 @@ async fn purge_ram_native() -> Result<String, String> {
     let mut sys = sysinfo::System::new_all();
     sys.refresh_all();
     let mut procesos_purgados = 0;
+    let mut fallos_permisos = 0;
 
     unsafe {
         for process in sys.processes().values() {
@@ -47,13 +48,20 @@ async fn purge_ram_native() -> Result<String, String> {
             if !handle.is_null() {
                 if SetProcessWorkingSetSize(handle, usize::MAX, usize::MAX) != 0 {
                     procesos_purgados += 1;
+                } else {
+                    fallos_permisos += 1;
                 }
                 CloseHandle(handle);
+            } else {
+                fallos_permisos += 1;
             }
         }
     }
 
-    Ok(format!("RAM Purgada de forma nativa. Conjuntos de trabajo optimizados en {} procesos.", procesos_purgados))
+    Ok(format!(
+        "RAM Purgada de forma nativa. Conjuntos optimizados: {} procesos. Denegados/Ignorados: {} de forma protegida.",
+        procesos_purgados, fallos_permisos
+    ))
 }
 
 #[tauri::command]
@@ -66,8 +74,14 @@ async fn run_powershell_async(
     let path = format!("scripts\\{}", script_name);
     let laptop_str = if is_laptop { "true" } else { "false" };
     let ram_str = ram_gb.to_string();
-    let games = game_list.unwrap_or_default();
-    let args = vec![laptop_str, ram_str.as_str(), games.as_str()];
+    
+    let raw_games = game_list.unwrap_or_default();
+    let sanitized_games: String = raw_games
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == ',' || *c == '.' || *c == '-' || *c == '_')
+        .collect();
+
+    let args = vec![laptop_str, ram_str.as_str(), sanitized_games.as_str()];
     executor::execute_script_safely(&path, args, 120)
 }
 
