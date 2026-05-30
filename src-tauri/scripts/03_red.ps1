@@ -20,12 +20,10 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $DnsPath -ValueName "MaxNegativeCacheTtl" -BackupSubFolder "Network"
     }
 
-    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 300 -Force
-    Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 10 -Force
+    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 86400 -Force
+    Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 0 -Force
 
     netsh int tcp set global rss=enabled | Out-Null
-    netsh int tcp set global autotuninglevel=normal | Out-Null
-    netsh int tcp set global ecncapability=enabled | Out-Null
     netsh int tcp set global timestamps=disabled | Out-Null
 
     $Interfaces = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }

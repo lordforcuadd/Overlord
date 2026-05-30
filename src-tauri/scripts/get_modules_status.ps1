@@ -62,7 +62,7 @@ if (Test-Path $DataPath) {
 $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
 if (Test-Path $DnsPath) {
     $Ttl = (Get-ItemProperty -Path $DnsPath -Name "MaxCacheTtl").MaxCacheTtl
-    if ($null -ne $Ttl -and $Ttl -le 300) {
+    if ($null -ne $Ttl -and $Ttl -eq 86400) {
         $Status.networkOptimized = $true
     }
 }
@@ -80,7 +80,7 @@ $DwmPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execut
 if (Test-Path $GpuPath) {
     $Hags = (Get-ItemProperty -Path $GpuPath -Name "HwSchMode").HwSchMode
     $DwmPriority = (Get-ItemProperty -Path $DwmPath -Name "CpuPriorityClass").CpuPriorityClass
-    if ($Hags -eq 1 -and $DwmPriority -eq 3) {
+    if ($Hags -eq 2 -and $DwmPriority -eq 3) {
         $Status.gpuDisplay = $true
     }
 }
@@ -108,14 +108,15 @@ if (Test-Path $NtfsPath) {
 $VbsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
 if (Test-Path $VbsPath) {
     $HvciEnabled = (Get-ItemProperty -Path $VbsPath -Name "Enabled").Enabled
-    if ($HvciEnabled -eq 0) {
+    $SecureBoot = (Confirm-SecureBootUEFI -ErrorAction SilentlyContinue)
+    if ($HvciEnabled -eq 0 -and $SecureBoot -eq $false) {
         $Status.deepTelemetry = $true
     }
 }
 
 try {
     $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
-    if ($ActivePlan.ElementID -match "834a059d-6d97-4705-8a70-9a374252d76a" -or $ActivePlan.ElementName -contains "High Performance") {
+    if ($ActivePlan.InstanceID -match "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" -or $ActivePlan.InstanceID -match "e9a42b02-d5df-448d-aa00-03f14749eb61" -or $ActivePlan.ElementName -contains "High Performance" -or $ActivePlan.ElementName -contains "Ultimate Performance") {
         $Status.powerProfiles = $true
     }
 } catch {}

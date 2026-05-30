@@ -9,7 +9,7 @@ Try {
     }
 
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
-    $Description = "Overlord V2 - Punto Seguro"
+    $Description = "Overlord V3 - Punto Seguro"
 
     Set-Service -Name VSS -StartupType Automatic -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
@@ -24,9 +24,9 @@ Try {
 
     Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
 
-    Write-Host "[+] Punto de restauración creado con exito. El sistema está blindado."
+    Write-Host "[+] Punto de restauración creado con exito. El sistema se encuentra asegurado."
     exit 0
 } Catch {
-    Write-Error "[-] Error critico en subsistema de respaldo VSS: $_"
+    Write-Error "[-] Fallo critico al intentar orquestar el Punto de Restauracion VSS: $_"
     exit 1
 }

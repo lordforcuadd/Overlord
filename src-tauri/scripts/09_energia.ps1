@@ -15,6 +15,12 @@ Try {
     $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
     $PowerGuid = if ($ActivePlan) { $ActivePlan.InstanceID.Split('\')[1] } else { "381b4222-f694-41f0-9685-ff5bb260df2e" }
 
+    $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
+    if (!(Test-Path $PowerBackup)) { New-Item -Path $PowerBackup -Force | Out-Null }
+    if ((Get-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -ErrorAction SilentlyContinue) -eq $null) {
+        Set-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -Value $PowerGuid -Force | Out-Null
+    }
+
     if ($IsLaptop) {
         Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
         powercfg /SETACVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 | Out-Null
@@ -34,12 +40,17 @@ Try {
             Set-ItemProperty -Path $PowerPath -Name "ValueMax" -Type DWord -Value 0 -Force | Out-Null
             Set-ItemProperty -Path $PowerPath -Name "ValueMin" -Type DWord -Value 0 -Force | Out-Null
         }
-        powercfg /SETACVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 893dee8e-2bef-41e0-89c6-b55d0929964c 100 | Out-Null
-        powercfg /SETACVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 bc5038f7-23e0-4960-96da-33abaf5935ec 100 | Out-Null
+        
+        powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-Null
+            powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-Null
+        }
     }
-    
-    powercfg /SETACTIVE $PowerGuid | Out-Null
+
+    Write-Host "[+] Esquemas de energia acoplados al Kernel con exito."
     exit 0
+
 } Catch {
     Write-Error "[-] Error critico en Modulo de Energia: $_"
     exit 1

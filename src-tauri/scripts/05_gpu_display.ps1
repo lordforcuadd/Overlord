@@ -19,7 +19,7 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "HwSchMode" -BackupSubFolder "GPU"
     }
 
-    Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 1 -Force
+    Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force
 
     $FsoPath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $FsoPath)) { New-Item -Path $FsoPath -Force | Out-Null }

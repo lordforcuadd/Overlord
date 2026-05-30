@@ -38,16 +38,21 @@ Try {
 
     Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
 
-    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force
-    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force
+    if (-not $IsLaptop) {
+        Write-Host "[!] ADVERTENCIA: Desactivando mitigaciones estructurales Spectre/Meltdown para maximizar throughput." -ForegroundColor Yellow
+        Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force
+        Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force
+    }
 
     $StorePath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }
     Set-ItemProperty -Path $StorePath -Name "GameDVR_Enabled" -Type DWord -Value 0 -Force
 
-    $FthPath = "HKLM:\Software\Microsoft\FTH"
-    if (!(Test-Path $FthPath)) { New-Item -Path $FthPath -Force | Out-Null }
-    Set-ItemProperty -Path $FthPath -Name "Enabled" -Type DWord -Value 0 -Force
+    if (-not $IsLaptop -and $RamGB -ge 16) {
+        $FthPath = "HKLM:\Software\Microsoft\FTH"
+        if (!(Test-Path $FthPath)) { New-Item -Path $FthPath -Force | Out-Null }
+        Set-ItemProperty -Path $FthPath -Name "Enabled" -Type DWord -Value 0 -Force
+    }
 
     Write-Host "[+] Optimizaciones de Kernel inyectadas con exito."
     exit 0

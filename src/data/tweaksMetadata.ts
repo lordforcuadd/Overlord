@@ -28,22 +28,22 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "peripheralLatency",
     title: "Respuesta de Teclado y Ratón",
     description:
-      "Optimiza la frecuencia de muestreo y los tiempos de procesamiento de los controladores de clase de entrada en Windows. Elimina retrasos de búfer acumulados en los puertos USB.",
+      "Optimiza el tamaño de la cola de procesamiento de los controladores HID nativos para reducir el tiempo de respuesta de los periféricos.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
       "Restauración de valores por defecto en los servicios nativos mouclass y kbdclass del registro de Windows.",
     hardwareRecomendado:
       "Cualquier placa base con controladores de bus USB xHCI nativos de Intel o AMD.",
-    windowsVersion: "Windows 10 / Windows 11 (Todas las versiones)",
+    windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/hid/keyboard-and-mouse-class-drivers",
     scriptName: "01_perifericos.ps1",
     impactoRendimiento:
-      "Reducción medible del Input Lag del sistema y mayor consistencia del puntero.",
+      "Reducción medible del Input Lag del sistema y mayor consistencia del puntero en periféricos de alta tasa de sondeo (polling rate).",
     details: [
       "Respuesta inmediata de teclado y ratón",
-      "Puertos USB configurados en modo de alto rendimiento",
+      "Buffers de clase USB optimizados para alta frecuencia",
       "Aceleración del ratón heredada 100% desactivada",
       "Desactivación del retraso de accesibilidad (Teclas pegajosas)",
     ],
@@ -68,22 +68,21 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "debloat",
     title: "Limpieza del Sistema (Debloat)",
     description:
-      "Elimina paquetes de aplicaciones preinstaladas (Bloatware) y aprovisionamientos de fábrica de Windows que consumen ciclos de reloj del procesador y espacio en disco.",
+      "Elimina aplicaciones preinstaladas (Bloatware) y aprovisionamientos de fábrica que consumen recursos en segundo plano.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
       "Reinstalación manual desde la Microsoft Store o comandos Get-AppxPackage de aprovisionamiento base.",
-    hardwareRecomendado:
-      "Setups de hardware comprometido, discos mecánicos HDD o almacenamiento particionado limitado.",
+    hardwareRecomendado: "General.",
     windowsVersion: "Windows 10 / Windows 11 (Home y Pro)",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/powershell/module/appx/remove-appxpackage",
     scriptName: "02_debloat.ps1",
     impactoRendimiento:
-      "Liberación de memoria RAM física y reducción del recuento total de procesos activos en el Administrador de Tareas.",
+      "Liberación de memoria RAM física y reducción del recuento total de procesos activos.",
     details: [
-      "Remoción limpia de telemetría básica del sistema operativo",
-      "Eliminación de aplicaciones universales preinstaladas inútiles",
+      "Remoción de software preinstalado innecesario",
+      "Eliminación de telemetría básica del sistema operativo",
       "Detención de servicios auxiliares pesados en segundo plano",
     ],
     registryMapping: [
@@ -100,24 +99,22 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "networkOptimized",
     title: "Optimización de Internet",
     description:
-      "Configura directivas del planificador de paquetes TCP/IP nativo de Windows y optimiza el almacenamiento en caché del servicio DNS para evitar pérdidas de paquetes en saltos de red.",
+      "Configura el TTL de la caché DNS para estabilidad de resolución y habilita RSC/LSO para descarga de procesamiento de red.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
       "Comandos netsh int tcp reset y remoción de las llaves MaxCacheTtl creadas en el Dnscache.",
-    hardwareRecomendado:
-      "Conexiones por cable Ethernet de alta velocidad, adaptadores Intel e1000e o Realtek PCIe Gaming.",
+    hardwareRecomendado: "Conexiones por cable Ethernet.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-server/networking/technologies/tcp-ip/tcp-ip-performance-tuning",
     scriptName: "03_red.ps1",
     impactoRendimiento:
-      "Estabilización del Ping interno (Latencia Jitter) en títulos competitivos multijugador.",
+      "Estabilidad DNS integral. No aumenta la velocidad, mejora la consistencia de resolución.",
     details: [
-      "Envío eficiente de tramas y paquetes de datos",
-      "Optimización del búfer de recepción y transmisión de la pila de red",
-      "Aceleración de resolución de nombres de dominio (Caché DNS)",
-      "Estabilización de directivas frente a micro-cortes de hardware",
+      "Optimización del búfer de recepción y transmisión de la pila de red (RSC/LSO)",
+      "Estabilización de persistencia de resolución DNS (TTL 86400)",
+      "Desactivación de timestamps TCP para reducir overhead de cabecera",
     ],
     registryMapping: [
       {
@@ -133,23 +130,22 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "generalPerformance",
     title: "Potencia Bruta y Procesador",
     description:
-      "Desbloquea los esquemas de energía ocultos de Windows diseñados para hardware de alto rendimiento y gestiona las mitigaciones de ejecución especulativa de la CPU.",
+      "Desbloquea los esquemas de energía y ajusta la gestión de memoria del Kernel.",
     riesgo: "Balanceado",
     reversible: true,
     metodoReversion:
       "Restauración del FeatureSettingsOverride a valor cero y conmutación al plan de energía Equilibrado.",
-    hardwareRecomendado:
-      "Procesadores de escritorio de más de 6 núcleos físicos con soluciones térmicas estables independientes.",
+    hardwareRecomendado: "Procesadores de escritorio (Desktops).",
     windowsVersion: "Windows 10 v1809+ / Windows 11",
     fuenteOficial:
       "https://support.microsoft.com/en-us/topic/kb4073119-guidance-to-mitigate-speculative-execution-side-channel-vulnerabilities",
     scriptName: "04_rendimiento.ps1",
     impactoRendimiento:
-      "Aumento de la velocidad de reloj sostenida del procesador y reducción de caídas bruscas de FPS (1% Low FPS).",
+      "Aumento de la estabilidad del reloj de CPU y reducción de latencia de paginación del Kernel.",
     details: [
       "Inyección del Plan de Energía Máxima de Windows (Ultimate Performance)",
-      "Reducción de tirones térmicos o energéticos del planificador de núcleos",
-      "Ajuste opcional de mitigaciones de vulnerabilidades de silicio de la CPU",
+      "Reducción de latencia en la gestión de memoria del Kernel",
+      "Tradeoff de seguridad: Ajuste de mitigaciones de vulnerabilidades de silicio de la CPU",
       "Limpieza automatizada de directorios temporales del sistema",
     ],
     registryMapping: [
@@ -173,23 +169,24 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "gpuDisplay",
     title: "Fluidez de Pantalla y Gráficos",
     description:
-      "Ajusta los parámetros del Administrador de Ventanas del Escritorio (DWM) y reconfigura las directivas de Optimización de Optimización de Pantalla Completa y Multiplane Overlays (MPO).",
+      "Ajusta la prioridad del planificador gráfico y la programación de GPU acelerada (HAGS).",
     riesgo: "Balanceado",
     reversible: true,
     metodoReversion:
-      "Remoción de la subclave PerfOptions de dwm.exe e inversión de la directiva global de mitigación de MPO.",
+      "Remoción de la subclave PerfOptions de dwm.exe e inversión de la directiva global de HAGS.",
     hardwareRecomendado:
-      "Tarjetas gráficas dedicadas NVIDIA GTX/RTX o AMD Radeon RX con controladores actualizados.",
-    windowsVersion: "Windows 10 / Windows 11 (Compilaciones de producción)",
+      "Tarjetas gráficas dedicadas modernas (RTX 3000+, RX 6000+).",
+    windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows/win32/desktopmgmt/desktop-window-manager-overview",
     scriptName: "05_gpu_display.ps1",
     impactoRendimiento:
-      "Eliminación del parpadeo visual (Stuttering) y optimización del Frame Pacing gráfico.",
+      "Eliminación de stuttering de escritorio y optimización del Frame Pacing en juegos.",
     details: [
-      "Eliminación de micro-tirones gráficos causados por la composición de ventanas",
-      "Establece HwSchMode al valor oficial documentado (1) para Programación de GPU",
-      "Desactivación completa de servicios superpuestos de la Barra de Juegos de Windows",
+      "Eliminación de micro-tirones gráficos",
+      "Establece HwSchMode al valor oficial documentado (2) para Programación de GPU",
+      "Establece prioridad alta para DWM (Desktop Window Manager)",
+      "Desactivación completa de GameDVR",
     ],
     registryMapping: [
       {
@@ -212,47 +209,45 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "irqAffinity",
     title: "Organización del Procesador",
     description:
-      "Enruta las interrupciones físicas por hardware de tus adaptadores (Red, GPU) a núcleos específicos del procesador, liberando el Core 0 de cuellos de botella.",
+      "Ajusta la afinidad de interrupciones de red para evitar colisiones en el Core 0.",
     riesgo: "Experimental",
     reversible: true,
-    metodoReversion:
-      "Eliminación de la máscara binaria AssignmentSetOverride dentro de la directiva de Interrupt Management.",
-    hardwareRecomendado:
-      "Computadoras con procesadores modernos que posean arquitecturas de núcleos híbridos (P-Cores y E-Cores).",
-    windowsVersion: "Windows 11 Obligatorio para una gestión de hilos óptima",
+    metodoReversion: "Eliminación de la máscara binaria AssignmentSetOverride.",
+    hardwareRecomendado: "Procesadores multinúcleo (Multi-CCD o Híbridos).",
+    windowsVersion: "Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority",
     scriptName: "06_irq_affinity.ps1",
     impactoRendimiento:
-      "Evita picos de retraso (DPC Latency) provocados por colisiones de peticiones de red y renderizado simultáneos.",
+      "Reduce latencia DPC al distribuir carga de interrupciones fuera de los núcleos principales de juego.",
     details: [
-      "Aislamiento de la carga de red del hilo principal del juego",
-      "Distribución balanceada de solicitudes IRQ en procesadores multinúcleo",
-      "Mejora los tiempos de respuesta de entrada/salida de dispositivos críticos",
+      "Aislamiento de la carga de red",
+      "Distribución balanceada de solicitudes IRQ",
+      "Mejora los tiempos de respuesta de E/S",
     ],
     registryMapping: [],
   },
   smartStorage: {
     id: "smartStorage",
-    title: "Aceleración de Disco y Almacenamiento",
+    title: "Aceleración de Disco",
     description:
-      "Ajusta los parámetros del sistema de archivos NTFS aumentando la asignación del búfer de memoria caché de paginación y deshabilita escrituras cosméticas innecesarias.",
+      "Optimiza el sistema de archivos NTFS para reducir la latencia de acceso a disco.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
       "Comandos fsutil behavior set para habilitar de nuevo LastAccessUpdate y balancear MemoryUsage.",
-    hardwareRecomendado:
-      "Unidades de estado sólido SSD NVMe M.2 o SSD SATA III. Evitar en configuraciones RAID complejas.",
+    hardwareRecomendado: "Unidades SSD.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/fsutil-behavior",
     scriptName: "07_almacenamiento.ps1",
     impactoRendimiento:
-      "Reducción en los tiempos de carga inicial de mapas pesados y texturas dentro del juego.",
+      "Mejora tiempos de carga de texturas y acceso a archivos pequeños.",
     details: [
-      "Duplica el tamaño del búfer de lectura NTFS del sistema operativo",
-      "Desactiva la actualización de marca de tiempo de último acceso a archivos para mitigar escrituras",
-      "Desactiva el archivo de hibernación masivo en equipos de escritorio",
+      "Aumento de búfer de lectura NTFS",
+      "Desactivación de marca de tiempo LastAccess",
+      "Desactivación de hibernación",
+      "Limpieza de archivos temporales",
     ],
     registryMapping: [
       {
@@ -266,28 +261,26 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
   },
   deepTelemetry: {
     id: "deepTelemetry",
-    title: "Seguridad Virtual y Filtros",
+    title: "Blindaje de Seguridad y Privacidad",
     description:
-      "Desactiva las funciones de aislamiento de núcleo, integridad de memoria basadas en hipervisor (HVCI) y detiene los recolectores de eventos de diagnóstico profundo de Microsoft.",
+      "Desactiva servicios de diagnóstico, bloquea conexiones de telemetría y ajusta el aislamiento de Kernel (VBS/HVCI).",
     riesgo: "Experimental",
     reversible: true,
     metodoReversion:
-      "Habilitación explícita de DeviceGuard y escenarios HVCI desde el registro de Windows o directivas de grupo.",
-    hardwareRecomendado:
-      "Computadoras de escritorio dedicadas exclusivamente al entretenimiento, streaming o gaming competitivo.",
-    windowsVersion:
-      "Windows 11 (Sistemas con virtualización por hardware activa)",
+      "Reactivación de servicios y restauración de claves DeviceGuard.",
+    hardwareRecomendado: "Computadoras de alto rendimiento para gaming.",
+    windowsVersion: "Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows/security/hardware-security/virtualization-based-security",
     scriptName: "08_telemetria.ps1",
     impactoRendimiento:
-      "Ganancia de rendimiento gráfico bruto en juegos pesados (aumento de hasta un 5-10% en FPS promedio).",
+      "Aumento de FPS por reducción de sobrecarga de virtualización (Tradeoff de seguridad).",
     warning:
-      "Deshabilitar VBS rompe Valorant, Fortnite, Apex Legends, WSL2 y Docker Desktop. ¿Desea continuar?",
+      "Deshabilitar VBS puede romper Anti-Cheats (Vanguard, etc.) y protección contra rootkits. ¿Continuar?",
     details: [
-      "Apaga el aislamiento de núcleo que sobrecarga la traducción de direcciones de la CPU",
-      "Bloquea la recolección de trazas y logs invisibles en tiempo real",
-      "Detiene servicios del motor de telemetría unificada (DiagTrack)",
+      "Apaga capas de aislamiento que reducen el throughput de la CPU",
+      "Detiene servicios de diagnóstico y reporte de Microsoft",
+      "Bloqueo de salida de red para herramientas de telemetría",
     ],
     registryMapping: [
       {
@@ -301,25 +294,24 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
   },
   powerProfiles: {
     id: "powerProfiles",
-    title: "Energía Inteligente Antiparos",
+    title: "Energía Inteligente",
     description:
-      "Desactiva los estados de suspensión selectiva de los buses PCIe y los modos de reposo profundo (C-States agresivos) que causan latencias al despertar componentes de hardware.",
+      "Ajusta los estados de energía de buses PCIe y evita estados de reposo profundo de la CPU.",
     riesgo: "Balanceado",
     reversible: true,
     metodoReversion:
-      "Comando powercfg -setactive para reasignar el plan estándar predeterminado de Windows.",
-    hardwareRecomendado:
-      "Computadoras de mesa. El software bloquea parcialmente este tweak en portátiles por seguridad térmica.",
+      "Comando powercfg -setactive para reasignar plan de energía.",
+    hardwareRecomendado: "Computadoras de escritorio.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/powercfg-command-line-options",
     scriptName: "09_energia.ps1",
     impactoRendimiento:
-      "Eliminación del retraso de inicialización de la GPU y estabilidad absoluta en frecuencias de reloj.",
+      "Consistencia total en frecuencias de CPU y reducción de latencia al despertar dispositivos.",
     details: [
-      "Mantiene la interfaz del puerto PCIe al máximo rendimiento eléctrico constante",
-      "Evita el aparcado intempestivo de núcleos lógicos del procesador",
-      "Filtro inteligente de protección de temperatura para equipos portátiles",
+      "Bus PCIe al máximo rendimiento eléctrico",
+      "Evita el aparcado de núcleos lógicos",
+      "Gestión de termales optimizada",
     ],
     registryMapping: [],
   },
@@ -327,24 +319,21 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "gameHooks",
     title: "Prioridad Absoluta para Juegos",
     description:
-      "Inyecta configuraciones específicas en las directivas de Image File Execution Options (IFEO) de Windows para forzar al planificador del sistema operativo a dar prioridad de ejecución en tiempo real a ejecutables multimedia.",
+      "Ajusta las prioridades de ejecución mediante Image File Execution Options (IFEO).",
     riesgo: "Experimental",
     reversible: true,
-    metodoReversion:
-      "Purga completa de la clave PerfOptions asociada al ejecutable dentro de la colmena IFEO.",
-    hardwareRecomendado:
-      "Sistemas donde se ejecuten títulos competitivos que dependan críticamente del rendimiento de un solo hilo de CPU.",
+    metodoReversion: "Purga de la clave IFEO del ejecutable.",
+    hardwareRecomendado: "Sistemas dependientes de rendimiento mononúcleo.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/image-file-execution-options",
     scriptName: "11_game_hooks.ps1",
     impactoRendimiento:
-      "Prioridad de subprocesamiento prioritaria frente a cualquier otra aplicación o navegador abierto en segundo plano.",
-    warning:
-      "Alterar las prioridades de ejecución mediante ganchos de imagen (IFEO) puede generar falsos positivos en sistemas anti-cheat (Vanguard, Ricochet, Easy Anti-Cheat) y resultar en un baneo permanente. ¿Desea continuar?",
+      "Prioridad de ejecución frente a procesos en segundo plano.",
+    warning: "Puede generar falsos positivos en Anti-Cheats. ¿Continuar?",
     details: [
-      "Fuerza una asignación de ciclos de CPU prioritaria e inmediata al proceso de juego en ejecución",
-      "Desactiva las optimizaciones de optimización de presentación híbrida lentas",
+      "Asignación de prioridad alta a procesos de juego",
+      "Prioridad de E/S alta para procesos de juego",
     ],
     registryMapping: [],
   },

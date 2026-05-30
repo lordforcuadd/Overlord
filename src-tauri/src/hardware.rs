@@ -100,7 +100,7 @@ pub fn get_system_hardware() -> HardwareResponse {
     let mut drive_is_ssd = true;
     if let Ok(output) = std::process::Command::new("powershell.exe")
         .creation_flags(0x08000000)
-        .args(&["-NoProfile", "-Command", "(Get-PhysicalDisk | Where-Object Size -GT 0 | Select-Object -First 1).MediaType"])
+        .args(&["-NoProfile", "-Command", "$b = Get-Disk | Where-Object IsBoot -eq $true; if ($b) { (Get-PhysicalDisk | Where-Object DeviceID -eq $b.Number).MediaType } else { (Get-PhysicalDisk | Select-Object -First 1).MediaType }"])
         .output()
     {
         let media_str = String::from_utf8_lossy(&output.stdout).to_lowercase();
@@ -115,12 +115,13 @@ pub fn get_system_hardware() -> HardwareResponse {
     if lower_cpu.contains("intel") {
         let physical_cores = sys.physical_core_count().unwrap_or(0);
         let total_cpus = sys.cpus().len();
-        if physical_cores > 0 && total_cpus > physical_cores && total_cpus < (physical_cores * 2) {
-            is_hybrid = true;
-        }
-        if lower_cpu.contains("i7-12") || lower_cpu.contains("i7-13") || lower_cpu.contains("i7-14") ||
+        
+        if (lower_cpu.contains("i7-12") || lower_cpu.contains("i7-13") || lower_cpu.contains("i7-14") ||
            lower_cpu.contains("i9-12") || lower_cpu.contains("i9-13") || lower_cpu.contains("i9-14") ||
-           lower_cpu.contains("ultra 7") || lower_cpu.contains("ultra 9") {
+           lower_cpu.contains("ultra 7") || lower_cpu.contains("ultra 9") || lower_cpu.contains("i5-126") ||
+           lower_cpu.contains("i5-136") || lower_cpu.contains("i5-146")) && !lower_cpu.contains("12400") && !lower_cpu.contains("12100") {
+            is_hybrid = true;
+        } else if physical_cores > 0 && total_cpus > physical_cores && total_cpus < (physical_cores * 2) && !lower_cpu.contains("12400") && !lower_cpu.contains("12100") {
             is_hybrid = true;
         }
     }

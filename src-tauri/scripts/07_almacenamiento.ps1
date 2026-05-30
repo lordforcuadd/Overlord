@@ -68,10 +68,18 @@ Try {
     if (!$DismProcess.HasExited) { $DismProcess | Stop-Process -Force }
 
     try {
+        $UpdateSession = New-Object -ComObject "Microsoft.Update.Session"
+        $UpdateInstaller = New-Object -ComObject "Microsoft.Update.Installer"
+        if (-not $UpdateInstaller.IsBusy) {
+            Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+            Start-Service wuauserv -ErrorAction SilentlyContinue
+        }
+    } catch {
         Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
         Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         Start-Service wuauserv -ErrorAction SilentlyContinue
-    } catch {}
+    }
 
     try {
         Remove-Item -Path "$env:windir\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue

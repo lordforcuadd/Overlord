@@ -14,11 +14,11 @@ Try {
         "Microsoft.Getstarted", "Microsoft.Messaging", "Microsoft.3DBuilder",
         "Microsoft.People", "Microsoft.SkypeApp", "Microsoft.StickyNotes",
         "Microsoft.Wallet", "Microsoft.YourPhone", "Microsoft.ZuneVideo",
-        "Microsoft.ZuneMusic", "Microsoft.MixedReality.Portal", "Microsoft.XboxApp",
+        "Microsoft.ZuneMusic", "Microsoft.MixedReality.Portal",
         "Microsoft.549981C3F5F10", "Microsoft.Windows.Ai.Copilot.Provider",
         "Microsoft.BingSearch", "Clipchamp.Clipchamp", "Microsoft.MicrosoftSolitaireCollection",
         "Disney.DisneyPlus", "SpotifyAB.SpotifyMusic", "Microsoft.Todos",
-        "Microsoft.PowerAutomateDesktop", "Microsoft.GamingApp", "Microsoft.Cortana"
+        "Microsoft.PowerAutomateDesktop", "Microsoft.Cortana"
     )
 
     foreach ($App in $Apps) {

@@ -54,7 +54,12 @@ Try {
             }
 
             Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value 4 -Force | Out-Null
-            $AffinityMask = if ($IsLaptop) { [byte[]](0x04,0x00,0x00,0x00) } else { [byte[]](0x02,0x00,0x00,0x00) }
+            
+            $CoreCount = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
+            $TargetCore = if ($CoreCount -gt 4) { 2 } else { 1 }
+            $MaskValue = [math]::Pow(2, $TargetCore)
+            $AffinityMask = [System.BitConverter]::GetBytes([int]$MaskValue)
+            
             Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force | Out-Null
         }
     }

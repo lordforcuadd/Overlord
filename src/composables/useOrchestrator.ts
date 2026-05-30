@@ -70,6 +70,10 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
     isExecutingAll.value = true;
 
+    const modulosExitosos: string[] = [];
+    let moduloFallido: string | null = null;
+    let huboError = false;
+
     for (const modKey of modulosActivos) {
       const scriptName = tweaksMetadata[modKey]?.scriptName;
       if (!scriptName) continue;
@@ -93,13 +97,32 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
         cardStatus.value[modKey] = "success";
         store.modules[modKey as keyof typeof store.modules] = false;
+        modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
       } catch (errorOutput) {
         console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
         cardStatus.value[modKey] = "error";
+        moduloFallido = tweaksMetadata[modKey]?.title || modKey;
+        huboError = true;
+        break;
       }
     }
 
     isExecutingAll.value = false;
+
+    if (huboError) {
+      const textoExitos =
+        modulosExitosos.length > 0
+          ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se aplicaron correctamente.`
+          : "Ningún módulo previo pudo completarse.";
+
+      await Swal.fire({
+        title: "OPTIMIZACIÓN PARCIAL",
+        html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>Puedes revertir todo el sistema al estado de fábrica desde el botón Revertir.`,
+        icon: "error",
+        ...overlordSwalConfig,
+      });
+      return;
+    }
 
     if (modulosActivos.length > 0) {
       const result = await Swal.fire({
