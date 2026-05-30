@@ -104,8 +104,6 @@ Overlord implementa una arquitectura de **huella cero** que no requiere asistent
 irm [https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1](https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1) | iex
 ```
 
-````
-
 ### Mecanismo de Despliegue en Red:
 
 1. El alias `irm` (_Invoke-RestMethod_) descarga en memoria el script remoto de orquestación.
@@ -164,4 +162,6 @@ El binario resultante se alojará automáticamente en la ruta interna del proyec
 
 ```
 
-````
+```
+
+```
