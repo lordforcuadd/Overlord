@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::path::Path;
 use winreg::enums::*;
 use winreg::RegKey;
-use sysinfo::{System, CpuRefreshKind, RefreshKind};
+use sysinfo::{System, CpuExt, SystemExt};
 use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Clone)]
@@ -26,9 +26,7 @@ pub struct ScanGamesResponse {
 }
 
 pub fn get_system_hardware() -> HardwareResponse {
-    let mut sys = System::new_with_specifics(
-        RefreshKind::new().with_cpu(CpuRefreshKind::everything())
-    );
+    let mut sys = System::new_all();
     sys.refresh_memory();
     sys.refresh_cpu();
 
@@ -38,8 +36,10 @@ pub fn get_system_hardware() -> HardwareResponse {
         .open_subkey("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0")
         .and_then(|key| key.get_value::<String, _>("ProcessorNameString"))
         .unwrap_or_else(|_| {
-            let brand = sys.global_cpu_info().brand().trim().to_string();
-            if brand.is_empty() { "CPU no detectada".to_string() } else { brand }
+            sys.cpus()
+                .first()
+                .map(|cpu| cpu.brand().trim().to_string())
+                .unwrap_or_else(|| "CPU no detectada".to_string())
         });
 
     let motherboard_name = hklm

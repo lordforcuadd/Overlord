@@ -1,10 +1,10 @@
 <div align="center">
   <img src="overlord_icon.png" alt="Overlord Logo" width="120">
   
-  # OVERLORD (v2.6)
-  **Sistema Avanzado de Optimización, Gestión de Telemetría y Reducción de Latencia para Windows 10 y 11.**
+  # OVERLORD (v3.0)
+  **Sistema Avanzado de Optimización, Gestión de Privacidad y Reducción de Latencia de Bajo Nivel para Windows 10 y 11.**
   
-  Una suite de ingeniería orientada al rendimiento competitivo de bajo nivel, depuración avanzada del sistema operativo y anulación del retraso de entrada (*input lag*), impulsada por un núcleo asíncrono en Rust, scripts sintonizados para Windows PowerShell 5.1 y una interfaz fluida basada en Vue 3, Tailwind CSS y Pinia.
+  Una suite de ingeniería orientada al rendimiento competitivo, depuración avanzada del sistema operativo y anulación del retraso de entrada (*input lag*), impulsada por un núcleo asíncrono no bloqueante en Rust, scripts sintonizados para Windows PowerShell 5.1 y una interfaz fluida basada en Vue 3, Tailwind CSS y Pinia.
 
 [![Vue.js](https://img.shields.io/badge/Vue%203-35495E?style=for-the-badge&logo=vue.js&logoColor=4FC08D)](https://vuejs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
@@ -19,138 +19,149 @@
   <img src="/src/assets/overlordPanel.png" alt="Overlord UI" width="800"/>
 </div>
 
-## 🧠 Filosofía de Ingeniería y Arquitectura Saneada
+## 🧠 Filosofía de Ingeniería y Arquitectura del Sistema
 
-A diferencia de las herramientas tradicionales de optimización distribuidas de forma genérica en foros de internet, Overlord v2.5.4 se rige bajo estrictas auditorías de código, omitiendo por completo modificaciones "placebo" o destructivas que comprometan el subsistema de Windows Update o generen congelamientos en el núcleo del sistema.
+A diferencia de las utilidades tradicionales de optimización distribuidas de forma ciega en internet, **Overlord v3.0** se rige bajo estrictas auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Omite por completo modificaciones destructivas o tweaks placebo que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel.
 
-### Pilares Fundamentales del Sistema
+### Pilares Fundamentales del Núcleo Nativo
 
-- **Resolución por SID Dinámico (Bypass de Privilegios de Admin):** Al ejecutarse en un entorno elevado, Windows mapea de forma predeterminada el alcance de la colmena `HKCU:` hacia la cuenta del Administrador del Sistema. El motor de Overlord intercepta el SID real del usuario interactivo mediante instancias CIM nativas, forzando la inyección quirúrgica de configuraciones directamente en `Registry::HKEY_USERS\$UserSID`, garantizando que el 100% de los cambios surtan efecto inmediato en el perfil correcto del usuario.
-- **Compatibilidad Nativa Completa con PowerShell 5.1:** Toda la lógica de automatización de scripts internos ha sido reestructurada aislando los flujos condicionales complejos en variables dedicadas antes del paso de argumentos. Esto elimina de raíz las fallas de compilación del intérprete (`Code 1`) presentes en entornos limpios de Windows que no cuentan con PowerShell 7+.
-- **Gestión Avanzada de Telemetría Dinámica:** El frontend incorpora un bucle asíncrono de sondeo coordinado a través de Pinia (`startTelemetryPolling`) que realiza llamadas concurrentes cada 2000ms al backend de Rust (`invoke("get_live_telemetry")`). Las lecturas numéricas de rendimiento de la CPU y la memoria RAM son interceptadas y procesadas a través de restricciones estrictas `.toFixed()` en el componente `<HardwareSidebar/>`, suprimiendo desbordamientos de punto flotante de JavaScript para brindar una visualización limpia en tiempo real.
-- **Puente IPC Seguro y Parametrizado:** El backend de Rust procesa la ejecución de comandos de PowerShell de forma totalmente aislada a través de un esquema nativo parametrizado. Esto previene vulnerabilidades de inyección de código al separar de forma estricta las variables lógicas de los argumentos externos.
-- **Diagnóstico de Hardware Avanzado:** Interroga directamente al controlador de memoria física y al bus PCI para obtener telemetría real en tiempo real. Detecta frecuencias de memoria RAM en MHz (con soporte XMP y EXPO), arquitecturas con múltiples tarjetas gráficas simultáneas (Setups híbridos o dedicados) y adapta los perfiles según se trate de un equipo portátil o de escritorio.
-- **Purga de Memoria Nativa:** Invoca la API nativa no documentada del Kernel de Windows (`NtSetSystemInformation`) directamente desde código seguro en Rust, liberando la lista de espera de la memoria RAM (_Standby List_) de forma inmediata sin consumir ciclos de procesamiento de la CPU.
-- **Depuración Quirúrgica Anti-Placebo:** Basado en rigurosas auditorías de rendimiento, se han purgado todas las mitigaciones dañinas que circulan habitualmente en internet (como la clave de video obsoleta `RMHdcpKeyLocalZero` o el apagado arbitrario del reloj del sistema `useplatformclock false` que destruye la estabilidad en procesadores AMD Ryzen modernos), priorizando configuraciones estables avaladas por análisis de micro-tirones (_stuttering_).
+- **Resolución por SID Dinámico:** Al ejecutarse con privilegios elevados, Windows mapea el alcance de la colmena `HKCU:` hacia la cuenta de Administrador. El motor de Overlord intercepta el SID real del usuario interactivo a través de consultas CIM nativas, forzando la inyección directa en `Registry::HKEY_USERS\$UserSID`. Esto garantiza que los cambios surtan efecto inmediato en el perfil de usuario correcto.
+- **Incrustación Estática de Recursos:** Mediante la macro de compilación `include_str!` en Rust, la totalidad de los scripts de automatización se inyectan como cadenas estáticas dentro del binario único. El orquestador genera directorios temporales aislados con marcas de tiempo en nanosegundos, vuelca los scripts con marcas de orden de bytes (_BOM UTF-8_) y purga el espacio inmediatamente al finalizar, anulando vectores de secuestro de archivos (_File Hijacking_).
+- **Telemetría Asíncrona No Bloqueante:** Implementa un bucle coordinado a través de Pinia que interroga concurrentemente al backend mediante comandos de Tauri. El backend procesa las llamadas de uso de CPU y RAM utilizando el temporizador asíncrono nativo de Tokio, evitando llamadas bloqueantes (`thread::sleep`) que congelen el hilo principal de la aplicación.
+- **Puente IPC Sanitizado:** La comunicación frontend-backend cuenta con filtros estrictos de caracteres alfanuméricos en cadenas de argumentos dinámicas (como listas de videojuegos), neutralizando de forma matemática cualquier vector de inyección de comandos locales (_Local Command Injection_).
 
 ---
 
-## 🛠️ Módulos de Optimización y Clasificación de Impacto
+## 🛠️ Desglose Técnico de Módulos de Optimización
 
-Para garantizar un control preciso del sistema operativo, Overlord organiza sus funciones en categorías estandarizadas de riesgo y cuenta con un mapeo de sincronización bidireccional estricto entre el almacenamiento reactivo de Pinia y el registro de Windows:
+### 1. Respuesta de Teclado y Ratón (`01_perifericos.ps1`)
 
-### 1. Clasificación: Seguro
+- **Mecánica Real:** Reconfigura el tamaño del búfer de intercambio intermedio de los controladores de clase nativos `mouclass` y `kbdclass` fijando `MouseDataQueueSize` y `KeyboardDataQueueSize` en el valor matemático balanceado de **32** (Hexadecimal `0x20`).
+- **Impacto de Rendimiento:** Al alinearse limpiamente con el tamaño de las líneas de caché L1/L2 del procesador, previene el desbordamiento de búfer (_Input Drops_) y saltos del cursor bajo alta carga de CPU en ratones competitivos con tasas de sondeo elevadas de **4KHz u 8KHz**, garantizando una relación de traducción de movimiento físico a digital de $1:1$.
 
-- **Respuesta Ultra-Baja de Periféricos:** Modifica los valores asignados a los búferes de intercambio de hardware `MouseDataQueueSize` y `KeyboardDataQueueSize` a un umbral óptimo de 20 paquetes concurrentes y anula las curvas dinámicas de aceleración heredadas del registro, forzando un rastreo puro uno a uno de los sensores de hardware.
-- **Limpieza del Sistema (Debloat):** Desinstala aplicaciones innecesarias preinstaladas de fábrica (_UWP Bloatware_) y deshabilita tareas programadas de telemetría básica de recolección de datos. Mantiene el servicio de búsqueda nativo plenamente operativo para evitar el bloqueo o la congelación de los cuadros de texto en la configuración de Windows.
-- **Sintonización de Red de Alto Rendimiento:** Configura la ventana de recepción TCP a un nivel avanzado, desactiva algoritmos de agrupación de paquetes que provocan variaciones de ping y establece un límite superior real de permanencia de caché DNS a 86400 segundos (`MaxCacheTtl`), evitando consultas repetitivas de resolución de nombres a los servidores globales y estabilizando las conexiones frente a micro-cortes de red.
-- **Aceleración de Almacenamiento:** Duplica la pila asignada a la caché de metadatos del sistema de archivos NTFS y bloquea el registro redundante de marcas de tiempo en el almacenamiento (`NtfsDisableLastAccessUpdate`), reduciendo las operaciones I/O innecesarias y prolongando la vida útil de las unidades de estado sólido de alta velocidad (SSD y NVMe).
+### 2. Limpieza del Sistema - Debloat (`02_debloat.ps1`)
 
-### 2. Clasificación: Avanzado
+- **Mecánica Real:** Remueve de raíz paquetes aprovisionados universales redundantes (_UWP_) mediante canalizaciones estrictas de `Remove-AppxProvisionedPackage`.
+- **Impacto de Rendimiento:** **Conserva intactos** `Microsoft.GamingApp` y `Microsoft.XboxApp`, blindando el funcionamiento de Xbox Game Pass, Auto HDR y Xbox Game Bar (esencial para el planificador de hilos en CPUs AMD Ryzen X3D). Limpia telemetría básica sin corromper el servicio de búsqueda nativo.
 
-- **Potencia Bruta y Procesador:** Aplica el plan de energía oculto de rendimiento máximo, anula el estacionamiento de núcleos del procesador (_Core Parking_) en equipos de escritorio y deshabilita de forma lógica las mitigaciones de seguridad de ejecución especulativa de la CPU para liberar potencia de procesamiento bruto en entornos multitarea y videojuegos.
-- **Fluidez de Pantalla y Gráficos:** Mitiga los fallos de sincronización y parpadeos visuales desactivando la superposición de planos múltiples (_MPO_) en el gestor de ventanas y ajusta las prioridades de ejecución de la tarjeta gráfica a través de directivas de GPU programadas.
-- **Mitigación Controlada de Tiempos de Espera (DISM):** Los scripts lógicos del sistema integran directivas de control y exclusión asíncrona para evitar congelamientos o bloqueos en la interfaz visual de Tauri durante la ejecución de comandos pesados de mantenimiento en la imagen de Windows.
+### 3. Optimización de Red e Internet (`03_red.ps1`)
 
-### 3. Clasificación: Kernel
+- **Mecánica Real:** Setea de forma mandatoria la persistencia de la caché DNS (`MaxCacheTtl`) al valor estándar óptimo de **86400 segundos** y el almacenamiento negativo a **0**. Desactiva las marcas de tiempo TCP (`timestamps=disabled`) y activa la coalescencia de recepción de segmentos (_RSC_).
+- **Impacto de Rendimiento:** Al mantener el TTL en 86400 se evita la latencia generada por resoluciones DNS repetitivas durante el matchmaking. Desactivar marcas de tiempo elimina 12 bytes redundantes por encabezado de paquete reduciendo la fragmentación de tramas. _RSC_ disminuye drásticamente las interrupciones del CPU por segundo a nivel de tarjeta de red, mitigando la pérdida de paquetes (_packet loss_).
 
-- **Organización del Procesador:** Distribuye el tráfico de interrupciones de red de hardware fuera del Núcleo 0 de la CPU para evitar la congestión del procesador principal, asignando prioridades exclusivas al subsistema multimedia.
-- **Seguridad Virtual y Filtros:** Desactiva opcionalmente el aislamiento de integridad de código basado en virtualización (_VBS / HVCI_). Libera recursos considerables del procesador en juegos limitados por CPU, pero restringe temporalmente herramientas que dependen de hipervisores nativos.
-- **Prioridad Absoluta para Juegos:** Inyecta reglas directas en las opciones de ejecución de imágenes del registro (_IFEO_) para ejecutables específicos de deportes electrónicos (como `League of Legends.exe`, `VALORANT-Win64-Shipping.exe`, `cs2.exe`), asegurando el enfoque prioritario de los hilos de la CPU cuando el juego se encuentra en primer plano.
+### 4. Potencia Bruta y Procesador (`04_rendimiento.ps1`)
 
-### 4. Clasificación: Ajustes Instantáneos (21 Interruptores QoL de un Clic)
+- **Mecánica Real:** Modifica las opciones de memoria ejecutiva del Kernel (`DisablePagingExecutive`) de forma condicional solo en sistemas con **16 GB de RAM o más** y que no correspondan a entornos portátiles. Gestiona el MMAgent para deshabilitar la compresión de memoria física.
+- **Impacto de Rendimiento:** Mantiene los drivers y el núcleo ejecutivo paginados directamente en la RAM física ultrarrápida, eliminando los tirones provocados por lecturas en el archivo de paginación del disco duro. Modifica el control de mitigaciones de vulnerabilidades de silicio (Spectre/Meltdown) mediante perfiles condicionales if-not-laptop, protegiendo la integridad térmica de portátiles.
 
-El módulo **`<QolPanel/>`** despliega 21 modificaciones quirúrgicas inmediatas a nivel de experiencia de usuario y privacidad. Cada switch cuenta con control defensivo de excepciones por bloques (`Try/Catch`), de modo que el escáner no se interrumpa si el sistema operativo carece de alguna subclave de fábrica:
+### 5. Fluidez de Pantalla y Gráficos (`05_gpu_display.ps1`)
 
-- **Interfaz & UI:** Rendimiento Visual Barebones (apaga animaciones de ventanas), Modo Oscuro Global, Mostrar Extensiones de Archivos nativas, Menú Contextual Clásico de Windows 11 (clic derecho tradicional), Barra de Tareas Alineada a la Izquierda y Pantallazos Azules Detallados (BSoD con parámetros de depuración avanzados).
-- **Privacidad:** Desactivar sugerencias de búsqueda de Bing en el Menú Inicio, bloquear anuncios de sincronización nativos en el explorador, deshabilitar pantallas de bienvenida de inicio ("Scoobe"), bloquear la telemetría e hilos de MS Copilot y el sistema de capturas de pantalla de Windows Recall.
-- **Explorador & Gaming:** Iniciar directamente en "Este Equipo", erradicación completa del arranque y sincronización en segundo plano de OneDrive, remoción total del panel de Widgets (liberando RAM de procesos persistentes de WebView2), deshabilitación de atajos de accesibilidad (Sticky Keys/Filter Keys) y retraso de arranque establecido en cero para unidades de estado sólido.
+- **Mecánica Real:** Inyecta en el Kernel el valor oficial **2** en la directiva `HwSchMode` para forzar la activación de la Programación de GPU Acelerada por Hardware (HAGS) y eleva la prioridad del hilo del Administrador de Ventanas del Escritorio (`dwm.exe`) a **3** (Prioridad Alta).
+- **Impacto de Rendimiento:** Al activar HAGS legítimamente, habilita la compatibilidad con tecnologías modernas como **DLSS 3 Frame Generation**. Elevar la prioridad de DWM a nivel Alta garantiza que el servidor gráfico de Windows mantenga el correcto _Frame Pacing_ y presentación de fotogramas, estabilizando los fotogramas mínimos (_1% Low FPS_) en escenarios donde la CPU llegue al 100% de uso.
+
+### 6. Organización del Procesador - Afinidad IRQ (`06_irq_affinity.ps1`)
+
+- **Mecánica Real:** Intercepta el árbol de instancias PCI para aislar los hilos de interrupción física de los adaptadores de red de alta velocidad, enrutándolos dinámicamente fuera del Core 0 mediante una máscara binaria calculada según la topología lógica detectada.
+- **Impacto de Rendimiento:** Desahoga el núcleo principal del Kernel, mitigando picos severos de latencia DPC provocados por la llegada masiva de tramas de red concurrentes durante el procesamiento del renderizado del juego.
+
+### 7. Aceleración de Disco y Smart Storage (`07_almacenamiento.ps1`)
+
+- **Mecánica Real:** Interroga explícitamente el estado lúdico `.IsBoot` del almacenamiento raíz. Si detecta un **HDD mecánico**, configura _Prefetcher_ y _Superfetch (SysMain)_ en habilitado (`3`) para optimizar cargas secuenciales; si detecta un **SSD/NVMe**, los apaga por completo (`0`).
+- **Impacto de Rendimiento:** Elimina ciclos constantes de escritura background en unidades sólidas prolongando la vida de las celdas flash. **Preserva de forma estricta** la carpeta `Minidump` y archivos `MEMORY.DMP` para no dejar desprotegido al usuario ante diagnósticos de pantallas azules. Cuenta con validación inteligente del estado ocupado (`IsBusy`) de Windows Update antes de purgar descargas corruptas.
+
+### 8. Blindaje de Seguridad y Privacidad (`08_telemetria.ps1`)
+
+- **Mecánica Real:** Erradica hilos de recolección de trazas y rastreadores unificados en tiempo real (`DiagTrack`). Detiene y bloquea mediante reglas de salida estrictas en el Firewall de Windows los binarios de recolección remota.
+- **Impacto de Rendimiento:** Libera ciclos de procesamiento de CPU background al apagar los loggers circulares innecesarios. Muestra alertas transparentes y advertencias sobre el estado de la Seguridad Basada en Virtualización (_VBS / HVCI_), validando el estado del firmware UEFI mediante `Confirm-SecureBootUEFI`.
+
+### 9. Energía Inteligente (`09_energia.ps1`)
+
+- **Mecánica Real:** Realiza un respaldo dinámico previo del GUID del plan de energía activo de fábrica (`ActivePowerPlan`) antes de conmutar hilos. Desbloquea e inyecta el esquema oculto de Rendimiento Máximo (_Ultimate Performance_) exclusivamente en ordenadores de sobremesa.
+- **Impacto de Rendimiento:** Mantiene los buses PCIe y el escalado de frecuencias de la CPU al máximo rendimiento eléctrico sostenido, mitigando latencias generadas por transiciones de ahorro energético (_C-States_ agresivos).
+
+### 10. Prioridad Absoluta para Juegos (`11_game_hooks.ps1`)
+
+- **Mecánica Real:** Inyecta directivas en el registro de opciones de ejecución de imágenes (_IFEO_) asignando de forma mandatoria la propiedad `CpuPriorityClass = 3` (Alta) e `IoPriority = 3` (Alta) a ejecutables competitivos detectados.
+- **Impacto de Rendimiento:** Altera el planificador de Windows NT para otorgar mayores cuantos de tiempo (_Quantum_) a los procesos de juego cuando se encuentran en primer plano, estabilizando los _frametimes_.
+
+---
+
+### 🎛️ Ajustes Instantáneos QoL (Panel de 21 Interruptores)
+
+El archivo `set_qol.ps1` orquesta modificaciones inmediatas de la experiencia de usuario y privacidad protegidas bajo bloques estructurados `Try/Catch` independientes:
+
+- **Interfaz y UI:** Rendimiento Visual Barebones (remueve animaciones de ventanas), Modo Oscuro Global, Mostrar Extensiones de Archivo nativas, Menú Contextual Clásico tradicional de Windows 11, Barra de Tareas Alineada a la Izquierda y Pantallazos Azules Detallados (BSoD con parámetros de depuración extendidos).
+- **Privacidad Absoluta:** Desactivación de sugerencias de búsqueda de Bing en el Inicio, bloqueo de anuncios de sincronización nativos en el explorador, deshabilitación de pantallas de bienvenida de experiencia inicial ("Scoobe"), bloqueo y purga estricta de telemetría e hilos asociados a MS Copilot y el sistema de capturas Recall.
+- **Explorador y Gaming:** Inicio directo en "Este Equipo", erradicación del arranque y sincronización background automática de OneDrive, remoción completa del panel de Widgets (liberando RAM de procesos persistentes de WebView2) y reducción del retraso de arranque establecido en cero para almacenamiento sólido.
 
 ---
 
 ## ⚡ Ejecución Portátil Inmediata (Sin Instalación)
 
-Inspirado en la filosofía de distribución moderna y limpia de herramientas líderes como _WinUtil_, Overlord ha adoptado un modelo de **arquitectura de huella cero**. No requiere asistentes de instalación locales ni deja dependencias basura flotando en el almacenamiento del usuario.
-
-Para ejecutar la suite de forma instantánea directamente desde la nube a la memoria RAM, abra una sesión de **PowerShell como Administrador** e inyecte el comando _one-liner_ oficial:
+Overlord implementa una arquitectura de **huella cero** que no requiere asistentes locales ni almacena residuos en el sistema operativo del usuario. Para levantar la suite instantáneamente en memoria RAM desde la nube, abra **PowerShell como Administrador** e inyecte el comando de red:
 
 ```powershell
-irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | iex
+irm [https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1](https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1) | iex
 ```
 
-### Mechanism de Portabilidad Interno:
+````
 
-1. El comando `irm` (_Invoke-RestMethod_) descarga en memoria el script de orquestación remota `launch.ps1`.
-2. El script consulta dinámicamente la API pública de GitHub (`api.github.com/repos/lordforcuadd/Overlord/releases/latest`) para interceptar el nombre exacto y la ruta de descarga de los recursos binarios `.exe` subidos en el último release, haciendo que el comando sea inmune a futuros cambios de versión.
-3. Descarga el ejecutable en un directorio temporal aislado (`$env:TEMP\OverlordSuite`) y levanta la interfaz con privilegios elevados.
-4. Al cerrarse la aplicación, el script remueve de forma automática y forzada el directorio temporal, garantizando un entorno 100% libre de residuos en la máquina del usuario.
+### Mecanismo de Despliegue en Red:
 
----
-
-## 🛠️ Gestión de Arquetipos de Perfiles
-
-El sistema procesa perfiles granulares integrados en su lógica reactiva para adaptar el entorno de forma automatizada según el caso de uso del equipo:
-
-- **Competitivo:** Activa la suite completa de bajo nivel para obtener la mínima latencia de entrada, priorización estricta de GPU y la máxima tasa de fotogramas por segundo estables.
-- **Programador & Competitivo:** Conserva activas las directivas de seguridad virtual indispensables para entornos de desarrollo basados en contenedores aislados (Docker, WSL2) y máquinas virtuales, aplicando las optimizaciones de hardware restantes de forma íntegra.
-- **Programador:** Maximiza el rendimiento del sistema de archivos NTFS y los subprocesos del procesador, optimizando drásticamente los tiempos de compilación de código local.
-- **Home Office / Laptops:** Enfocado en la estabilidad de red y el ahorro de ciclos de escritura en disco, preservando los esquemas de ahorro térmico y la duración de la batería de los equipos portátiles.
+1. El alias `irm` (_Invoke-RestMethod_) descarga en memoria el script remoto de orquestación.
+2. `launch.ps1` interroga la API pública de GitHub (`api.github.com/repos/lordforcuadd/Overlord/releases/latest`) para interceptar de forma dinámica la ruta exacta del binario `.exe` del release más reciente, haciendo al comando inmune a cambios de versión.
+3. Descarga el ejecutable en un directorio temporal aislado (`$env:TEMP\OverlordSuite`) y ejecuta el puente IPC elevado de Tauri.
+4. Al cerrarse la UI, el script remueve de forma forzada el directorio temporal, garantizando un entorno limpio de residuos físicos.
 
 ---
 
-## 🛡️ Métodos de Seguridad, Respaldo y Auditoría
+## 💻 Configuración del Entorno de Desarrollo Local
 
-La integridad del sistema operativo es la máxima prioridad del software. Overlord v2.5.4 cuenta con una red de seguridad simétrica verificada de extremo a extremo mediante el framework de pruebas de infraestructura **Pester v5**:
-
-- **Punto de Restauración Obligatorio:** Antes de realizar modificaciones avanzadas o de nivel Kernel, el backend asíncrono invoca forzosamente el script `crear_respaldo.ps1`, activando el servicio de instantáneas de volumen de Microsoft para blindar el estado de la máquina.
-- **Reversión de Estado Simétrica:** El software escribe los valores originales de fábrica del registro en una zona aislada de respaldo de Overlord (`HKLM:\SOFTWARE\Overlord\Backup`). En caso de inestabilidad provocada por el estado acumulado del sistema del usuario, los cambios pueden revertirse en su totalidad dejando la PC en su estado exacto de fábrica.
-- **Modo de Simulación Seguro (Dry-Run):** Integrado en el corazón de `App.vue`, permite ejecutar la suite de forma local con fines de desarrollo y demostración. El flujo simula los tiempos de espera secuenciales, muta los estados reactivos en la pantalla a `"loading"` y `"success"`, pero evita la modificación física del registro de Windows para prevenir errores accidentales durante las pruebas de interfaz.
-
----
-
-## 💻 Configuración del Entorno de Desarrollo y Distribución
-
-Si deseas colaborar, extender las funciones lógicas de los módulos de automatización o compilar los ejecutables de forma local, configure su espacio de trabajo de la siguiente manera:
+Si deseas auditar, extender la lógica de los módulos de automatización o compilar los ejecutables de forma 100% local, configure su espacio de trabajo de la siguiente manera:
 
 ### Prerrequisitos del Entorno
 
-- **Node.js:** Versión 18 o superior con el gestor de paquetes `npm` de forma global.
-- **Rust Toolchain:** Instalación de la cadena de herramientas estable a través de `rustup` apuntando al objetivo `x86_64-pc-windows-msvc`.
-- **C++ Build Tools:** Paquetes de compilación nativos de Visual Studio (MSVC) configurados en el sistema operativo.
+- **Node.js:** Versión 18 o superior instalada de forma global junto con `npm`.
+- **Rust Toolchain:** Cadena de herramientas estable instalada mediante `rustup` apuntando al objetivo nativo `x86_64-pc-windows-msvc`.
+- **C++ Build Tools:** Herramientas de compilación nativas de Visual Studio (MSVC C++) configuradas en el sistema.
 
-### Flujo de Comandos de Desarrollo
+### Comandos de Inicialización y Depuración en Vivo
 
-Instala los módulos de Node y levanta el entorno de depuración interactivo en vivo de Tauri:
+Instale las dependencias de Node e inicialice el entorno interactivo en vivo de Tauri:
 
 ```bash
-# Instalar dependencias e interfaces de tipado estricto
+# Instalar el árbol de dependencias del frontend
 npm install
 
-# Levantar entorno de desarrollo nativo con Hot Module Replacement (HMR)
+# Levantar el entorno de desarrollo nativo con Hot Module Replacement (HMR)
 npm run tauri dev
+
 ```
 
-### Compilación y Publicación Manual de Versiones (Releases)
+### Compilación y Empaquetado de Producción
 
-Para generar el archivo ejecutable de producción y distribuirlo en la pestaña de descargas de GitHub, ejecute el asistente de empaquetado nativo:
+Para generar el archivo binario independiente y optimizado de producción listo para distribución, ejecute el asistente de empaquetado nativo:
 
 ```bash
-# Generar el binario optimizado de producción de Windows
+# Compilar y empaquetar el binario final de Windows
 npm run tauri build
-```
-
-Una vez finalizado el proceso de compilación, Tauri generará el instalador o ejecutable correspondiente dentro de la carpeta del proyecto en la siguiente ruta:
-`src-tauri\target\release\bundle\` (o `release\` según la configuración de bundles).
-
-**Pasos para el despliegue en GitHub:**
-
-1. Ve a tu repositorio en GitHub y haz clic en la sección **Releases** > **Create a new release**.
-2. Define la etiqueta de versión correspondiente (ej. `v2.5.4`).
-3. Arrastra y suelta el archivo `.exe` compilado en la zona de archivos adjuntos (_Attach binaries_).
-4. Publica el Release. El script dinámico `launch.ps1` detectará de inmediato el nuevo archivo de manera automática para todos los usuarios.
-
-> **Nota sobre seguridad:** Debido a que el software interactúa con los parámetros del registro del sistema de bajo nivel, algunas soluciones de seguridad de software estricto pueden generar alertas de falsos positivos. Overlord es un proyecto totalmente transparente y de código abierto que puede ser auditado de forma independiente en este repositorio.
 
 ```
 
+El binario resultante se alojará automáticamente en la ruta interna del proyecto:
+`src-tauri\target\release\bundle\nsis\`
+
+---
+
+## 🛡️ Infraestructura de Seguridad y Respaldo Simétrico
+
+- **Gestión Multi-Tipo en Backups (`backup_manager.psm1`):** La rutina de respaldo intercepta y almacena el `ValueKind` original del registro de Windows (DWord, REG_BINARY, REG_SZ). Esto garantiza que, durante una restauración, las claves complejas (como máscaras binarias de interrupciones o curvas de ratón) no se corrompan ni se escriban como cadenas planas.
+- **Punto de Restauración Forzado:** Antes de despachar cualquier tweak avanzado, el orquestador asíncrono invoca obligatoriamente `crear_respaldo.ps1` para levantar una instantánea de volumen nativa (`VSS`) del sistema operativo.
+- **Reversión de Fábrica Centralizada (`10_revertir.ps1`):** En caso de inestabilidad, la suite lee la colmena aislada de respaldo de Overlord (`HKLM:\SOFTWARE\Overlord\Backup`) y realiza un rollback simétrico de tipo espejo, devolviendo el registro a su estado exacto previo a la optimización y notificando limpiamente al usuario antes de reiniciar el shell del explorador.
+- **Suite de Pruebas Unitarias Integrada (`modules.tests.ps1`):** Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y consistencia de compilación se encuentran completamente automatizadas bajo el framework de pruebas de infraestructura **Pester v5**.
+
 ```
+
+```
+
+````
