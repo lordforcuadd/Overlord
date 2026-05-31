@@ -177,7 +177,7 @@ const quickActions = [
   {
     id: "PurgeRAM",
     title: "Purgar RAM",
-    desc: "Aniquila el micro-stuttering liberando la memoria en espera.",
+    desc: "Aniquila el micro-stuttering liberando la memoria en espera. (NO TENER NINGUN JUEGO ABIERTO)",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />',
   },
   {
@@ -195,7 +195,7 @@ const quickActions = [
   {
     id: "FlushNet",
     title: "Liberar Red (DNS)",
-    desc: "Resetea Winsock y la caché DNS para reparar el Ping.",
+    desc: "Resetea Winsock y la caché DNS para reparar el Ping. (REQUIERE REINICIO DE PC)",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />',
   },
 ];
