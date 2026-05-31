@@ -30,6 +30,15 @@ Try {
         
         powercfg /SETACVALUEINDEX $PowerGuid 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a558deb 0 | Out-Null
 
+        $UsbHubPath = "HKLM:\SYSTEM\CurrentControlSet\Services\USB"
+        if (!(Test-Path $UsbHubPath)) { New-Item -Path $UsbHubPath -Force | Out-Null }
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey $UsbHubPath -ValueName "DisableSelectiveSuspend" -BackupSubFolder "Power"
+        }
+        Set-ItemProperty -Path $UsbHubPath -Name "DisableSelectiveSuspend" -Type DWord -Value 1 -Force | Out-Null
+
+        powercfg /SETACVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 | Out-Null
+
         $PowerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
         if (Test-Path $PowerPath) {
             if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {

@@ -18,6 +18,7 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "DisablePagingExecutive" -BackupSubFolder "Performance"
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance"
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance"
+        Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "ClearPageFileAtShutdown" -BackupSubFolder "Performance"
         
         $StorePath = "HKCU:\System\GameConfigStore"
         if (Test-Path $StorePath) {
@@ -34,6 +35,11 @@ Try {
         Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value 1 -Force
     } else {
         Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value 0 -Force
+    }
+
+    $ClearPage = (Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -ErrorAction SilentlyContinue).ClearPageFileAtShutdown
+    if ($ClearPage -eq 1) {
+        Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force
     }
 
     Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue

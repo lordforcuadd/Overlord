@@ -27,6 +27,19 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
     }
 
+    $SecureBootActive = $false
+    try {
+        if (Confirm-SecureBootUEFI -ErrorAction SilentlyContinue) {
+            $SecureBootActive = $true
+        }
+    } catch {}
+
+    if ($SecureBootActive) {
+        Write-Host "[!] ADVERTENCIA: Secure Boot detectado como ACTIVO en el firmware UEFI. La desactivacion por registro de VBS/HVCI no surtira efecto hasta que lo deshabilites manualmente en la BIOS." -ForegroundColor Yellow
+    }
+
+    Write-Host "[!] ADVERTENCIA: Desactivando aislamiento de Kernel e Integridad de Código basada en Virtualización (VBS/HVCI)." -ForegroundColor Yellow
+
     Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
 
@@ -54,7 +67,7 @@ Try {
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog",
-        "Circular Kernel Context Logger", "ReadyBoot", "SetupPlatformTel", "WdiContextLog"
+        "SetupPlatformTel", "WdiContextLog"
     )
     foreach ($Logger in $Loggers) {
         $LoggerKey = "$LoggersPath\$Logger"

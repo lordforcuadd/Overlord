@@ -37,6 +37,7 @@ Try {
     $Devices = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\*\*\Device Parameters" -ErrorAction SilentlyContinue
     foreach ($Device in $Devices) {
         $Class = (Get-ItemProperty -Path $Device.PSParentPath -ErrorAction SilentlyContinue).Class
+        
         if ($Class -eq "Net") {
             $AffinityPath = "$($Device.PSPath)\Interrupt Management\Affinity Policy"
             if (!(Test-Path $AffinityPath)) { New-Item -Path $AffinityPath -Force | Out-Null }
@@ -54,13 +55,31 @@ Try {
             }
 
             Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value 4 -Force | Out-Null
-            
-            $CoreCount = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
-            $TargetCore = if ($CoreCount -gt 4) { 2 } else { 1 }
-            $MaskValue = [math]::Pow(2, $TargetCore)
+            $MaskValue = [math]::Pow(2, 2)
             $AffinityMask = [System.BitConverter]::GetBytes([int]$MaskValue)
-            
             Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $AffinityMask -Force | Out-Null
+        }
+        
+        if ($Class -eq "MEDIA") {
+            $AffinityPath = "$($Device.PSPath)\Interrupt Management\Affinity Policy"
+            if (!(Test-Path $AffinityPath)) { New-Item -Path $AffinityPath -Force | Out-Null }
+            
+            $DeviceID = ($Device.PSPath -split "::" | Select-Object -Last 1) -replace "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\", "" -replace "\\", "_"
+            
+            if ((Get-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_AudioPolicy" -ErrorAction SilentlyContinue) -eq $null) {
+                $OrigAudioPolicy = (Get-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -ErrorAction SilentlyContinue).DevicePolicy
+                $BckAudioPolicy = if ($OrigAudioPolicy -eq $null) { '_ABSENT_' } else { $OrigAudioPolicy }
+                Set-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_AudioPolicy" -Value $BckAudioPolicy -Force | Out-Null
+                
+                $OrigAudioOverride = (Get-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue).AssignmentSetOverride
+                $BckAudioOverride = if ($OrigAudioOverride -eq $null) { '_ABSENT_' } else { $OrigAudioOverride }
+                Set-ItemProperty -Path $NetBackupKey -Name "${DeviceID}_AudioOverride" -Value $BckAudioOverride -Force | Out-Null
+            }
+
+            Set-ItemProperty -Path $AffinityPath -Name "DevicePolicy" -Type DWord -Value 4 -Force | Out-Null
+            $AudioMaskValue = [math]::Pow(2, 1)
+            $AudioMask = [System.BitConverter]::GetBytes([int]$AudioMaskValue)
+            Set-ItemProperty -Path $AffinityPath -Name "AssignmentSetOverride" -Type Binary -Value $AudioMask -Force | Out-Null
         }
     }
 

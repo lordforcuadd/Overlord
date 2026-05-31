@@ -13,13 +13,18 @@ Try {
     Write-Host "[*] Aplicando optimizaciones visuales y calibración de GPU de Grado de Producción..."
 
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
+    $DwmMpoPath = "HKLM:\SOFTWARE\Microsoft\Windows\Dwm"
+    
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
+    if (!(Test-Path $DwmMpoPath)) { New-Item -Path $DwmMpoPath -Force | Out-Null }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "HwSchMode" -BackupSubFolder "GPU"
+        Backup-OverlordRegistryValue -TargetKey $DwmMpoPath -ValueName "OverlayTestMode" -BackupSubFolder "GPU"
     }
 
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force
+    Set-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode" -Type DWord -Value 5 -Force
 
     $FsoPath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $FsoPath)) { New-Item -Path $FsoPath -Force | Out-Null }

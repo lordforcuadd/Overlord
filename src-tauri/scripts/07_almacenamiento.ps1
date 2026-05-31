@@ -13,12 +13,13 @@ Try {
     Write-Host "[*] Iniciando Optimizacion y Limpieza de Disco..."
 
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
-    if (!(Test-Path $NtfsPath)) { New-Item -Path $NtfsPath -Force | Out-Null }
-
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
-    if (!(Test-Path $PrefetchPath)) { New-Item -Path $PrefetchPath -Force | Out-Null }
-
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+    $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
+
+    if (!(Test-Path $NtfsPath)) { New-Item -Path $NtfsPath -Force | Out-Null }
+    if (!(Test-Path $PrefetchPath)) { New-Item -Path $PrefetchPath -Force | Out-Null }
+    if (!(Test-Path $FastStartPath)) { New-Item -Path $FastStartPath -Force | Out-Null }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage"
@@ -26,9 +27,11 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $PrefetchPath -ValueName "EnablePrefetcher" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $PrefetchPath -ValueName "EnableSuperfetch" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "LargeSystemCache" -BackupSubFolder "Storage"
+        Backup-OverlordRegistryValue -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage"
     }
 
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1 -Force | Out-Null
+    Set-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled" -Type DWord -Value 0 -Force | Out-Null
     fsutil behavior set disablelastaccess 1 | Out-Null
     fsutil behavior set disable8dot3 1 | Out-Null
 
@@ -83,11 +86,6 @@ Try {
 
     try {
         Remove-Item -Path "$env:windir\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    } catch {}
-
-    try {
-        Remove-Item -Path "$env:windir\Minidump\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-        if (Test-Path "$env:windir\MEMORY.DMP") { Remove-Item -Path "$env:windir\MEMORY.DMP" -Force -Confirm:$false -ErrorAction SilentlyContinue }
     } catch {}
 
     try {
