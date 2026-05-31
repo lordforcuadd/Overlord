@@ -41,16 +41,21 @@ Try {
         if ($null -ne $IPv6Test) { $HasNativeIPv6 = $true }
     } catch {}
 
-    if ($HasNativeIPv6) {
+    if (-not $HasNativeIPv6) {
         netsh interface ipv6 teredo set state disabled | Out-Null
         netsh interface ipv6 isatap set state disabled | Out-Null
     }
 
-    $Interfaces = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
-    foreach ($Interface in $Interfaces) {
-        Enable-NetAdapterRsc -Name "*" -IPv4 -ErrorAction SilentlyContinue
-        Enable-NetAdapterRsc -Name "*" -IPv6 -ErrorAction SilentlyContinue
-        Enable-NetAdapterChecksumOffload -Name "*" -ErrorAction SilentlyContinue
+    $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
+    foreach ($Adapter in $Adapters) {
+        if ($Adapter.InterfaceDescription -like "*Intel*") {
+            Enable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue
+            Enable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue
+            Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue
+        } else {
+            Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue
+            Disable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue
+        }
     }
 
     Write-Host "[+] Pila de red optimizada con exito de forma transparente."

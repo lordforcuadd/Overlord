@@ -1,5 +1,5 @@
 function Backup-OverlordRegistryValue {
-    [CmdletBinding()]\
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)][string]$TargetKey,
         [Parameter(Mandatory=$true)][string]$ValueName,

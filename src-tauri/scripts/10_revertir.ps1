@@ -126,11 +126,13 @@ Try {
         $SavedClearPage = (Get-ItemProperty -Path $PerfBackup -Name "ClearPageFileAtShutdown" -ErrorAction SilentlyContinue).ClearPageFileAtShutdown
         if ($SavedClearPage -eq '_ABSENT_') { Remove-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" } elseif ($SavedClearPage -ne $null) { Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value $SavedClearPage }
     }
+    Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
     Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe" -Recurse -Force -ErrorAction SilentlyContinue
 
     $GpuBackup = "$BackupPath\GPU"
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
     $DwmMpoPath = "HKLM:\SOFTWARE\Microsoft\Windows\Dwm"
+    $DwmOptionsPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions"
 
     if (Test-Path $GpuBackup) {
         $SavedHags = (Get-ItemProperty -Path $GpuBackup -Name "HwSchMode" -ErrorAction SilentlyContinue).HwSchMode
@@ -138,6 +140,9 @@ Try {
 
         $SavedMpo = (Get-ItemProperty -Path $GpuBackup -Name "OverlayTestMode" -ErrorAction SilentlyContinue).OverlayTestMode
         if ($SavedMpo -eq '_ABSENT_') { Remove-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode" } elseif ($SavedMpo -ne $null) { Set-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode" -Type DWord -Value $SavedMpo }
+
+        $SavedDwmPriority = (Get-ItemProperty -Path $GpuBackup -Name "CpuPriorityClass" -ErrorAction SilentlyContinue).CpuPriorityClass
+        if ($SavedDwmPriority -eq '_ABSENT_') { Remove-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" } elseif ($SavedDwmPriority -ne $null) { Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value $SavedDwmPriority }
     }
     
     $FsoPath = "HKCU:\System\GameConfigStore"
@@ -145,7 +150,7 @@ Try {
     Set-ItemProperty -Path $FsoPath -Name "GameDVR_HonorUserFSEBehaviorMode" -Type DWord -Value 0
     Set-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehavior" -Type DWord -Value 0
     Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Recurse -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 1
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows DWM" -Name "ColorPrevalence" -Type DWord -Value 1
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Type DWord -Value 1
 
     $TasksPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"

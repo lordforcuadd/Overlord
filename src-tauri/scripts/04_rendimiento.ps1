@@ -42,7 +42,11 @@ Try {
         Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force
     }
 
-    Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
+    if ($RamGB -ge 32) {
+        Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
+    } else {
+        Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
+    }
 
     if (-not $IsLaptop) {
         Write-Host "[!] ADVERTENCIA: Desactivando mitigaciones estructurales Spectre/Meltdown para maximizar throughput." -ForegroundColor Yellow

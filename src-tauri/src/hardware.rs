@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::path::Path;
 use winreg::enums::*;
 use winreg::RegKey;
-use sysinfo::{System, CpuExt, SystemExt};
+use sysinfo::System;
 use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Clone)]
