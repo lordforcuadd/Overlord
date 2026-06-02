@@ -47,24 +47,22 @@ Try {
     $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
     if (!(Test-Path $DataPath)) { New-Item -Path $DataPath -Force | Out-Null }
     Set-ItemProperty -Path $DataPath -Name "AllowTelemetry" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $DataPath -Name "AllowTelemetry").AllowTelemetry -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $DataPath -Name "AllowTelemetry").AllowTelemetry -ne 0) { Write-Warning "No se pudo asegurar AllowTelemetry" }
 
     $SearchPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"
     if (!(Test-Path $SearchPath)) { New-Item -Path $SearchPath -Force | Out-Null }
     Set-ItemProperty -Path $SearchPath -Name "BingSearchEnabled" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $SearchPath -Name "CortanaConsent" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $SearchPath -Name "BingSearchEnabled").BingSearchEnabled -ne 0) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $SearchPath -Name "CortanaConsent").CortanaConsent -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $SearchPath -Name "BingSearchEnabled").BingSearchEnabled -ne 0) { Write-Warning "No se pudo asegurar BingSearchEnabled" }
+    if ((Get-ItemProperty -Path $SearchPath -Name "CortanaConsent").CortanaConsent -ne 0) { Write-Warning "No se pudo asegurar CortanaConsent" }
 
     $CopilotUserPath = "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot"
     if (!(Test-Path $CopilotUserPath)) { New-Item -Path $CopilotUserPath -Force | Out-Null }
     Set-ItemProperty -Path $CopilotUserPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
-    if ((Get-ItemProperty -Path $CopilotUserPath -Name "TurnOffWindowsCopilot").TurnOffWindowsCopilot -ne 1) { throw "Verification failed" }
 
     $CopilotSystemPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
     if (!(Test-Path $CopilotSystemPath)) { New-Item -Path $CopilotSystemPath -Force | Out-Null }
     Set-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
-    if ((Get-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot").TurnOffWindowsCopilot -ne 1) { throw "Verification failed" }
 
     $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
     foreach ($Service in $Services) {

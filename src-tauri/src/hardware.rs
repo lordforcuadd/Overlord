@@ -7,6 +7,7 @@ use std::process::Command;
 use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct HardwareResponse {
     pub cpu: String,
     pub gpu: String,
@@ -54,6 +55,7 @@ extern "system" {
     fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
 }
 
+#[tauri::command]
 pub fn get_system_hardware() -> HardwareResponse {
     let mut sys = System::new_all();
     sys.refresh_memory();

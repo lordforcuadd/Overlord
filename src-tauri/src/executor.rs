@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 static EXECUTION_LOCK: Mutex<()> = Mutex::new(());
 
+#[tauri::command]
 pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
     let _lock = EXECUTION_LOCK.lock().map_err(|_| "Error al adquirir el candado de ejecucion concurrente".to_string())?;
 
@@ -121,10 +122,19 @@ fn strip_param_block(script: &str) -> String {
         if ch == '\'' { in_single_quote = true; chars.next(); continue; }
 
         if script[idx..].to_lowercase().starts_with("param") {
-            let next_char = script[idx..].chars().skip(5).next();
-            if next_char.is_none() || next_char.unwrap().is_whitespace() || next_char.unwrap() == '(' {
-                param_start_idx = Some(idx);
-                break;
+            let has_invalid_prefix = if idx > 0 {
+                let prev_ch = script.chars().nth(idx - 1).unwrap_or(' ');
+                prev_ch == '$' || prev_ch == '-' || prev_ch.is_alphanumeric()
+            } else {
+                false
+            };
+
+            if !has_invalid_prefix {
+                let next_char = script[idx..].chars().skip(5).next();
+                if next_char.is_none() || next_char.unwrap().is_whitespace() || next_char.unwrap() == '(' {
+                    param_start_idx = Some(idx);
+                    break;
+                }
             }
         }
         chars.next();
