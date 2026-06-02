@@ -5,11 +5,6 @@
 )
 $ErrorActionPreference = "Stop"
 
-$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
-if (Test-Path $BackupManagerPath) {
-    Import-Module $BackupManagerPath -Force
-}
-
 Try {
     if ([string]::IsNullOrWhiteSpace($GameList)) { 
         Write-Host "[-] No se especificaron ejecutables en GameList. Saltando inyección de hilos."
@@ -22,6 +17,14 @@ Try {
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $Games = $GameList -split "," | ForEach-Object { $_.Trim() }
+
+    $Cores = [int]$env:NUMBER_OF_PROCESSORS
+    $TargetCpuPriority = 3
+    if ($Cores -le 4) {
+        $TargetCpuPriority = 2
+    } elseif ($IsLaptop -or $Cores -le 6) {
+        $TargetCpuPriority = 6
+    }
 
     foreach ($Game in $Games) {
         if (![string]::IsNullOrWhiteSpace($Game)) {
@@ -56,11 +59,15 @@ Try {
             }
 
             if (!(Test-Path $IfeoPath)) { New-Item -Path $IfeoPath -Force | Out-Null }
-            Set-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force | Out-Null
+            Set-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -Type DWord -Value $TargetCpuPriority -Force | Out-Null
             Set-ItemProperty -Path $IfeoPath -Name "IoPriority" -Type DWord -Value 3 -Force | Out-Null
             
             if (!(Test-Path $GameKey)) { New-Item -Path $GameKey -Force | Out-Null }
             Set-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -Type DWord -Value 1 -Force | Out-Null
+
+            if ((Get-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass").CpuPriorityClass -ne $TargetCpuPriority) { throw "Verification failed" }
+            if ((Get-ItemProperty -Path $IfeoPath -Name "IoPriority").IoPriority -ne 3) { throw "Verification failed" }
+            if ((Get-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE").DISABLEDXMAXIMIZEDWINDOWEDMODE -ne 1) { throw "Verification failed" }
 
             Write-Host "    -> Hooks inyectados para: $Game"
         }

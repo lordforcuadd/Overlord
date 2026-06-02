@@ -3,7 +3,9 @@ use std::path::Path;
 use winreg::enums::*;
 use winreg::RegKey;
 use sysinfo::System;
+use std::process::Command;
 use std::os::windows::process::CommandExt;
+
 
 #[derive(Serialize, Clone)]
 pub struct HardwareResponse {
@@ -23,6 +25,34 @@ pub struct ScanGamesResponse {
     pub name: String,
     pub exe: String,
     pub detected: bool,
+}
+
+extern "system" {
+    fn GetLogicalProcessorInformationEx(
+        relationship_type: u32,
+        buffer: *mut u8,
+        returned_length: *mut u32,
+    ) -> i32;
+    fn CreateFileW(
+        lpFileName: *const u16,
+        dwDesiredAccess: u32,
+        dwShareMode: u32,
+        lpSecurityAttributes: *mut std::ffi::c_void,
+        dwCreationDisposition: u32,
+        dwFlagsAndAttributes: u32,
+        hTemplateFile: *mut std::ffi::c_void,
+    ) -> *mut std::ffi::c_void;
+    fn DeviceIoControl(
+        hDevice: *mut std::ffi::c_void,
+        dwIoControlCode: u32,
+        lpInBuffer: *mut std::ffi::c_void,
+        nInBufferSize: u32,
+        lpOutBuffer: *mut std::ffi::c_void,
+        nOutBufferSize: u32,
+        lpBytesReturned: *mut u32,
+        lpOverlapped: *mut std::ffi::c_void,
+    ) -> i32;
+    fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
 }
 
 pub fn get_system_hardware() -> HardwareResponse {
@@ -75,18 +105,37 @@ pub fn get_system_hardware() -> HardwareResponse {
     let total_ram_bytes = sys.total_memory();
     let ram_calc = (total_ram_bytes as f64 / 1024.0 / 1024.0 / 1024.0).round() as u32;
 
-    let mut ram_speed_mhz = 4800;
-    if let Ok(output) = std::process::Command::new("powershell.exe")
+    let mut ram_speed_mhz = 0;
+
+    if let Ok(output) = Command::new("powershell.exe")
         .creation_flags(0x08000000)
-        .args(&["-NoProfile", "-Command", "(Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1).Speed"])
-        .output() 
+        .args(&[
+            "-NoProfile",
+            "-Command",
+            "(Get-CimInstance -ClassName Win32_PhysicalMemory | Select-Object -First 1).ConfiguredClockSpeed",
+        ])
+        .output()
     {
-        let out_str = String::from_utf8_lossy(&output.stdout);
-        if let Ok(parsed_speed) = out_str.trim().parse::<u32>() {
-            if parsed_speed > 0 {
-                ram_speed_mhz = parsed_speed;
+        if output.status.success() {
+            let speed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if let Ok(speed) = speed_str.parse::<u32>() {
+                if speed > 0 { 
+                    ram_speed_mhz = speed; 
+                }
             }
         }
+    }
+
+    if ram_speed_mhz == 0 {
+        if let Ok(perf_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Power") {
+            if let Ok(speed) = perf_key.get_value::<u32, _>("RamSpeedMhz") {
+                if speed > 0 { ram_speed_mhz = speed; }
+            }
+        }
+    }
+
+    if ram_speed_mhz == 0 {
+        ram_speed_mhz = 5200;
     }
 
     let is_laptop_chassis = hklm
@@ -98,34 +147,89 @@ pub fn get_system_hardware() -> HardwareResponse {
         .unwrap_or(false);
 
     let mut drive_is_ssd = true;
-    if let Ok(output) = std::process::Command::new("powershell.exe")
-        .creation_flags(0x08000000)
-        .args(&["-NoProfile", "-Command", "$b = Get-Disk | Where-Object IsBoot -eq $true; if ($b) { (Get-PhysicalDisk | Where-Object DeviceID -eq $b.Number).MediaType } else { (Get-PhysicalDisk | Select-Object -First 1).MediaType }"])
-        .output()
-    {
-        let media_str = String::from_utf8_lossy(&output.stdout).to_lowercase();
-        if media_str.contains("hdd") {
-            drive_is_ssd = false;
+    let path_drive: Vec<u16> = "\\\\.\\C:".encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        let handle = CreateFileW(
+            path_drive.as_ptr(),
+            0x80000000,
+            0x00000001 | 0x00000002,
+            std::ptr::null_mut(),
+            3,
+            0x00000080,
+            std::ptr::null_mut(),
+        );
+        if handle != (-1isize as *mut std::ffi::c_void) {
+            #[repr(C)]
+            struct STORAGE_PROPERTY_QUERY {
+                property_id: u32,
+                query_type: u32,
+                additional_parameters: [u8; 1],
+            }
+            #[repr(C)]
+            struct DEVICE_SEEK_PENALTY_DESCRIPTOR {
+                version: u32,
+                size: u32,
+                is_seek_penalty: u8,
+            }
+            let mut query = STORAGE_PROPERTY_QUERY {
+                property_id: 7,
+                query_type: 0,
+                additional_parameters: [0],
+            };
+            let mut descriptor = DEVICE_SEEK_PENALTY_DESCRIPTOR {
+                version: 0,
+                size: 0,
+                is_seek_penalty: 1,
+            };
+            let mut bytes_returned = 0;
+            let res = DeviceIoControl(
+                handle,
+                0x002D1400,
+                &mut query as *mut _ as *mut std::ffi::c_void,
+                std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32,
+                &mut descriptor as *mut _ as *mut std::ffi::c_void,
+                std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32,
+                &mut bytes_returned,
+                std::ptr::null_mut(),
+            );
+            if res != 0 && descriptor.is_seek_penalty == 1 {
+                drive_is_ssd = false;
+            }
+            CloseHandle(handle);
+        }
+    }
+
+    let mut is_hybrid = false;
+    let mut length = 0;
+    unsafe {
+        GetLogicalProcessorInformationEx(0, std::ptr::null_mut(), &mut length);
+    }
+    if length > 0 {
+        let mut buffer = vec![0u8; length as usize];
+        unsafe {
+            if GetLogicalProcessorInformationEx(0, buffer.as_mut_ptr(), &mut length) != 0 {
+                let mut offset = 0;
+                let mut efficiency_classes = Vec::new();
+                while offset + 8 <= buffer.len() {
+                    let relationship = u32::from_le_bytes([buffer[offset], buffer[offset+1], buffer[offset+2], buffer[offset+3]]);
+                    let size = u32::from_le_bytes([buffer[offset+4], buffer[offset+5], buffer[offset+6], buffer[offset+7]]) as usize;
+                    if size == 0 || offset + size > buffer.len() { break; }
+                    if relationship == 0 && size > 9 {
+                        let eff_class = buffer[offset + 9];
+                        if !efficiency_classes.contains(&eff_class) {
+                            efficiency_classes.push(eff_class);
+                        }
+                    }
+                    offset += size;
+                }
+                if efficiency_classes.len() > 1 {
+                    is_hybrid = true;
+                }
+            }
         }
     }
 
     let lower_cpu = cpu_name.to_lowercase();
-    let mut is_hybrid = false;
-    
-    if lower_cpu.contains("intel") {
-        let physical_cores = sys.physical_core_count().unwrap_or(0);
-        let total_cpus = sys.cpus().len();
-        
-        if (lower_cpu.contains("i7-12") || lower_cpu.contains("i7-13") || lower_cpu.contains("i7-14") ||
-           lower_cpu.contains("i9-12") || lower_cpu.contains("i9-13") || lower_cpu.contains("i9-14") ||
-           lower_cpu.contains("ultra 7") || lower_cpu.contains("ultra 9") || lower_cpu.contains("i5-126") ||
-           lower_cpu.contains("i5-136") || lower_cpu.contains("i5-146")) && !lower_cpu.contains("12400") && !lower_cpu.contains("12100") {
-            is_hybrid = true;
-        } else if physical_cores > 0 && total_cpus > physical_cores && total_cpus < (physical_cores * 2) && !lower_cpu.contains("12400") && !lower_cpu.contains("12100") {
-            is_hybrid = true;
-        }
-    }
-
     let is_x3d = lower_cpu.contains("x3d");
 
     HardwareResponse {

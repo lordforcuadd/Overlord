@@ -32,7 +32,7 @@ if (Test-Path $ExePath) {
     
     if (Test-Path $GlobalLog) {
         Write-Host "`n=======================================================" -ForegroundColor Red
-        Write-Host "⚠️  OVERLORD V3 - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
+        Write-Host "⚠️  OVERLORD V4 - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
         Write-Host "=======================================================" -ForegroundColor Red
         
         Get-Content $GlobalLog | ForEach-Object {

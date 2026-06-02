@@ -1,179 +1,169 @@
-use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
-use std::io::Read;
-use std::time::{Duration, Instant, SystemTime};
+use std::io::Write;
+use std::os::windows::process::CommandExt;
+use std::sync::Mutex;
 
-const SCRIPT_01_PERIFERICOS: &str = include_str!("../scripts/01_perifericos.ps1");
-const SCRIPT_02_DEBLOAT: &str = include_str!("../scripts/02_debloat.ps1");
-const SCRIPT_03_RED: &str = include_str!("../scripts/03_red.ps1");
-const SCRIPT_04_RENDIMIENTO: &str = include_str!("../scripts/04_rendimiento.ps1");
-const SCRIPT_05_GPU_DISPLAY: &str = include_str!("../scripts/05_gpu_display.ps1");
-const SCRIPT_06_IRQ_AFFINITY: &str = include_str!("../scripts/06_irq_affinity.ps1");
-const SCRIPT_07_ALMACENAMIENTO: &str = include_str!("../scripts/07_almacenamiento.ps1");
-const SCRIPT_08_TELEMETRIA: &str = include_str!("../scripts/08_telemetria.ps1");
-const SCRIPT_09_ENERGIA: &str = include_str!("../scripts/09_energia.ps1");
-const SCRIPT_10_REVERTIR: &str = include_str!("../scripts/10_revertir.ps1");
-const SCRIPT_11_GAME_HOOKS: &str = include_str!("../scripts/11_game_hooks.ps1");
+static EXECUTION_LOCK: Mutex<()> = Mutex::new(());
 
-const SCRIPT_CREAR_RESPALDO: &str = include_str!("../scripts/crear_respaldo.ps1");
-const SCRIPT_GET_MODULES_STATUS: &str = include_str!("../scripts/get_modules_status.ps1");
-const SCRIPT_GET_QOL: &str = include_str!("../scripts/get_qol.ps1");
-const SCRIPT_SET_QOL: &str = include_str!("../scripts/set_qol.ps1");
-const SCRIPT_QUICK_ACTIONS: &str = include_str!("../scripts/quick_actions.ps1");
-const SCRIPT_SHUTDOWN: &str = include_str!("../scripts/shutdown.ps1");
-const SCRIPT_UTILS: &str = include_str!("../scripts/utils.ps1");
-const SCRIPT_BACKUP_MANAGER: &str = include_str!("../scripts/backup_manager.psm1");
+pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+    let _lock = EXECUTION_LOCK.lock().map_err(|_| "Error al adquirir el candado de ejecucion concurrente".to_string())?;
 
-pub fn execute_script_safely(script_path: &str, args: Vec<&str>, timeout_secs: u64) -> Result<String, String> {
-    let path_str = script_path.replace("\\", "/");
+    let backup_module = include_str!("../scripts/backup_manager.psm1");
+
+    let mut toggle_name = String::new();
+    let mut is_enabled_str = String::new();
+
+    if game_list.contains(':') {
+        let parts: Vec<&str> = game_list.splitn(2, ':').collect();
+        if parts.len() == 2 {
+            toggle_name = parts[0].to_string();
+            is_enabled_str = parts[1].to_string();
+        }
+    }
+
+    let header = format!(
+        "$IsLaptop = ${}\n\
+         $RamGB = {}\n\
+         $GameList = '{}'\n\
+         $ActionId = '{}'\n\
+         $ToggleName = '{}'\n\
+         $IsEnabledStr = '{}'\n\
+         $ErrorActionPreference = 'Stop'\n",
+        if is_laptop { "true" } else { "false" },
+        ram_gb,
+        game_list.replace("'", "''"),
+        game_list.replace("'", "''"),
+        toggle_name.replace("'", "''"),
+        is_enabled_str.replace("'", "''")
+    );
+
+    let mut script_clean = script_raw.to_string();
     
-    let target_name = if path_str.contains("01_perifericos") { "01_perifericos.ps1" }
-    else if path_str.contains("02_debloat") { "02_debloat.ps1" }
-    else if path_str.contains("03_red") { "03_red.ps1" }
-    else if path_str.contains("04_rendimiento") { "04_rendimiento.ps1" }
-    else if path_str.contains("05_gpu_display") { "05_gpu_display.ps1" }
-    else if path_str.contains("06_irq_affinity") { "06_irq_affinity.ps1" }
-    else if path_str.contains("07_almacenamiento") { "07_almacenamiento.ps1" }
-    else if path_str.contains("08_telemetria") { "08_telemetria.ps1" }
-    else if path_str.contains("09_energia") { "09_energia.ps1" }
-    else if path_str.contains("10_revertir") { "10_revertir.ps1" }
-    else if path_str.contains("11_game_hooks") { "11_game_hooks.ps1" }
-    else if path_str.contains("crear_respaldo") { "crear_respaldo.ps1" }
-    else if path_str.contains("get_modules_status") { "get_modules_status.ps1" }
-    else if path_str.contains("get_qol") { "get_qol.ps1" }
-    else if path_str.contains("set_qol") { "set_qol.ps1" }
-    else if path_str.contains("quick_actions") { "quick_actions.ps1" }
-    else if path_str.contains("shutdown") { "shutdown.ps1" }
-    else if path_str.contains("utils") { "utils.ps1" }
-    else {
-        return Err(format!("Script no mapeado en la suite: {}", path_str));
+    
+    let is_real_param_block = {
+        let mut is_param = false;
+        for line in script_clean.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            if trimmed.to_lowercase().starts_with("param") {
+                is_param = true;
+            }
+            break; 
+        }
+        is_param
     };
 
-    let target_content = match target_name {
-        "01_perifericos.ps1" => SCRIPT_01_PERIFERICOS,
-        "02_debloat.ps1" => SCRIPT_02_DEBLOAT,
-        "03_red.ps1" => SCRIPT_03_RED,
-        "04_rendimiento.ps1" => SCRIPT_04_RENDIMIENTO,
-        "05_gpu_display.ps1" => SCRIPT_05_GPU_DISPLAY,
-        "06_irq_affinity.ps1" => SCRIPT_06_IRQ_AFFINITY,
-        "07_almacenamiento.ps1" => SCRIPT_07_ALMACENAMIENTO,
-        "08_telemetria.ps1" => SCRIPT_08_TELEMETRIA,
-        "09_energia.ps1" => SCRIPT_09_ENERGIA,
-        "10_revertir.ps1" => SCRIPT_10_REVERTIR,
-        "11_game_hooks.ps1" => SCRIPT_11_GAME_HOOKS,
-        "crear_respaldo.ps1" => SCRIPT_CREAR_RESPALDO,
-        "get_modules_status.ps1" => SCRIPT_GET_MODULES_STATUS,
-        "get_qol.ps1" => SCRIPT_GET_QOL,
-        "set_qol.ps1" => SCRIPT_SET_QOL,
-        "quick_actions.ps1" => SCRIPT_QUICK_ACTIONS,
-        "shutdown.ps1" => SCRIPT_SHUTDOWN,
-        _ => SCRIPT_UTILS,
-    };
-
-    let timestamp = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    
-    let unique_folder_name = format!("overlord_v254_{}", timestamp);
-    let temp_run_dir = std::env::temp_dir().join(unique_folder_name);
-    std::fs::create_dir_all(&temp_run_dir).map_err(|e| format!("Error de infraestructura temporal: {}", e))?;
-
-    let files_to_extract = vec![
-        ("utils.ps1", SCRIPT_UTILS),
-        ("backup_manager.psm1", SCRIPT_BACKUP_MANAGER),
-        (target_name, target_content)
-    ];
-
-    for (name, content) in files_to_extract {
-        let file_path = temp_run_dir.join(name);
-        let mut bom_content = Vec::with_capacity(3 + content.len());
-        bom_content.extend_from_slice(b"\xEF\xBB\xBF");
-        bom_content.extend_from_slice(content.as_bytes());
-        let _ = std::fs::write(file_path, bom_content);
-    }
-
-    let target_script_path = temp_run_dir.join(target_name);
-
-    let mut cmd = Command::new("powershell.exe");
-    cmd.creation_flags(0x08000000);
-    
-    cmd.arg("-NoProfile")
-       .arg("-NonInteractive")
-       .arg("-ExecutionPolicy")
-       .arg("Bypass")
-       .arg("-File")
-       .arg(&target_script_path);
-
-    for arg in args {
-        if !arg.is_empty() {
-            cmd.arg(arg);
-        }
-    }
-
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-
-    let mut child = cmd.spawn().map_err(|e| {
-        let _ = std::fs::remove_dir_all(&temp_run_dir);
-        format!("Fallo al inicializar subproceso: {}", e)
-    })?;
-
-    let start_time = Instant::now();
-    let timeout = Duration::from_secs(timeout_secs);
-    let final_result;
-
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if status.success() {
-                    let mut stdout_str = String::new();
-                    if let Some(mut stdout) = child.stdout.take() {
-                        let _ = stdout.read_to_string(&mut stdout_str);
+    if is_real_param_block {
+        let lower_script = script_clean.to_lowercase();
+        if let Some(param_start) = lower_script.find("param") {
+            if let Some(start_paren) = lower_script[param_start..].find('(') {
+                let actual_start_paren = param_start + start_paren;
+                let mut depth = 0;
+                let mut end_bytes_idx = None;
+                
+                for (idx, ch) in script_clean.char_indices() {
+                    if idx >= actual_start_paren {
+                        if ch == '(' {
+                            depth += 1;
+                        } else if ch == ')' {
+                            depth -= 1;
+                            if depth == 0 {
+                                end_bytes_idx = Some(idx + ch.len_utf8());
+                                break;
+                            }
+                        }
                     }
-                    final_result = Ok(stdout_str.trim().to_string());
-                } else {
-                    let mut stderr_str = String::new();
-                    if let Some(mut stderr) = child.stderr.take() {
-                        let _ = stderr.read_to_string(&mut stderr_str);
-                    }
-                    final_result = Err(format!("Error de script: {}. Código: {:?}", stderr_str.trim(), status.code()));
                 }
-                break;
-            }
-            Ok(None) => {
-                if start_time.elapsed() >= timeout {
-                    let _ = child.kill();
-                    final_result = Err(format!("Excedido el límite de tiempo de seguridad de {} segundos", timeout_secs));
-                    break;
+                if let Some(idx) = end_bytes_idx {
+                    script_clean = script_clean[idx..].trim().to_string();
                 }
-                std::thread::sleep(Duration::from_millis(50));
-            }
-            Err(e) => {
-                final_result = Err(format!("Excepción durante el monitoreo del proceso: {}", e));
-                break;
             }
         }
     }
 
-    let _ = std::fs::remove_dir_all(&temp_run_dir);
+    let unified_script = format!(
+        "{}\n{}\n{}",
+        header,
+        backup_module,
+        script_clean
+    );
 
-    if let Err(ref err_msg) = final_result {
-        if let Some(program_data) = std::env::var_os("ProgramData") {
-            let log_dir = std::path::Path::new(&program_data).join("Overlord");
-            let _ = std::fs::create_dir_all(&log_dir);
-            let log_file = log_dir.join("errors.log");
-            
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(log_file) 
-            {
-                use std::io::Write;
-                let _ = writeln!(file, "[FALLO CRÍTICO] Script: {} -> {}", target_name, err_msg);
-            }
-        }
+    let utf16_units: Vec<u16> = unified_script.encode_utf16().collect();
+    let mut utf16_bytes = Vec::with_capacity(utf16_units.len() * 2);
+    for unit in utf16_units {
+        utf16_bytes.extend_from_slice(&unit.to_le_bytes());
     }
 
-    final_result
+    let b64_encoded = custom_base64_encode(&utf16_bytes);
+
+    let bootstrap_cmd = "$b64 = [Console]::In.ReadToEnd(); $bytes = [System.Convert]::FromBase64String($b64); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script";
+
+    let mut child = Command::new("powershell.exe")
+        .creation_flags(0x08000000)
+        .args(&[
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            bootstrap_cmd,
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Falla al inicializar el proceso PowerShell: {}", e))?;
+
+    {
+        let mut stdin = child.stdin.take().ok_or("No se pudo abrir el canal stdin de PowerShell".to_string())?;
+        stdin.write_all(b64_encoded.as_bytes()).map_err(|e| format!("Error al escribir en stdin: {}", e))?;
+    } 
+
+    let output = child.wait_with_output().map_err(|e| format!("Error esperando la salida del proceso: {}", e))?;
+
+    if !output.status.success() {
+        let error_str = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if error_str.is_empty() {
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        } else {
+            error_str
+        });
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn custom_base64_encode(bytes: &[u8]) -> String {
+    const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let rem = bytes.len() - i;
+        if rem >= 3 {
+            let chunk = (bytes[i] as u32) << 16 | (bytes[i + 1] as u32) << 8 | (bytes[i + 2] as u32);
+            result.push(CHARSET[((chunk >> 18) & 63) as usize] as char);
+            result.push(CHARSET[((chunk >> 12) & 63) as usize] as char);
+            result.push(CHARSET[((chunk >> 6) & 63) as usize] as char);
+            result.push(CHARSET[(chunk & 63) as usize] as char);
+            i += 3;
+        } else if rem == 2 {
+            let chunk = (bytes[i] as u32) << 16 | (bytes[i + 1] as u32) << 8;
+            result.push(CHARSET[((chunk >> 18) & 63) as usize] as char);
+            result.push(CHARSET[((chunk >> 12) & 63) as usize] as char);
+            result.push(CHARSET[((chunk >> 6) & 63) as usize] as char);
+            result.push('=');
+            i += 2;
+        } else if rem == 1 {
+            let chunk = (bytes[i] as u32) << 16;
+            result.push(CHARSET[((chunk >> 18) & 63) as usize] as char);
+            result.push(CHARSET[((chunk >> 12) & 63) as usize] as char);
+            result.push('=');
+            result.push('=');
+            i += 1;
+        }
+    }
+    result
 }

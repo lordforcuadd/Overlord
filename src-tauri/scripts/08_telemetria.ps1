@@ -4,11 +4,6 @@
 )
 $ErrorActionPreference = "Stop"
 
-$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
-if (Test-Path $BackupManagerPath) {
-    Import-Module $BackupManagerPath -Force
-}
-
 Try {
     Write-Host "[*] Erradicando telemetria e hilos de recoleccion..."
 
@@ -43,12 +38,16 @@ Try {
     Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
 
+    if ((Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $HvciPath -Name "Enabled").Enabled -ne 0) { throw "Verification failed" }
+
     try {
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
     } catch {}
 
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
+    if ((Get-ItemProperty -Path $ActivityPath -Name "PublishUserActivities").PublishUserActivities -ne 0) { throw "Verification failed" }
 
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
@@ -66,8 +65,7 @@ Try {
 
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
-        "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog",
-        "SetupPlatformTel", "WdiContextLog"
+        "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog"
     )
     foreach ($Logger in $Loggers) {
         $LoggerKey = "$LoggersPath\$Logger"
@@ -76,6 +74,7 @@ Try {
                 Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry"
             }
             Set-ItemProperty -Path $LoggerKey -Name "Start" -Type DWord -Value 0 -Force | Out-Null
+            if ((Get-ItemProperty -Path $LoggerKey -Name "Start").Start -ne 0) { throw "Verification failed" }
         }
         logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null
     }

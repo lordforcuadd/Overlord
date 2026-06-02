@@ -4,11 +4,6 @@
 )
 $ErrorActionPreference = "Stop"
 
-$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
-if (Test-Path $BackupManagerPath) {
-    Import-Module $BackupManagerPath -Force
-}
-
 Try {
     Write-Host "[*] Aplicando optimizaciones de rendimiento general y Kernel..."
 
@@ -31,37 +26,43 @@ Try {
         }
     }
 
+    $targetPaging = 0
     if ($RamGB -ge 16 -and -not $IsLaptop) {
-        Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value 1 -Force
-    } else {
-        Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value 0 -Force
+        $targetPaging = 1
     }
+    Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value $targetPaging -Force | Out-Null
+    if ((Get-ItemProperty -Path $MemPath -Name "DisablePagingExecutive").DisablePagingExecutive -ne $targetPaging) { throw "Verification failed" }
 
     $ClearPage = (Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -ErrorAction SilentlyContinue).ClearPageFileAtShutdown
     if ($ClearPage -eq 1) {
-        Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force
+        Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force | Out-Null
+        if ((Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown").ClearPageFileAtShutdown -ne 0) { throw "Verification failed" }
     }
 
     if ($RamGB -ge 32) {
-        Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
+        Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
     } else {
-        Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
+        Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
     }
 
     if (-not $IsLaptop) {
         Write-Host "[!] ADVERTENCIA: Desactivando mitigaciones estructurales Spectre/Meltdown para maximizar throughput." -ForegroundColor Yellow
-        Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force
-        Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force
+        Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force | Out-Null
+        Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force | Out-Null
+        if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride").FeatureSettingsOverride -ne 3) { throw "Verification failed" }
+        if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask").FeatureSettingsOverrideMask -ne 3) { throw "Verification failed" }
     }
 
     $StorePath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }
-    Set-ItemProperty -Path $StorePath -Name "GameDVR_Enabled" -Type DWord -Value 0 -Force
+    Set-ItemProperty -Path $StorePath -Name "GameDVR_Enabled" -Type DWord -Value 0 -Force | Out-Null
+    if ((Get-ItemProperty -Path $StorePath -Name "GameDVR_Enabled").GameDVR_Enabled -ne 0) { throw "Verification failed" }
 
     if (-not $IsLaptop -and $RamGB -ge 16) {
         $FthPath = "HKLM:\Software\Microsoft\FTH"
         if (!(Test-Path $FthPath)) { New-Item -Path $FthPath -Force | Out-Null }
-        Set-ItemProperty -Path $FthPath -Name "Enabled" -Type DWord -Value 0 -Force
+        Set-ItemProperty -Path $FthPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
+        if ((Get-ItemProperty -Path $FthPath -Name "Enabled").Enabled -ne 0) { throw "Verification failed" }
     }
 
     Write-Host "[+] Optimizaciones de Kernel inyectadas con exito."

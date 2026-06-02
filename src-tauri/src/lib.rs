@@ -1,157 +1,171 @@
-use hardware::{HardwareResponse, ScanGamesResponse};
-use memory::LiveTelemetryResponse;
-use std::time::Instant;
-use std::net::{TcpStream, ToSocketAddrs};
-
+mod executor;
 mod hardware;
 mod memory;
-mod executor;
 
+use executor::execute_script_in_memory;
+use hardware::{get_system_hardware, collect_installed_games, HardwareResponse, ScanGamesResponse};
+use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
+use tauri::State;
+use std::net::UdpSocket;
+use std::time::Instant;
+
+#[link(name = "ntdll")]
 extern "system" {
-    fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: i32, dwProcessId: u32) -> *mut std::ffi::c_void;
-    fn SetProcessWorkingSetSize(hProcess: *mut std::ffi::c_void, dwMinimumWorkingSetSize: usize, dwMaximumWorkingSetSize: usize) -> i32;
-    fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
+    fn NtSetSystemInformation(
+        system_information_class: u32,
+        system_information: *mut std::ffi::c_void,
+        system_information_length: u32,
+    ) -> i32;
+}
+
+#[link(name = "advapi32")]
+extern "system" {
+    fn OpenProcessToken(process_handle: *mut std::ffi::c_void, desired_access: u32, token_handle: *mut *mut std::ffi::c_void) -> i32;
+    fn LookupPrivilegeValueW(lp_system_name: *const u16, lp_name: *const u16, lp_luid: *mut LUID) -> i32;
+    fn AdjustTokenPrivileges(token_handle: *mut std::ffi::c_void, disable_all_privileges: i32, new_state: *const TOKEN_PRIVILEGES, buffer_length: u32, previous_state: *mut TOKEN_PRIVILEGES, return_length: *mut u32) -> i32;
+}
+
+#[link(name = "kernel32")]
+extern "system" {
+    fn GetCurrentProcess() -> *mut std::ffi::c_void;
+    fn CloseHandle(handle: *mut std::ffi::c_void) -> i32;
+}
+
+#[repr(C)]
+struct LUID {
+    low_part: u32,
+    high_part: i32,
+}
+
+#[repr(C)]
+struct LUID_AND_ATTRIBUTES {
+    luid: LUID,
+    attributes: u32,
+}
+
+#[repr(C)]
+struct TOKEN_PRIVILEGES {
+    privilege_count: u32,
+    privileges: [LUID_AND_ATTRIBUTES; 1],
 }
 
 #[tauri::command]
-async fn get_hardware_info() -> Result<HardwareResponse, String> {
-    Ok(hardware::get_system_hardware())
-}
-
-#[tauri::command]
-async fn get_live_telemetry() -> Result<LiveTelemetryResponse, String> {
-    Ok(memory::fetch_live_metrics())
-}
-
-#[tauri::command]
-async fn scan_games() -> Result<Vec<ScanGamesResponse>, String> {
-    Ok(hardware::collect_installed_games())
-}
-
-#[tauri::command]
-async fn check_backup_exists() -> bool {
+fn check_backup_exists() -> bool {
     let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
     hklm.open_subkey("SOFTWARE\\Overlord\\Backup").is_ok()
 }
 
 #[tauri::command]
-async fn purge_ram_native() -> Result<String, String> {
-    let mut sys = sysinfo::System::new_all();
-    sys.refresh_all();
-    let mut procesos_purgados = 0;
-    let mut fallos_permisos = 0;
-
-    unsafe {
-        for process in sys.processes().values() {
-            let pid = process.pid().as_u32();
-            let handle = OpenProcess(0x0100 | 0x0400, 0, pid);
-            if !handle.is_null() {
-                if SetProcessWorkingSetSize(handle, usize::MAX, usize::MAX) != 0 {
-                    procesos_purgados += 1;
-                } else {
-                    fallos_permisos += 1;
-                }
-                CloseHandle(handle);
-            } else {
-                fallos_permisos += 1;
-            }
-        }
-    }
-
-    Ok(format!(
-        "RAM Purgada de forma nativa. Conjuntos optimizados: {} procesos. Denegados/Ignorados: {} de forma protegida.",
-        procesos_purgados, fallos_permisos
-    ))
+fn fetch_hardware() -> HardwareResponse {
+    get_system_hardware()
 }
 
 #[tauri::command]
-async fn run_powershell_async(
-    script_name: String,
-    is_laptop: bool,
-    ram_gb: u32,
-    game_list: Option<String>,
-) -> Result<String, String> {
-    let path = format!("scripts\\{}", script_name);
-    let laptop_str = if is_laptop { "true" } else { "false" };
-    let ram_str = ram_gb.to_string();
+fn fetch_games() -> Vec<ScanGamesResponse> {
+    collect_installed_games()
+}
+
+#[tauri::command]
+fn get_live_telemetry(cache: State<'_, SystemStateCache>) -> LiveMetricsResponse {
+    get_live_metrics(&cache)
+}
+
+#[tauri::command]
+fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
+    let script_raw = match script_name.as_str() {
+        "01_perifericos" => include_str!("../scripts/01_perifericos.ps1"),
+        "02_debloat" => include_str!("../scripts/02_debloat.ps1"),
+        "03_red" => include_str!("../scripts/03_red.ps1"),
+        "04_rendimiento" => include_str!("../scripts/04_rendimiento.ps1"),
+        "05_gpu_display" => include_str!("../scripts/05_gpu_display.ps1"),
+        "06_irq_affinity" => include_str!("../scripts/06_irq_affinity.ps1"),
+        "07_almacenamiento" => include_str!("../scripts/07_almacenamiento.ps1"),
+        "08_telemetria" => include_str!("../scripts/08_telemetria.ps1"),
+        "09_energia" => include_str!("../scripts/09_energia.ps1"),
+        "10_revertir" => include_str!("../scripts/10_revertir.ps1"),
+        "11_game_hooks" => include_str!("../scripts/11_game_hooks.ps1"),
+        "crear_respaldo" => include_str!("../scripts/crear_respaldo.ps1"),
+        "quick_actions" => include_str!("../scripts/quick_actions.ps1"),
+        "set_qol" => include_str!("../scripts/set_qol.ps1"),
+        "get_qol" => include_str!("../scripts/get_qol.ps1"),
+        "shutdown" => include_str!("../scripts/shutdown.ps1"),
+        "get_modules_status" => include_str!("../scripts/get_modules_status.ps1"),
+        _ => return Err("Script no autorizado u omitido por seguridad".to_string()),
+    };
+
+    execute_script_in_memory(script_raw, is_laptop, ram_gb, &game_list)
+}
+
+#[tauri::command]
+fn run_benchmark() -> Result<f64, String> {
+    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(1500))).map_err(|e| e.to_string())?;
     
-    let raw_games = game_list.unwrap_or_default();
-    let sanitized_games: String = raw_games
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == ',' || *c == '.' || *c == '-' || *c == '_')
-        .collect();
+    let dns_packet: [u8; 28] = [
+        0xAA, 0xBB, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x06, b'g', b'o', b'o',
+        b'g', b'l', b'e', 0x03, b'c', b'o', b'm', 0x00,
+        0x00, 0x01, 0x00, 0x01
+    ];
 
-    let args = vec![laptop_str, ram_str.as_str(), sanitized_games.as_str()];
-    executor::execute_script_safely(&path, args, 120)
+    let start = Instant::now();
+    socket.send_to(&dns_packet, "1.1.1.1:53").map_err(|e| e.to_string())?;
+    
+    let mut buf = [0u8; 512];
+    let _ = socket.recv_from(&mut buf).map_err(|_| "Tiempo de espera de red UDP agotado".to_string())?;
+    
+    let duration = start.elapsed().as_secs_f64() * 1000.0;
+    Ok((duration * 100.0).round() / 100.0)
 }
 
 #[tauri::command]
-async fn run_powershell_generic(script_name: String, args_list: Vec<String>) -> Result<String, String> {
-    let path = format!("scripts\\{}", script_name);
-    let args_ref: Vec<&str> = args_list.iter().map(|s| s.as_str()).collect();
-    let timeout = if script_name.contains("crear_respaldo") { 600 } else { 180 };
-    executor::execute_script_safely(&path, args_ref, timeout)
-}
-
-#[tauri::command]
-async fn revert_optimization(is_laptop: bool, ram_gb: u32) -> Result<String, String> {
-    let laptop_str = if is_laptop { "true" } else { "false" };
-    let ram_str = ram_gb.to_string();
-    let args = vec![laptop_str, ram_str.as_str()];
-    executor::execute_script_safely("scripts\\10_revertir.ps1", args, 300)
-}
-
-#[derive(serde::Serialize)]
-pub struct BenchmarkResult {
-    pub network_latency_ms: u32,
-    pub dns_resolution_ms: u32,
-}
-
-#[tauri::command]
-async fn run_benchmark() -> Result<BenchmarkResult, String> {
-    let dns_start = Instant::now();
-    let socket_addr = match "one.one.one.one:53".to_socket_addrs() {
-        Ok(mut addrs) => addrs.next(),
-        Err(_) => return Err("Error al resolver el nombre de dominio del servidor de prueba".to_string()),
-    };
-    let dns_resolution_ms = dns_start.elapsed().as_millis() as u32;
-
-    let addr = match socket_addr {
-        Some(a) => a,
-        None => return Err("No se encontraron direcciones validas para el servidor de prueba".to_string()),
-    };
-
-    let net_start = Instant::now();
-    match TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)) {
-        Ok(_) => {
-            let network_latency_ms = net_start.elapsed().as_millis() as u32;
-            Ok(BenchmarkResult {
-                network_latency_ms,
-                dns_resolution_ms,
-            })
+fn purge_ram_native() -> Result<String, String> {
+    unsafe {
+        let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
+        if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &mut token) != 0 {
+            let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
+            let mut luid = LUID { low_part: 0, high_part: 0 };
+            if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &mut luid) != 0 {
+                let tp = TOKEN_PRIVILEGES {
+                    privilege_count: 1,
+                    privileges: [LUID_AND_ATTRIBUTES {
+                        luid,
+                        attributes: 0x00000002,
+                    }],
+                };
+                AdjustTokenPrivileges(token, 0, &tp, 0, std::ptr::null_mut(), std::ptr::null_mut());
+            }
+            CloseHandle(token);
         }
-        Err(_) => {
-            Err("El servidor de prueba no respondio dentro del tiempo limite establecido".to_string())
+
+        let mut command_class: u32 = 4;
+        let status = NtSetSystemInformation(
+            80,
+            &mut command_class as *mut u32 as *mut std::ffi::c_void,
+            4,
+        );
+        if status >= 0 {
+            Ok("Lista Standby purgada con exito".to_string())
+        } else {
+            Err(format!("Error en llamada al sistema NT: {}", status))
         }
     }
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg_attr(mobile, tauri::command)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .manage(SystemStateCache::default())
         .invoke_handler(tauri::generate_handler![
-            get_hardware_info,
+            check_backup_exists,
+            fetch_hardware,
+            fetch_games,
             get_live_telemetry,
-            scan_games,
-            purge_ram_native,
-            run_powershell_async,
-            run_powershell_generic,
-            revert_optimization,
+            run_optimization_script,
             run_benchmark,
-            check_backup_exists
+            purge_ram_native
         ])
         .run(tauri::generate_context!())
-        .expect("Error al compilar la ejecucion nativa de Overlord");
+        .expect("error while running tauri application");
 }

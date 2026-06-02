@@ -4,10 +4,6 @@
 )
 $ErrorActionPreference = "Stop"
 
-$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
-if (Test-Path $BackupManagerPath) {
-    Import-Module $BackupManagerPath -Force
-}
 
 Try {
     Write-Host "[*] Iniciando Optimizacion y Limpieza de Disco..."
@@ -32,16 +28,20 @@ Try {
 
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1 -Force | Out-Null
     Set-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled" -Type DWord -Value 0 -Force | Out-Null
+    
+    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate").NtfsDisableLastAccessUpdate -ne 1) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled").HiberbootEnabled -ne 0) { throw "Verification failed" }
+
     fsutil behavior set disablelastaccess 1 | Out-Null
     fsutil behavior set disable8dot3 1 | Out-Null
 
+    $targetMemoryUsage = 0
     if ($RamGB -gt 8) {
-        Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value 2 -Force | Out-Null
-        fsutil behavior set memoryusage 2 | Out-Null
-    } else {
-        Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value 0 -Force | Out-Null
-        fsutil behavior set memoryusage 0 | Out-Null
+        $targetMemoryUsage = 2
     }
+    Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value $targetMemoryUsage -Force | Out-Null
+    fsutil behavior set memoryusage $targetMemoryUsage | Out-Null
+    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage").NtfsMemoryUsage -ne $targetMemoryUsage) { throw "Verification failed" }
 
     if (-not $IsLaptop) {
         powercfg.exe /hibernate off | Out-Null
@@ -56,15 +56,18 @@ Try {
         }
     }
 
+    $targetPrefetch = 0
     if ($isHDD) {
-        Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value 3 -Force | Out-Null
-        Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value 3 -Force | Out-Null
-    } else {
-        Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value 0 -Force | Out-Null
-        Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value 0 -Force | Out-Null
+        $targetPrefetch = 3
     }
+    
+    Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value $targetPrefetch -Force | Out-Null
+    Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value $targetPrefetch -Force | Out-Null
+    if ((Get-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher").EnablePrefetcher -ne $targetPrefetch) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch").EnableSuperfetch -ne $targetPrefetch) { throw "Verification failed" }
 
     Set-ItemProperty -Path $MemPath -Name "LargeSystemCache" -Type DWord -Value 0 -Force | Out-Null
+    if ((Get-ItemProperty -Path $MemPath -Name "LargeSystemCache").LargeSystemCache -ne 0) { throw "Verification failed" }
 
     $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
     $DismProcess | Wait-Process -Timeout 180 -ErrorAction SilentlyContinue

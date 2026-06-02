@@ -3,7 +3,7 @@ export interface RegistryValueMapping {
   path: string;
   valueName: string;
   valueType: "REG_DWORD" | "REG_SZ" | "REG_BINARY" | "REG_MULTI_SZ";
-  fallbackValue: any;
+  fallbackValue: string | number | boolean | null;
 }
 
 export interface TweakMetadata {

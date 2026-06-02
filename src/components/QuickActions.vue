@@ -163,7 +163,9 @@
 <script setup>
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { useOverlordStore } from "../stores/overlordStore";
 
+const store = useOverlordStore();
 const isExecutingGlobal = ref(false);
 
 const status = ref({
@@ -177,7 +179,7 @@ const quickActions = [
   {
     id: "PurgeRAM",
     title: "Purgar RAM",
-    desc: "Aniquila el micro-stuttering liberando la memoria en espera. (NO TENER NINGUN JUEGO ABIERTO)",
+    desc: "Aniquila el micro-stuttering liberando la memoria en espera.",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />',
   },
   {
@@ -210,9 +212,11 @@ const runAction = async (actionId) => {
       await invoke("purge_ram_native");
       console.log("[Overlord] RAM purgada nativamente desde Rust.");
     } else {
-      await invoke("run_powershell_generic", {
-        scriptName: "quick_actions.ps1",
-        argsList: [actionId],
+      await invoke("run_optimization_script", {
+        scriptName: "quick_actions",
+        isLaptop: store.hardwareInfo.isLaptop,
+        ramGb: store.hardwareInfo.ram,
+        gameList: actionId,
       });
     }
     status.value[actionId] = "success";

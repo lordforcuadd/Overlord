@@ -16,9 +16,11 @@ export function useOrchestrator(overlordSwalConfig: any) {
   async function crearRespaldo() {
     isBackingUp.value = true;
     try {
-      await invoke("run_powershell_generic", {
-        scriptName: "crear_respaldo.ps1",
-        argsList: [],
+      await invoke("run_optimization_script", {
+        scriptName: "crear_respaldo",
+        isLaptop: store.hardwareInfo.isLaptop,
+        ramGb: store.hardwareInfo.ram,
+        gameList: "",
       });
       store.restorePointCreated = true;
       await Swal.fire({
@@ -80,7 +82,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
       cardStatus.value[modKey] = "loading";
       try {
-        let gameListOpt = null;
+        let gameListOpt = "";
         if (modKey === "gameHooks") {
           gameListOpt = store.gameList
             .filter((g) => g.optimize)
@@ -88,8 +90,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
             .join(",");
         }
 
-        await invoke("run_powershell_async", {
-          scriptName: scriptName,
+        await invoke("run_optimization_script", {
+          scriptName: scriptName.replace(".ps1", ""),
           isLaptop: store.hardwareInfo.isLaptop,
           ramGb: store.hardwareInfo.ram,
           gameList: gameListOpt,
@@ -101,7 +103,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
       } catch (errorOutput) {
         console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
         cardStatus.value[modKey] = "error";
-        moduloFallido = tweaksMetadata[modKey]?.title || modKey;
+
+        moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${String(errorOutput).substring(0, 80)}...</span>`;
         huboError = true;
         break;
       }
@@ -136,8 +139,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
 
       if (result.isConfirmed) {
-        await invoke("run_powershell_async", {
-          scriptName: "shutdown.ps1",
+        await invoke("run_optimization_script", {
+          scriptName: "shutdown",
           isLaptop: false,
           ramGb: 0,
           gameList: "",
@@ -161,9 +164,11 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
     isReverting.value = true;
     try {
-      await invoke("revert_optimization", {
+      await invoke("run_optimization_script", {
+        scriptName: "10_revertir",
         isLaptop: store.hardwareInfo.isLaptop,
         ramGb: store.hardwareInfo.ram,
+        gameList: "",
       });
       store.restorePointCreated = false;
 

@@ -4,11 +4,6 @@
 )
 $ErrorActionPreference = "Stop"
 
-$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
-if (Test-Path $BackupManagerPath) {
-    Import-Module $BackupManagerPath -Force
-}
-
 Try {
     Write-Host "[*] Iniciando optimizacion cientifica de la pila de red TCP/IP..."
 
@@ -27,10 +22,17 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network"
     }
 
-    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 86400 -Force
-    Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 0 -Force
-    Set-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay" -Type DWord -Value 30 -Force
-    Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force
+    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 86400 -Force | Out-Null
+    Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay" -Type DWord -Value 30 -Force | Out-Null
+    Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force | Out-Null
+
+    if ((Get-ItemProperty -Path $DnsPath -Name "MaxCacheTtl").MaxCacheTtl -ne 86400) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl").MaxNegativeCacheTtl -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay").TcpTimedWaitDelay -ne 30) { throw "Verification failed" }
+    
+    $throttingVal = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
+    if ($throttingVal -ne 4294967295 -and $throttingVal -ne -1) { throw "Verification failed" }
 
     netsh int tcp set global rss=enabled | Out-Null
     netsh int tcp set global timestamps=disabled | Out-Null
@@ -49,12 +51,12 @@ Try {
     $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
     foreach ($Adapter in $Adapters) {
         if ($Adapter.InterfaceDescription -like "*Intel*") {
-            Enable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue
-            Enable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue
-            Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue
+            Enable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue | Out-Null
+            Enable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue | Out-Null
+            Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
         } else {
-            Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue
-            Disable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue
+            Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue | Out-Null
+            Disable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue | Out-Null
         }
     }
 

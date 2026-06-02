@@ -35,7 +35,7 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v3.0
+              Optimizador de Windows v4.0
             </p>
           </div>
         </div>
@@ -136,7 +136,7 @@
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"
-              ></path>
+              />
             </svg>
             <span>{{
               isReverting ? "Restaurando Windows..." : "Revertir Cambios"
@@ -193,7 +193,7 @@
           isExecutingAll ||
           Object.values(store.modules).filter((v) => v).length === 0
         "
-        class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-3 py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] disabled:opacity-50 flex items-center gap-3"
+        class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] disabled:opacity-50 flex items-center gap-3"
       >
         <span>{{
           isExecutingAll ? "Optimizando..." : "EJECUTAR OVERLORD"
@@ -281,9 +281,11 @@ onMounted(async () => {
   store.startTelemetryPolling();
 
   try {
-    const jsonStatus = await invoke<string>("run_powershell_generic", {
-      scriptName: "get_modules_status.ps1",
-      argsList: [],
+    const jsonStatus = await invoke<string>("run_optimization_script", {
+      scriptName: "get_modules_status",
+      isLaptop: store.hardwareInfo.isLaptop,
+      ramGb: store.hardwareInfo.ram,
+      gameList: "",
     });
 
     const realStatus = JSON.parse(jsonStatus);
@@ -297,7 +299,9 @@ onMounted(async () => {
         store.modules[moduleKey] = false;
       }
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error("[ERROR AL CARGAR ESTADOS INICIALES]:", e);
+  }
 });
 
 onUnmounted(() => {

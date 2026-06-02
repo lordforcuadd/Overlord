@@ -223,9 +223,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { useOverlordStore } from "../stores/overlordStore";
 
 const isScanning = ref(true);
 const windowsBuild = ref(0);
+const store = useOverlordStore();
 
 type QolKeys =
   | "darkMode"
@@ -447,11 +449,13 @@ function getRowClass(id: QolKeys) {
 
 onMounted(async () => {
   try {
-    const jsonOutput = await invoke("run_powershell_generic", {
-      scriptName: "get_qol.ps1",
-      argsList: [],
+    const jsonOutput = await invoke<string>("run_optimization_script", {
+      scriptName: "get_qol",
+      isLaptop: store.hardwareInfo.isLaptop,
+      ramGb: store.hardwareInfo.ram,
+      gameList: "",
     });
-    const data = JSON.parse(jsonOutput as string);
+    const data = JSON.parse(jsonOutput);
     const { windowsBuild: build, ...rest } = data;
     qol.value = rest as Record<QolKeys, boolean>;
     windowsBuild.value = build || 0;
@@ -469,16 +473,15 @@ async function applyToggle(settingKey: QolKeys) {
   qolStatus.value[settingKey] = "loading";
 
   try {
-    const args = [
-      "-ToggleName",
-      settingKey,
-      "-IsEnabledStr",
-      qol.value[settingKey] ? "true" : "false",
-    ];
-    const output = await invoke<string>("run_powershell_generic", {
-      scriptName: "set_qol.ps1",
-      argsList: args,
+    const isEnabledStr = qol.value[settingKey] ? "true" : "false";
+
+    const output = await invoke<string>("run_optimization_script", {
+      scriptName: "set_qol",
+      isLaptop: store.hardwareInfo.isLaptop,
+      ramGb: store.hardwareInfo.ram,
+      gameList: `${settingKey}:${isEnabledStr}`,
     });
+
     console.log(`[QoL Toggle Success] ${settingKey} | Output:`, output);
     qolStatus.value[settingKey] = "success";
     setTimeout(() => {

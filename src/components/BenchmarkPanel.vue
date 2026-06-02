@@ -4,7 +4,12 @@ import { useOverlordStore } from "../stores/overlordStore";
 import { useBenchmark } from "../composables/useBenchmark";
 
 const store = useOverlordStore();
-const { isTesting, executeBenchmark } = useBenchmark();
+// Sincronizamos la variable reactiva del composable con el nombre de tu template 'isTesting'
+const { isRunning: isTesting, ejecutarNetworkBenchmark } = useBenchmark();
+
+const executeBenchmark = async (fase: "before" | "after") => {
+  await ejecutarNetworkBenchmark(fase);
+};
 
 const improvementNetwork = computed(() => {
   if (!store.benchmarks.before.measured || !store.benchmarks.after.measured)
@@ -179,7 +184,7 @@ const improvementDns = computed(() => {
             xmlns="http://www.w3.org/2000/svg"
             class="h-4 w-4"
             fill="none"
-            viewBox="0 0 24 24"
+            boxView="0 0 24 24"
             stroke="currentColor"
           >
             <path
@@ -221,7 +226,7 @@ const improvementDns = computed(() => {
             xmlns="http://www.w3.org/2000/svg"
             class="h-4 w-4"
             fill="none"
-            viewBox="0 0 24 24"
+            boxView="0 0 24 24"
             stroke="currentColor"
           >
             <path

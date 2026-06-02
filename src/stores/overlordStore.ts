@@ -15,9 +15,9 @@ interface HardwarePayload {
 
 interface TelemetryPayload {
   cpu_usage: number;
-  ram_used_gb: number;
-  ram_total_gb: number;
-  ram_percent: number;
+  ram_used: number;
+  ram_total: number;
+  ram_percentage: number;
 }
 
 interface GamePayload {
@@ -101,7 +101,7 @@ export const useOverlordStore = defineStore("overlord", {
     },
     async detectHardware() {
       try {
-        const info = await invoke<HardwarePayload>("get_hardware_info");
+        const info = await invoke<HardwarePayload>("fetch_hardware");
         this.hardwareInfo.cpu = info.cpu;
         this.hardwareInfo.gpu = info.gpu;
         this.hardwareInfo.motherboard = info.motherboard;
@@ -139,7 +139,7 @@ export const useOverlordStore = defineStore("overlord", {
     },
     async scanGames() {
       try {
-        const games = await invoke<GamePayload[]>("scan_games");
+        const games = await invoke<GamePayload[]>("fetch_games");
         this.gameList = games.map((g) => ({
           ...g,
           optimize: g.detected,
@@ -154,9 +154,9 @@ export const useOverlordStore = defineStore("overlord", {
         try {
           const metrics = await invoke<TelemetryPayload>("get_live_telemetry");
           this.liveTelemetry.cpuUsage = metrics.cpu_usage;
-          this.liveTelemetry.ramUsed = metrics.ram_used_gb;
-          this.liveTelemetry.ramTotal = metrics.ram_total_gb;
-          this.liveTelemetry.ramPercent = metrics.ram_percent;
+          this.liveTelemetry.ramUsed = metrics.ram_used;
+          this.liveTelemetry.ramTotal = metrics.ram_total;
+          this.liveTelemetry.ramPercent = metrics.ram_percentage;
         } catch (e) {
           console.error("[TELEMETRY POLL FAIL]:", e);
         }

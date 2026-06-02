@@ -4,11 +4,6 @@
 )
 $ErrorActionPreference = "Stop"
 
-$BackupManagerPath = Join-Path $PSScriptRoot "backup_manager.psm1"
-if (Test-Path $BackupManagerPath) {
-    Import-Module $BackupManagerPath -Force
-}
-
 Try {
     Write-Host "[*] Configurando inyecciones de energia avanzadas y Core Parking..."
 
@@ -36,6 +31,7 @@ Try {
             Backup-OverlordRegistryValue -TargetKey $UsbHubPath -ValueName "DisableSelectiveSuspend" -BackupSubFolder "Power"
         }
         Set-ItemProperty -Path $UsbHubPath -Name "DisableSelectiveSuspend" -Type DWord -Value 1 -Force | Out-Null
+        if ((Get-ItemProperty -Path $UsbHubPath -Name "DisableSelectiveSuspend").DisableSelectiveSuspend -ne 1) { throw "Verification failed" }
 
         powercfg /SETACVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 | Out-Null
 
@@ -48,12 +44,18 @@ Try {
 
             Set-ItemProperty -Path $PowerPath -Name "ValueMax" -Type DWord -Value 0 -Force | Out-Null
             Set-ItemProperty -Path $PowerPath -Name "ValueMin" -Type DWord -Value 0 -Force | Out-Null
+            if ((Get-ItemProperty -Path $PowerPath -Name "ValueMax").ValueMax -ne 0) { throw "Verification failed" }
+            if ((Get-ItemProperty -Path $PowerPath -Name "ValueMin").ValueMin -ne 0) { throw "Verification failed" }
         }
         
         powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null
         if ($LASTEXITCODE -ne 0) {
-            powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-Null
-            powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-Null
+            $dupOut = powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
+            if ($dupOut -match "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
+                $newGuid = $Matches[1]
+                powercfg /setactive $newGuid | Out-Null
+                Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force | Out-Null
+            }
         }
     }
 
