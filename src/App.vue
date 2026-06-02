@@ -284,7 +284,7 @@ onMounted(async () => {
     const jsonStatus = await invoke<string>("run_optimization_script", {
       scriptName: "get_modules_status",
       isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ram,
+      ramGb: store.hardwareInfo.ramGb ?? 8,
       gameList: "",
     });
 

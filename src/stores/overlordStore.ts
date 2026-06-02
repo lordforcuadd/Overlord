@@ -5,12 +5,12 @@ interface HardwarePayload {
   cpu: string;
   gpu: string;
   motherboard: string;
-  ram_gb: number;
-  ram_speed: number;
-  is_laptop: boolean;
-  is_hybrid: boolean;
-  is_x3d: boolean;
-  is_ssd: boolean;
+  ramGb: number;
+  ramSpeed: number;
+  isLaptop: boolean;
+  isHybrid: boolean;
+  isX3d: boolean;
+  isSsd: boolean;
 }
 
 interface TelemetryPayload {
@@ -38,7 +38,7 @@ export const useOverlordStore = defineStore("overlord", {
       cpu: "",
       gpu: "",
       motherboard: "",
-      ram: 0,
+      ramGb: 0,
       ramSpeed: 0,
       isLaptop: false,
       isHybrid: false,
@@ -102,29 +102,30 @@ export const useOverlordStore = defineStore("overlord", {
     async detectHardware() {
       try {
         const info = await invoke<HardwarePayload>("fetch_hardware");
+
         this.hardwareInfo.cpu = info.cpu;
         this.hardwareInfo.gpu = info.gpu;
         this.hardwareInfo.motherboard = info.motherboard;
-        this.hardwareInfo.ram = info.ram_gb;
-        this.hardwareInfo.ramSpeed = info.ram_speed;
-        this.hardwareInfo.isLaptop = info.is_laptop;
-        this.hardwareInfo.isHybrid = info.is_hybrid;
-        this.hardwareInfo.isX3d = info.is_x3d;
-        this.hardwareInfo.isSsd = info.is_ssd;
+        this.hardwareInfo.ramGb = info.ramGb;
+        this.hardwareInfo.ramSpeed = info.ramSpeed;
+        this.hardwareInfo.isLaptop = info.isLaptop;
+        this.hardwareInfo.isHybrid = info.isHybrid;
+        this.hardwareInfo.isX3d = info.isX3d;
+        this.hardwareInfo.isSsd = info.isSsd;
 
         const lowerCpu = info.cpu.toLowerCase();
         const lowerGpu = info.gpu.toLowerCase();
 
         if (
-          info.is_x3d ||
+          info.isX3d ||
           lowerCpu.includes("12700k") ||
           lowerCpu.includes("i9") ||
           lowerCpu.includes("ryzen 9") ||
-          info.ram_gb >= 32
+          info.ramGb >= 32
         ) {
           this.hardwareInfo.tier = "Gama Alta Extreme";
         } else if (
-          info.ram_gb >= 16 ||
+          info.ramGb >= 16 ||
           lowerGpu.includes("rtx") ||
           lowerGpu.includes("rx 6")
         ) {

@@ -452,7 +452,7 @@ onMounted(async () => {
     const jsonOutput = await invoke<string>("run_optimization_script", {
       scriptName: "get_qol",
       isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ram,
+      ramGb: store.hardwareInfo.ramGb ?? 8,
       gameList: "",
     });
     const data = JSON.parse(jsonOutput);
@@ -478,7 +478,7 @@ async function applyToggle(settingKey: QolKeys) {
     const output = await invoke<string>("run_optimization_script", {
       scriptName: "set_qol",
       isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ram,
+      ramGb: store.hardwareInfo.ramGb ?? 8,
       gameList: `${settingKey}:${isEnabledStr}`,
     });
 

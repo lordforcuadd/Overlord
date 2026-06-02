@@ -62,6 +62,7 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
         .args(&[
             "-NoProfile",
             "-NonInteractive",
+            "-ExecutionPolicy", "Bypass",
             "-WindowStyle",
             "Hidden",
             "-Command",

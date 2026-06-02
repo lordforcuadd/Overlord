@@ -19,7 +19,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       await invoke("run_optimization_script", {
         scriptName: "crear_respaldo",
         isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ram,
+        ramGb: store.hardwareInfo.ramGb ?? 8,
         gameList: "",
       });
       store.restorePointCreated = true;
@@ -93,7 +93,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
         await invoke("run_optimization_script", {
           scriptName: scriptName.replace(".ps1", ""),
           isLaptop: store.hardwareInfo.isLaptop,
-          ramGb: store.hardwareInfo.ram,
+          ramGb: store.hardwareInfo.ramGb ?? 8,
           gameList: gameListOpt,
         });
 
@@ -167,7 +167,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       await invoke("run_optimization_script", {
         scriptName: "10_revertir",
         isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ram,
+        ramGb: store.hardwareInfo.ramGb ?? 8,
         gameList: "",
       });
       store.restorePointCreated = false;

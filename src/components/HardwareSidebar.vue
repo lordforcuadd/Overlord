@@ -135,7 +135,9 @@
         <div class="text-right">
           <span class="text-white font-bold text-sm">
             {{
-              store.hardwareInfo.ram ? `${store.hardwareInfo.ram} GB` : "..."
+              store.hardwareInfo.ramGb
+                ? `${store.hardwareInfo.ramGb} GB`
+                : "..."
             }}
           </span>
           <span
