@@ -6,7 +6,6 @@ use sysinfo::System;
 use std::process::Command;
 use std::os::windows::process::CommandExt;
 
-
 #[derive(Serialize, Clone)]
 pub struct HardwareResponse {
     pub cpu: String,

@@ -37,51 +37,7 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
         is_enabled_str.replace("'", "''")
     );
 
-    let mut script_clean = script_raw.to_string();
-    
-    
-    let is_real_param_block = {
-        let mut is_param = false;
-        for line in script_clean.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-            if trimmed.to_lowercase().starts_with("param") {
-                is_param = true;
-            }
-            break; 
-        }
-        is_param
-    };
-
-    if is_real_param_block {
-        let lower_script = script_clean.to_lowercase();
-        if let Some(param_start) = lower_script.find("param") {
-            if let Some(start_paren) = lower_script[param_start..].find('(') {
-                let actual_start_paren = param_start + start_paren;
-                let mut depth = 0;
-                let mut end_bytes_idx = None;
-                
-                for (idx, ch) in script_clean.char_indices() {
-                    if idx >= actual_start_paren {
-                        if ch == '(' {
-                            depth += 1;
-                        } else if ch == ')' {
-                            depth -= 1;
-                            if depth == 0 {
-                                end_bytes_idx = Some(idx + ch.len_utf8());
-                                break;
-                            }
-                        }
-                    }
-                }
-                if let Some(idx) = end_bytes_idx {
-                    script_clean = script_clean[idx..].trim().to_string();
-                }
-            }
-        }
-    }
+    let script_clean = strip_param_block(script_raw);
 
     let unified_script = format!(
         "{}\n{}\n{}",
@@ -133,6 +89,96 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn strip_param_block(script: &str) -> String {
+    let mut chars = script.char_indices().peekable();
+    let mut param_start_idx = None;
+    let mut param_end_idx = None;
+
+    let mut in_double_quote = false;
+    let mut in_single_quote = false;
+    let mut in_comment = false;
+
+    while let Some(&(idx, ch)) = chars.peek() {
+        if in_comment {
+            if ch == '\n' || ch == '\r' { in_comment = false; }
+            chars.next();
+            continue;
+        }
+        if in_double_quote {
+            if ch == '"' { in_double_quote = false; }
+            chars.next();
+            continue;
+        }
+        if in_single_quote {
+            if ch == '\'' { in_single_quote = false; }
+            chars.next();
+            continue;
+        }
+        if ch == '#' { in_comment = true; chars.next(); continue; }
+        if ch == '"' { in_double_quote = true; chars.next(); continue; }
+        if ch == '\'' { in_single_quote = true; chars.next(); continue; }
+
+        if script[idx..].to_lowercase().starts_with("param") {
+            let next_char = script[idx..].chars().skip(5).next();
+            if next_char.is_none() || next_char.unwrap().is_whitespace() || next_char.unwrap() == '(' {
+                param_start_idx = Some(idx);
+                break;
+            }
+        }
+        chars.next();
+    }
+
+    if let Some(start) = param_start_idx {
+        let mut depth = 0;
+        let mut found_open = false;
+
+        while let Some(&(idx, _)) = chars.peek() {
+            if idx >= start + 5 { break; }
+            chars.next();
+        }
+
+        in_double_quote = false;
+        in_single_quote = false;
+        in_comment = false;
+
+        while let Some((idx, ch)) = chars.next() {
+            if in_comment {
+                if ch == '\n' || ch == '\r' { in_comment = false; }
+                continue;
+            }
+            if in_double_quote {
+                if ch == '"' { in_double_quote = false; }
+                continue;
+            }
+            if in_single_quote {
+                if ch == '\'' { in_single_quote = false; }
+                continue;
+            }
+            if ch == '#' { in_comment = true; continue; }
+            if ch == '"' { in_double_quote = true; continue; }
+            if ch == '\'' { in_single_quote = true; continue; }
+
+            if ch == '(' {
+                depth += 1;
+                found_open = true;
+            } else if ch == ')' {
+                if depth > 0 {
+                    depth -= 1;
+                    if depth == 0 && found_open {
+                        param_end_idx = Some(idx + ch.len_utf8());
+                        break;
+                    }
+                }
+            }
+        }
+
+        if let Some(end) = param_end_idx {
+            return script[end..].trim().to_string();
+        }
+    }
+    script.to_string()
 }
 
 fn custom_base64_encode(bytes: &[u8]) -> String {

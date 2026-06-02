@@ -18,12 +18,15 @@ Try {
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
 
+    $AllPackages = Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+    $AllProvisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+
     foreach ($App in $Apps) {
         if ($App -match "Xbox" -or $App -match "XboxIdentityProvider" -or $App -match "WindowsStore") {
             continue
         }
-        Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
-        Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        $AllPackages | Where-Object { $_.Name -eq $App } | Remove-AppxPackage -ErrorAction SilentlyContinue
+        $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
     }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
@@ -69,7 +72,7 @@ Try {
         Set-Service -Name $Service -StartupType Disabled -ErrorAction SilentlyContinue
     }
 
-    $Printers = Get-CimInstance -ClassName Win32_Printer -ErrorAction SilentlyContinue
+    $Printers = Get-CimInstance -ClassName Win32_Printer -ErrorAction SilentlyContinue | Where-Object { $_.DriverName -notmatch "Microsoft Print To PDF|Microsoft XPS Document Writer|OneNote|Send to OneNote|Microsoft Software Printer Driver" }
     if (-not $Printers) {
         Stop-Service -Name "Spooler" -Force -ErrorAction SilentlyContinue
         Set-Service -Name "Spooler" -StartupType Disabled -ErrorAction SilentlyContinue
@@ -95,7 +98,9 @@ Try {
     )
 
     foreach ($Task in $Tasks) {
-        Disable-ScheduledTask -TaskName $Task -ErrorAction SilentlyContinue
+        $TPath = "\" + (Split-Path $Task -Parent)
+        $TName = Split-Path $Task -Leaf
+        Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue
     }
 
     exit 0

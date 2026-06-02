@@ -12,7 +12,11 @@ Try {
     if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Restore-OverlordRegistryValue -TargetKey $MouPath -ValueName "MouseDataQueueSize" -BackupSubFolder "mouclass" -ErrorAction SilentlyContinue
         Restore-OverlordRegistryValue -TargetKey $KbdPath -ValueName "KeyboardDataQueueSize" -BackupSubFolder "kbdclass" -ErrorAction SilentlyContinue
-        Restore-OverlordRegistryValue -BackupSubFolder "Services" -ErrorAction SilentlyContinue
+        
+        $ServicesList = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "Spooler")
+        foreach ($Svc in $ServicesList) {
+            Restore-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\$Svc" -ValueName "Start" -BackupSubFolder "Services" -ErrorAction SilentlyContinue
+        }
     } else {
         Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value 100 -Force | Out-Null
         Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value 100 -Force | Out-Null
@@ -105,15 +109,10 @@ Try {
     Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue | Out-Null
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue | Out-Null
 
-    Set-Service "DiagTrack" -StartupType Automatic -ErrorAction SilentlyContinue | Out-Null
-    Start-Service "DiagTrack" -ErrorAction SilentlyContinue | Out-Null
-    Set-Service "dmwappushservice" -StartupType Automatic -ErrorAction SilentlyContinue | Out-Null
-    Set-Service "Fax" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
-    Set-Service "RetailDemo" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
-    Set-Service "MapsBroker" -StartupType Automatic -ErrorAction SilentlyContinue | Out-Null
-    Set-Service "PhoneSvc" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
-    Set-Service "Spooler" -StartupType Automatic -ErrorAction SilentlyContinue | Out-Null
-    Start-Service "Spooler" -ErrorAction SilentlyContinue | Out-Null
+    $ServicesList = @("DiagTrack", "dmwappushservice", "Spooler")
+    foreach ($Svc in $ServicesList) {
+        Start-Service -Name $Svc -ErrorAction SilentlyContinue
+    }
 
     $Tasks = @(
         "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
@@ -134,7 +133,9 @@ Try {
         "Microsoft\Windows\Shell\FamilySafetyRefreshTask"
     )
     foreach ($Task in $Tasks) { 
-        Enable-ScheduledTask -TaskName $Task -ErrorAction SilentlyContinue | Out-Null 
+        $TPath = "\" + (Split-Path $Task -Parent)
+        $TName = Split-Path $Task -Leaf
+        Enable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null 
     }
 
     $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
