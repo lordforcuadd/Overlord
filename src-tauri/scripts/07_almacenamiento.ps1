@@ -4,7 +4,6 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-
 Try {
     Write-Host "[*] Iniciando Optimizacion y Limpieza de Disco..."
 
@@ -29,8 +28,8 @@ Try {
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1 -Force | Out-Null
     Set-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled" -Type DWord -Value 0 -Force | Out-Null
     
-    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate").NtfsDisableLastAccessUpdate -ne 1) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled").HiberbootEnabled -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate").NtfsDisableLastAccessUpdate -ne 1) { throw "Fallo al verificar NtfsDisableLastAccessUpdate" }
+    if ((Get-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled").HiberbootEnabled -ne 0) { throw "Fallo al verificar HiberbootEnabled (Inicio Rapido)" }
 
     fsutil behavior set disablelastaccess 1 | Out-Null
     fsutil behavior set disable8dot3 1 | Out-Null
@@ -41,15 +40,15 @@ Try {
     }
     Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value $targetMemoryUsage -Force | Out-Null
     fsutil behavior set memoryusage $targetMemoryUsage | Out-Null
-    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage").NtfsMemoryUsage -ne $targetMemoryUsage) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage").NtfsMemoryUsage -ne $targetMemoryUsage) { throw "Fallo al verificar NtfsMemoryUsage" }
 
     if (-not $IsLaptop) {
-    $HibernateRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $HibernateRegPath -ValueName "HibernateEnabled" -BackupSubFolder "Storage"
+        $HibernateRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey $HibernateRegPath -ValueName "HibernateEnabled" -BackupSubFolder "Storage"
+        }
+        powercfg.exe /hibernate off | Out-Null
     }
-    powercfg.exe /hibernate off | Out-Null
-}
 
     $BootDrive = Get-Disk | Where-Object { $_.IsBoot -eq $true }
     $isHDD = $false
@@ -67,11 +66,11 @@ Try {
     
     Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value $targetPrefetch -Force | Out-Null
     Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value $targetPrefetch -Force | Out-Null
-    if ((Get-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher").EnablePrefetcher -ne $targetPrefetch) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch").EnableSuperfetch -ne $targetPrefetch) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher").EnablePrefetcher -ne $targetPrefetch) { throw "Fallo al verificar EnablePrefetcher" }
+    if ((Get-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch").EnableSuperfetch -ne $targetPrefetch) { throw "Fallo al verificar EnableSuperfetch" }
 
     Set-ItemProperty -Path $MemPath -Name "LargeSystemCache" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $MemPath -Name "LargeSystemCache").LargeSystemCache -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $MemPath -Name "LargeSystemCache").LargeSystemCache -ne 0) { throw "Fallo al verificar LargeSystemCache" }
 
     $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
     $DismProcess | Wait-Process -Timeout 1200 -ErrorAction SilentlyContinue

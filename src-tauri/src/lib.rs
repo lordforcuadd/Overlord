@@ -154,7 +154,9 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
     tokio::spawn(async move {
         let mut sys = System::new_all();
         loop {
-            sys.refresh_processes();
+            sys.refresh_processes_specifics(
+                sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
+            );
             for (pid, process) in sys.processes() {
                 let proc_name = process.name().to_lowercase();
                 if games.contains(&proc_name) {

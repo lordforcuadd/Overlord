@@ -180,49 +180,51 @@ export const useOverlordStore = defineStore("overlord", {
         this.modules[key as keyof typeof this.modules] = false;
       });
 
-      const isHighEnd = this.hardwareInfo.tier === "Gama Alta";
+      const { isLaptop, isHybrid, tier } = this.hardwareInfo;
+      const isHighEnd = tier === "Gama Alta";
 
-      switch (profile) {
-        case "Competitivo":
-          this.modules.peripheralLatency = true;
-          this.modules.debloat = true;
-          this.modules.networkOptimized = true;
-          this.modules.generalPerformance = true;
-          this.modules.gpuDisplay = true;
-          this.modules.irqAffinity =
-            isHighEnd &&
-            !this.hardwareInfo.isLaptop &&
-            !this.hardwareInfo.isHybrid;
-          this.modules.smartStorage = true;
-          this.modules.deepTelemetry = isHighEnd;
-          this.modules.powerProfiles = !this.hardwareInfo.isLaptop;
-          this.modules.gameHooks = true;
-          break;
-        case "Programador & Competitivo":
-          this.modules.peripheralLatency = true;
-          this.modules.debloat = true;
-          this.modules.networkOptimized = true;
-          this.modules.generalPerformance = true;
-          this.modules.gpuDisplay = true;
-          this.modules.smartStorage = true;
-          this.modules.powerProfiles = !this.hardwareInfo.isLaptop;
-          this.modules.gameHooks = true;
-          break;
-        case "Programador":
-          this.modules.debloat = true;
-          this.modules.networkOptimized = true;
-          this.modules.smartStorage = true;
-          break;
-        case "Home Office / Laptops":
-          this.modules.debloat = true;
-          this.modules.networkOptimized = true;
-          this.modules.smartStorage = true;
-          break;
-        case "Usuario Casual":
-          this.modules.debloat = true;
-          this.modules.smartStorage = true;
-          break;
-      }
+      const profileConfigs: Record<string, string[]> = {
+        Competitivo: [
+          "peripheralLatency",
+          "debloat",
+          "networkOptimized",
+          "generalPerformance",
+          "gpuDisplay",
+          "irqAffinity",
+          "smartStorage",
+          "deepTelemetry",
+          "powerProfiles",
+          "gameHooks",
+        ],
+        "Programador & Competitivo": [
+          "peripheralLatency",
+          "debloat",
+          "networkOptimized",
+          "generalPerformance",
+          "gpuDisplay",
+          "smartStorage",
+          "powerProfiles",
+          "gameHooks",
+        ],
+        Programador: ["debloat", "networkOptimized", "smartStorage"],
+        "Home Office / Laptops": [
+          "debloat",
+          "networkOptimized",
+          "smartStorage",
+        ],
+        "Usuario Casual": ["debloat", "smartStorage"],
+      };
+
+      const activeModules = profileConfigs[profile] || [];
+
+      activeModules.forEach((mod) => {
+        if (mod === "irqAffinity" && (isLaptop || isHybrid || !isHighEnd))
+          return;
+        if (mod === "powerProfiles" && isLaptop) return;
+        if (mod === "deepTelemetry" && !isHighEnd) return;
+
+        this.modules[mod as keyof typeof this.modules] = true;
+      });
     },
   },
 });

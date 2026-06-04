@@ -32,14 +32,14 @@ Try {
     }
     Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value $targetPaging -Force | Out-Null
     if ((Get-ItemProperty -Path $MemPath -Name "DisablePagingExecutive").DisablePagingExecutive -ne $targetPaging) { 
-        throw "Verification failed"
+        throw "Fallo al verificar DisablePagingExecutive en el Kernel"
     }
 
     $ClearPage = (Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -ErrorAction SilentlyContinue).ClearPageFileAtShutdown
     if ($ClearPage -eq 1) {
         Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force | Out-Null
         if ((Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown").ClearPageFileAtShutdown -ne 0) { 
-            throw "Verification failed"
+            throw "Fallo al asegurar el flag ClearPageFileAtShutdown en 0"
         }
     }
 
@@ -77,8 +77,8 @@ Try {
             Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force | Out-Null
             Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force | Out-Null
             
-            if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride").FeatureSettingsOverride -ne 3) { throw "Verification failed" }
-            if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask").FeatureSettingsOverrideMask -ne 3) { throw "Verification failed" }
+            if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride").FeatureSettingsOverride -ne 3) { throw "Fallo de escritura en FeatureSettingsOverride (Spectre/Meltdown)" }
+            if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask").FeatureSettingsOverrideMask -ne 3) { throw "Fallo de escritura en FeatureSettingsOverrideMask (Spectre/Meltdown)" }
         }
     }
 
@@ -86,7 +86,7 @@ Try {
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }
     Set-ItemProperty -Path $StorePath -Name "GameDVR_Enabled" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemProperty -Path $StorePath -Name "GameDVR_Enabled").GameDVR_Enabled -ne 0) { 
-        throw "Verification failed"
+        throw "Fallo de verificacion al intentar desactivar GameDVR_Enabled"
     }
 
     if (-not $IsLaptop -and $RamGB -ge 16) {
@@ -94,7 +94,7 @@ Try {
         if (!(Test-Path $FthPath)) { New-Item -Path $FthPath -Force | Out-Null }
         Set-ItemProperty -Path $FthPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
         if ((Get-ItemProperty -Path $FthPath -Name "Enabled").Enabled -ne 0) { 
-            throw "Verification failed"
+            throw "Fallo al asegurar el flag de desactivacion del servicio FTH"
         }
     }
 

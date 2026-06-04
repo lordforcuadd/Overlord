@@ -232,27 +232,43 @@ Try {
 
     $PowerBackup = "$BackupPath\Power"
     if (Test-Path $PowerBackup) {
-    $SavedActiveGuid = (Get-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -ErrorAction SilentlyContinue).ActivePowerPlan
-    $CustomPlanGuid = (Get-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -ErrorAction SilentlyContinue).CustomPowerPlan
+        $Data = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
+        $SavedActiveGuid = $Data.ActivePowerPlan
+        $CustomPlanGuid = $Data.CustomPowerPlan
 
-    if (![string]::IsNullOrWhiteSpace($CustomPlanGuid)) { powercfg /delete $CustomPlanGuid 2>$null | Out-Null }
-    if (![string]::IsNullOrWhiteSpace($SavedActiveGuid)) {
-        powercfg /setactive $SavedActiveGuid 2>$null | Out-Null
-    } else {
-        powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e 2>$null | Out-Null
+        
+        if (![string]::IsNullOrWhiteSpace($CustomPlanGuid)) {
+            try {
+                
+                $current = powercfg /getactivescheme
+                if ($current -match $CustomPlanGuid) {
+                    powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e
+                }
+                powercfg /delete $CustomPlanGuid 2>$null | Out-Null
+            } catch {
+                Write-Host "[!] Aviso: No se pudo borrar el plan custom, posiblemente ya no existe."
+            }
+        }
+
+        
+        if (![string]::IsNullOrWhiteSpace($SavedActiveGuid)) {
+            try {
+                powercfg /setactive $SavedActiveGuid 2>$null | Out-Null
+            } catch {
+                powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e 2>$null | Out-Null
+            }
+        }
+
+        $PowerSettingsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
+        Invoke-OverlordSafeRestore -TargetKey $PowerSettingsPath -ValueName "ValueMax" -BackupSubFolder "Power" -DefaultValue $null
+        Invoke-OverlordSafeRestore -TargetKey $PowerSettingsPath -ValueName "ValueMin" -BackupSubFolder "Power" -DefaultValue $null
     }
 
-    $PowerSettingsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
-    Invoke-OverlordSafeRestore -TargetKey $PowerSettingsPath -ValueName "ValueMax" -BackupSubFolder "Power" -DefaultValue $null
-    Invoke-OverlordSafeRestore -TargetKey $PowerSettingsPath -ValueName "ValueMin" -BackupSubFolder "Power" -DefaultValue $null
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\USB" -ValueName "DisableSelectiveSuspend" -BackupSubFolder "Power" -DefaultValue $null
-    }
-
-   $SavedHibernate = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "HibernateEnabled" -ErrorAction SilentlyContinue).HibernateEnabled
-   if ($null -ne $SavedHibernate -and $SavedHibernate -ne '_ABSENT_') {
-    if ($SavedHibernate -eq 0) { powercfg.exe /hibernate off | Out-Null } else { powercfg.exe /hibernate on | Out-Null }
-      } elseif (-not $IsLaptop) {
-    powercfg.exe /hibernate on | Out-Null
+    $SavedHibernate = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "HibernateEnabled" -ErrorAction SilentlyContinue).HibernateEnabled
+    if ($null -ne $SavedHibernate -and $SavedHibernate -ne '_ABSENT_') {
+        if ($SavedHibernate -eq 0) { powercfg.exe /hibernate off | Out-Null } else { powercfg.exe /hibernate on | Out-Null }
+    } elseif (-not $IsLaptop) {
+        powercfg.exe /hibernate on | Out-Null
     }
 
     if (Test-Path $GameHooksBackup) {
@@ -289,6 +305,6 @@ Try {
     exit 0
 
 } Catch {
-    Write-Error "[-] Error fatal durante la ejecucion de la reversion: $_"
+    Write-Error "[-] Error fatal durante la ejecucion de la reversion: $($_.Exception.Message)"
     exit 1
 }

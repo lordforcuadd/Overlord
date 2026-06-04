@@ -21,18 +21,15 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
     }
 
-   
     $SkipVBSHVCI = $false
 
     try {
-        
         $OSInfo = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
         if ($OSInfo.Caption -match "Enterprise|EnterpriseG|Education|Server") {
             Write-Host "[+] Sistema Operativo Corporativo detectado (${OSInfo.Caption}). Preservando VBS/HVCI para mantener directivas de seguridad corporativas." -ForegroundColor Green
             $SkipVBSHVCI = $true
         }
 
-        
         $BitLockerVolumes = Get-CimInstance -Namespace "root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume" -ErrorAction SilentlyContinue
         if ($BitLockerVolumes) {
             foreach ($Volume in $BitLockerVolumes) {
@@ -44,11 +41,9 @@ Try {
             }
         }
     } catch {
-        
         $SkipVBSHVCI = $false
     }
 
-    
     if (-not $SkipVBSHVCI) {
         $SecureBootActive = $false
         try {
@@ -66,16 +61,14 @@ Try {
         Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
         Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
 
-        
         if ((Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity -ne 0) { 
-            Write-Warning "No se pudo asegurar EnableVirtualizationBasedSecurity" 
+            throw "Fallo al asegurar la desactivacion de EnableVirtualizationBasedSecurity"
         }
         if ((Get-ItemProperty -Path $HvciPath -Name "Enabled").Enabled -ne 0) { 
-            Write-Warning "No se pudo asegurar Enabled (HVCI)" 
+            throw "Fallo al asegurar la desactivacion de Enabled (HVCI)"
         }
     }
 
-   
     try {
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
@@ -83,10 +76,9 @@ Try {
 
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemProperty -Path $ActivityPath -Name "PublishUserActivities").PublishUserActivities -ne 0) { 
-        Write-Warning "No se pudo asegurar PublishUserActivities" 
+        throw "Fallo al asegurar la directiva PublishUserActivities en 0"
     }
 
-  
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
         "$env:SystemRoot\System32\DeviceCensus.exe",
@@ -101,7 +93,6 @@ Try {
         }
     }
 
-   
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog"
@@ -114,9 +105,8 @@ Try {
             }
             Set-ItemProperty -Path $LoggerKey -Name "Start" -Type DWord -Value 0 -Force | Out-Null
             
-            
             if ((Get-ItemProperty -Path $LoggerKey -Name "Start").Start -ne 0) { 
-                Write-Warning "No se pudo asegurar el estado detenido para el logger: $Logger" 
+                throw "Fallo al asegurar el estado detenido para el logger: $Logger" 
             }
         }
         logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null

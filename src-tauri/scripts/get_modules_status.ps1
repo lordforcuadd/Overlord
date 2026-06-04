@@ -18,7 +18,7 @@ $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
 if (Test-Path $MouPath) {
     $MouSize = Get-ItemPropertyValue -Path $MouPath -Name "MouseDataQueueSize" -ErrorAction SilentlyContinue
     $KbdSize = Get-ItemPropertyValue -Path $KbdPath -Name "KeyboardDataQueueSize" -ErrorAction SilentlyContinue
-    if ($MouSize -eq 32 -or $KbdSize -eq 32) {
+    if (($null -ne $MouSize -and $MouSize -le 64) -or ($null -ne $KbdSize -and $KbdSize -le 64)) {
         $Status['peripheralLatency'] = $true
     }
 }
@@ -78,6 +78,23 @@ if ($pciKey) {
     $pciKey.Close()
 }
 
+$PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
+$ChassisType = (Get-CimInstance -ClassName Win32_SystemEnclosure -ErrorAction SilentlyContinue).ChassisTypes
+$LaptopTypes = @(8, 9, 10, 11, 12, 14, 18, 21)
+$IsSystemLaptop = $false
+if ($null -ne $ChassisType) {
+    foreach ($Type in $ChassisType) {
+        if ($LaptopTypes -contains $Type) {
+            $IsSystemLaptop = $true
+            break
+        }
+    }
+}
+
+if ($IsSystemLaptop -and (Test-Path $PowerBackup)) {
+    $Status['irqAffinity'] = $true
+}
+
 $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
 if (Test-Path $NtfsPath) {
     $Last = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue
@@ -94,7 +111,11 @@ if ($DiagTrackType -eq "Disabled") {
 $PowerSchemePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
 if (Test-Path $PowerSchemePath) {
     $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
-    if ($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or $ActivePlan -match "77777777") {
+    $CustomPlanGuid = (Get-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -ErrorAction SilentlyContinue).CustomPowerPlan
+    
+    if ($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or $ActivePlan -match "77777777" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) {
+        $Status['powerProfiles'] = $true
+    } elseif ($IsSystemLaptop -and (Test-Path $PowerBackup)) {
         $Status['powerProfiles'] = $true
     }
 }

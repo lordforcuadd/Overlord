@@ -31,6 +31,11 @@ Try {
     if ((Get-ItemProperty -Path $TasksPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { Write-Warning "No se pudo asegurar Scheduling Category" }
     if ((Get-ItemProperty -Path $TasksPath -Name "SFIO Priority")."SFIO Priority" -ne "High") { Write-Warning "No se pudo asegurar SFIO Priority" }
 
+    if ($IsLaptop) {
+        Write-Host "[+] Laptop detectada. Saltando remapeo fisico de afinidades IRQ para proteger la estabilidad de buses dinamicos de energia." -ForegroundColor Green
+        exit 0
+    }
+
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
     $NetCoreIndex = 2
     $AudioCoreIndex = 3

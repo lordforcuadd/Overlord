@@ -1,3 +1,7 @@
+param(
+    [bool]$IsLaptop = $false, 
+    [int]$RamGB = 8
+)
 $ErrorActionPreference = "Stop"
 
 Try {
@@ -38,19 +42,32 @@ Try {
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null } catch {}
 
         $UltimateGUID = "e9a42b02-d5df-448d-aa00-03f14749eb61"
-        try {
+        $AllSchemes = powercfg /list
+        
+        if ($AllSchemes -match $UltimateGUID) {
             & powercfg /setactive $UltimateGUID 2>$null
-            if ($LASTEXITCODE -ne 0) {
-                throw
-            }
-        } catch {
-            $dupOut = powercfg /duplicatescheme "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null
-            if ($dupOut -match "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
-                $newGuid = $Matches[1]
-                try { & powercfg /setactive $newGuid 2>$null } catch {}
-                try { Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+        } else {
+            $ExistingCustom = (Get-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -ErrorAction SilentlyContinue).CustomPowerPlan
+            if ($null -ne $ExistingCustom -and ($AllSchemes -match $ExistingCustom)) {
+                & powercfg /setactive $ExistingCustom 2>$null
             } else {
-                try { & powercfg /setactive "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null } catch {}
+                $dupOut = powercfg /duplicatescheme "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null
+                if ($dupOut -match "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
+                    $newGuid = $Matches[1]
+                    & powercfg /changename $newGuid "Overlord Maximo Rendimiento" 2>$null
+                    & powercfg /setactive $newGuid 2>$null
+                    Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force -ErrorAction SilentlyContinue | Out-Null
+                } else {
+                    & powercfg /setactive "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null
+                }
+            }
+        }
+
+        $CurrentActive = powercfg /getactivescheme
+        if ($CurrentActive -notmatch $UltimateGUID -and $CurrentActive -notmatch "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c") {
+            $CustomGuidCheck = (Get-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -ErrorAction SilentlyContinue).CustomPowerPlan
+            if ($null -eq $CustomGuidCheck -or $CurrentActive -notmatch $CustomGuidCheck) {
+                throw "Fallo al verificar la activacion del esquema de energia de maximo rendimiento"
             }
         }
     }

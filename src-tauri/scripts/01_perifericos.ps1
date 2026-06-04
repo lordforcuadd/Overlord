@@ -1,3 +1,7 @@
+param(
+    [bool]$IsLaptop = $false
+)
+
 $ErrorActionPreference = "Stop"
 
 Try {
@@ -9,20 +13,25 @@ Try {
     $MsiBackupKey = "HKLM:\SOFTWARE\Overlord\Backup\MSI"
     if (!(Test-Path $MsiBackupKey)) { New-Item -Path $MsiBackupKey -Force | Out-Null }
 
-    
     $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
     if ($pciKey) {
         foreach ($venId in $pciKey.GetSubKeyNames()) {
-            
             $venKey = $pciKey.OpenSubKey($venId, $false)
             if ($venKey) {
                 foreach ($devId in $venKey.GetSubKeyNames()) {
-                    
                     $devKey = $venKey.OpenSubKey($devId, $false)
                     if ($devKey) {
                         $class = $devKey.GetValue("Class")
-                        if ($class -eq "Display" -or $class -eq "USB") {
-                            
+                        
+                        
+                        $AllowMsi = $false
+                        if ($class -eq "Display") {
+                            $AllowMsi = $true
+                        } elseif ($class -eq "USB" -and -not $IsLaptop) {
+                            $AllowMsi = $true
+                        }
+
+                        if ($AllowMsi) {
                             $paramKey = $devKey.OpenSubKey("Device Parameters", $true)
                             if ($paramKey) {
                                 $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
@@ -58,30 +67,30 @@ Try {
     }
 
     
+    $QueueSize = 64
+
     $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
     if (Test-Path $MouPath) {
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $MouPath -ValueName "MouseDataQueueSize" -BackupSubFolder "mouclass"
         }
-        Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value 32 -Force | Out-Null
-        if ((Get-ItemProperty -Path $MouPath -Name "MouseDataQueueSize").MouseDataQueueSize -ne 32) { 
+        Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value $QueueSize -Force | Out-Null
+        if ((Get-ItemProperty -Path $MouPath -Name "MouseDataQueueSize").MouseDataQueueSize -ne $QueueSize) { 
             Write-Warning "No se pudo asegurar MouseDataQueueSize" 
         }
     }
 
-    
     $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
     if (Test-Path $KbdPath) {
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $KbdPath -ValueName "KeyboardDataQueueSize" -BackupSubFolder "kbdclass"
         }
-        Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value 32 -Force | Out-Null
-        if ((Get-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize").KeyboardDataQueueSize -ne 32) { 
+        Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value $QueueSize -Force | Out-Null
+        if ((Get-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize").KeyboardDataQueueSize -ne $QueueSize) { 
             Write-Warning "No se pudo asegurar KeyboardDataQueueSize" 
         }
     }
 
-    
     $PriorityControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
     if (Test-Path $PriorityControlPath) {
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
@@ -93,12 +102,10 @@ Try {
         }
     }
 
-    
     $MousePath = "HKCU:\Control Panel\Mouse"
     Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -Force | Out-Null
-    
     
     $zeroBytes = [byte[]]::new(40)
     Set-ItemProperty -Path $MousePath -Name "SmoothMouseXCurve" -Type Binary -Value $zeroBytes -Force | Out-Null
@@ -108,7 +115,6 @@ Try {
         Write-Warning "No se pudo asegurar MouseSpeed lineal" 
     }
 
-    
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Type String -Value "506" -Force | Out-Null
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "58" -Force | Out-Null
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\Keyboard Response" -Name "Flags" -Type String -Value "122" -Force | Out-Null

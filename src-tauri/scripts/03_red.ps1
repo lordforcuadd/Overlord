@@ -34,19 +34,10 @@ Try {
     $throttingVal = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
     if ($throttingVal -ne 4294967295 -and $throttingVal -ne -1) { throw "Verification failed" }
 
+    
     netsh int tcp set global rss=enabled | Out-Null
-    netsh int tcp set global timestamps=disabled | Out-Null
+    netsh int tcp set global timestamps=enabled | Out-Null
 
-    $HasNativeIPv6 = $false
-    try {
-        $IPv6Test = Test-Connection -ComputerName "ipv6.google.com" -Count 1 -ErrorAction SilentlyContinue
-        if ($null -ne $IPv6Test) { $HasNativeIPv6 = $true }
-    } catch {}
-
-    if (-not $HasNativeIPv6) {
-        netsh interface ipv6 teredo set state disabled | Out-Null
-        netsh interface ipv6 isatap set state disabled | Out-Null
-    }
 
     $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
     foreach ($Adapter in $Adapters) {

@@ -19,10 +19,15 @@ Try {
     }
 
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
-    Set-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode" -Type DWord -Value 5 -Force | Out-Null
+    if ((Get-ItemProperty -Path $HagsPath -Name "HwSchMode").HwSchMode -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
 
-    if ((Get-ItemProperty -Path $HagsPath -Name "HwSchMode").HwSchMode -ne 2) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode").OverlayTestMode -ne 5) { throw "Verification failed" }
+    
+    if (-not $IsLaptop) {
+        Set-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode" -Type DWord -Value 5 -Force | Out-Null
+        if ((Get-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode").OverlayTestMode -ne 5) { throw "Fallo al verificar OverlayTestMode (MPO)" }
+    } else {
+        Write-Host "    -> Laptop detectada: Preservando Multi-Plane Overlays (MPO) para maximizar la duracion de la bateria." -ForegroundColor Green
+    }
 
     $FsoPath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $FsoPath)) { New-Item -Path $FsoPath -Force | Out-Null }
@@ -37,9 +42,9 @@ Try {
     Set-ItemProperty -Path $FsoPath -Name "GameDVR_HonorUserFSEBehaviorMode" -Type DWord -Value 1 -Force | Out-Null
     Set-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehavior" -Type DWord -Value 2 -Force | Out-Null
 
-    if ((Get-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehaviorMode").GameDVR_FSEBehaviorMode -ne 2) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $FsoPath -Name "GameDVR_HonorUserFSEBehaviorMode").GameDVR_HonorUserFSEBehaviorMode -ne 1) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehavior").GameDVR_FSEBehavior -ne 2) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehaviorMode").GameDVR_FSEBehaviorMode -ne 2) { throw "Fallo de verificacion en GameDVR_FSEBehaviorMode" }
+    if ((Get-ItemProperty -Path $FsoPath -Name "GameDVR_HonorUserFSEBehaviorMode").GameDVR_HonorUserFSEBehaviorMode -ne 1) { throw "Fallo de verificacion en GameDVR_HonorUserFSEBehaviorMode" }
+    if ((Get-ItemProperty -Path $FsoPath -Name "GameDVR_FSEBehavior").GameDVR_FSEBehavior -ne 2) { throw "Fallo de verificacion en GameDVR_FSEBehavior" }
 
     $GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
     if (!(Test-Path $GameBarPath)) { New-Item -Path $GameBarPath -Force | Out-Null }
@@ -48,7 +53,7 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $GameBarPath -ValueName "AllowGameDVR" -BackupSubFolder "GPU"
     }
     Set-ItemProperty -Path $GameBarPath -Name "AllowGameDVR" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $GameBarPath -Name "AllowGameDVR").AllowGameDVR -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $GameBarPath -Name "AllowGameDVR").AllowGameDVR -ne 0) { throw "Fallo al asegurar la desactivacion de la directiva AllowGameDVR" }
 
     $DwmOptionsPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions"
     if (!(Test-Path $DwmOptionsPath)) { New-Item -Path $DwmOptionsPath -Force | Out-Null }
@@ -56,8 +61,10 @@ Try {
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $DwmOptionsPath -ValueName "CpuPriorityClass" -BackupSubFolder "GPU"
     }
-    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 3 -Force | Out-Null
-    if ((Get-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass").CpuPriorityClass -ne 3) { throw "Verification failed" }
+    
+    
+    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 2 -Force | Out-Null
+    if ((Get-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass").CpuPriorityClass -ne 2) { throw "Fallo al asegurar la prioridad segura CpuPriorityClass para dwm.exe" }
 
     $DwmColorPath = "HKCU:\Software\Microsoft\Windows\DWM"
     if (!(Test-Path $DwmColorPath)) { New-Item -Path $DwmColorPath -Force | Out-Null }
@@ -66,7 +73,7 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $DwmColorPath -ValueName "ColorPrevalence" -BackupSubFolder "GPU"
     }
     Set-ItemProperty -Path $DwmColorPath -Name "ColorPrevalence" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $DwmColorPath -Name "ColorPrevalence").ColorPrevalence -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $DwmColorPath -Name "ColorPrevalence").ColorPrevalence -ne 0) { throw "Fallo de verificacion en ColorPrevalence" }
 
     if ($RamGB -le 6) {
         $ColorPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
@@ -75,7 +82,7 @@ Try {
             Backup-OverlordRegistryValue -TargetKey $ColorPath -ValueName "EnableTransparency" -BackupSubFolder "GPU"
         }
         Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0 -Force | Out-Null
-        if ((Get-ItemProperty -Path $ColorPath -Name "EnableTransparency").EnableTransparency -ne 0) { throw "Verification failed" }
+        if ((Get-ItemProperty -Path $ColorPath -Name "EnableTransparency").EnableTransparency -ne 0) { throw "Fallo de verificacion en EnableTransparency" }
     }
 
     exit 0
