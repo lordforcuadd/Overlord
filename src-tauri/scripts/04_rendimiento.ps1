@@ -58,10 +58,15 @@ Try {
         $IsModernCPU = $false
         if (![string]::IsNullOrWhiteSpace($CPUName)) {
             if ($CPUName -like "*Intel*") {
-                if ($CPUName -match "i[3579]-(1\d{4})") { $IsModernCPU = $true }
-                elif ($CPUName -like "*Ultra*") { $IsModernCPU = $true }
+                if ($CPUName -match "i[3579]-(1\d{4})") { 
+                    $IsModernCPU = $true 
+                } elseif ($CPUName -like "*Ultra*") { 
+                    $IsModernCPU = $true 
+                }
             } elseif ($CPUName -like "*AMD*") {
-                if ($CPUName -match "Ryzen [3579]\s+([5789]\d{3})") { $IsModernCPU = $true }
+                if ($CPUName -match "Ryzen [3579]\s+([5789]\d{3})") { 
+                    $IsModernCPU = $true 
+                }
             }
         }
 

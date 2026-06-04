@@ -54,8 +54,7 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
 
     let b64_encoded = custom_base64_encode(&utf16_bytes);
 
-    let bootstrap_cmd = "$b64 = [Console]::In.ReadToEnd(); $bytes = [System.Convert]::FromBase64String($b64); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script";
-
+    let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script }";
     let mut child = Command::new("powershell.exe")
         .creation_flags(0x08000000)
         .args(&[
