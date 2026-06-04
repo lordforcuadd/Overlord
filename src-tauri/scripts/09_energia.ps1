@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
 
 Try {
     Write-Host "[*] Configurando inyecciones de energia avanzadas y Core Parking..."
@@ -55,7 +55,6 @@ Try {
         }
     }
 
-    try { & powercfg /setactive SCHEME_CURRENT 2>$null } catch {}
     Write-Host "[+] Esquemas de energia acoplados al Kernel con exito."
     exit 0
 

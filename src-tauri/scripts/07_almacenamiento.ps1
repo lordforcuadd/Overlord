@@ -44,8 +44,12 @@ Try {
     if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage").NtfsMemoryUsage -ne $targetMemoryUsage) { throw "Verification failed" }
 
     if (-not $IsLaptop) {
-        powercfg.exe /hibernate off | Out-Null
+    $HibernateRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $HibernateRegPath -ValueName "HibernateEnabled" -BackupSubFolder "Storage"
     }
+    powercfg.exe /hibernate off | Out-Null
+}
 
     $BootDrive = Get-Disk | Where-Object { $_.IsBoot -eq $true }
     $isHDD = $false
