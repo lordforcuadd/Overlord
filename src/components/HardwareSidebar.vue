@@ -141,10 +141,13 @@
             }}
           </span>
           <span
-            v-if="store.hardwareInfo.ramSpeed"
+            v-if="
+              store.hardwareInfo.ramSpeedMhz &&
+              store.hardwareInfo.ramSpeedMhz > 0
+            "
             class="text-gray-500 text-xs ml-2"
           >
-            @ {{ store.hardwareInfo.ramSpeed }} MT/s
+            @ {{ store.hardwareInfo.ramSpeedMhz }} MHz
           </span>
         </div>
       </div>

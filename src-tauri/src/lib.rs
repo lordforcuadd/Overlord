@@ -7,15 +7,12 @@ use hardware::{get_system_hardware, collect_installed_games, HardwareResponse, S
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
 use tauri::State;
 use std::net::UdpSocket;
-use std::time::Instant;
+use std::time::{Instant, Duration};
+use sysinfo::System;
 
 #[link(name = "ntdll")]
 extern "system" {
-    fn NtSetSystemInformation(
-        system_information_class: u32,
-        system_information: *mut std::ffi::c_void,
-        system_information_length: u32,
-    ) -> i32;
+    fn NtSetSystemInformation(system_information_class: u32, system_information: *mut std::ffi::c_void, system_information_length: u32) -> i32;
 }
 
 #[link(name = "advapi32")]
@@ -32,22 +29,11 @@ extern "system" {
 }
 
 #[repr(C)]
-struct LUID {
-    low_part: u32,
-    high_part: i32,
-}
-
+struct LUID { low_part: u32, high_part: i32 }
 #[repr(C)]
-struct LUID_AND_ATTRIBUTES {
-    luid: LUID,
-    attributes: u32,
-}
-
+struct LUID_AND_ATTRIBUTES { luid: LUID, attributes: u32 }
 #[repr(C)]
-struct TOKEN_PRIVILEGES {
-    privilege_count: u32,
-    privileges: [LUID_AND_ATTRIBUTES; 1],
-}
+struct TOKEN_PRIVILEGES { privilege_count: u32, privileges: [LUID_AND_ATTRIBUTES; 1] }
 
 #[tauri::command]
 fn check_backup_exists() -> bool {
@@ -56,12 +42,12 @@ fn check_backup_exists() -> bool {
 }
 
 #[tauri::command]
-fn fetch_hardware() -> HardwareResponse {
+async fn fetch_hardware() -> HardwareResponse {
     get_system_hardware()
 }
 
 #[tauri::command]
-fn fetch_games() -> Vec<ScanGamesResponse> {
+async fn fetch_games() -> Vec<ScanGamesResponse> {
     collect_installed_games()
 }
 
@@ -99,7 +85,7 @@ fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, ga
 #[tauri::command]
 fn run_benchmark() -> Result<f64, String> {
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(1500))).map_err(|e| e.to_string())?;
+    socket.set_read_timeout(Some(Duration::from_millis(1500))).map_err(|e| e.to_string())?;
     
     let dns_packet: [u8; 28] = [
         0xAA, 0xBB, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -128,28 +114,70 @@ fn purge_ram_native() -> Result<String, String> {
             if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &mut luid) != 0 {
                 let tp = TOKEN_PRIVILEGES {
                     privilege_count: 1,
-                    privileges: [LUID_AND_ATTRIBUTES {
-                        luid,
-                        attributes: 0x00000002,
-                    }],
+                    privileges: [LUID_AND_ATTRIBUTES { luid, attributes: 0x00000002 }],
                 };
                 AdjustTokenPrivileges(token, 0, &tp, 0, std::ptr::null_mut(), std::ptr::null_mut());
             }
             CloseHandle(token);
         }
 
-        let mut command_class: u32 = 4;
-        let status = NtSetSystemInformation(
-            80,
-            &mut command_class as *mut u32 as *mut std::ffi::c_void,
-            4,
-        );
+        let mut status = -1;
+        for &cmd in &[4u32, 5u32] {
+            let mut command_class = cmd;
+            let current_status = NtSetSystemInformation(80, &mut command_class as *mut u32 as *mut std::ffi::c_void, 4);
+            if current_status >= 0 {
+                status = current_status;
+                break;
+            } else {
+                status = current_status;
+            }
+        }
+
         if status >= 0 {
             Ok("Lista Standby purgada con exito".to_string())
         } else {
             Err(format!("Error en llamada al sistema NT: {}", status))
         }
     }
+}
+
+#[tauri::command]
+async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String> {
+    if game_list_raw.trim().is_empty() { return Ok(()); }
+
+    let games: Vec<String> = game_list_raw
+        .split(',')
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    tokio::spawn(async move {
+        let mut sys = System::new_all();
+        loop {
+            sys.refresh_processes();
+            for (pid, process) in sys.processes() {
+                let proc_name = process.name().to_lowercase();
+                if games.contains(&proc_name) {
+                    unsafe {
+                        use windows_sys::Win32::System::Threading::{
+                            OpenProcess, SetPriorityClass, GetPriorityClass, HIGH_PRIORITY_CLASS, 
+                            PROCESS_SET_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION
+                        };
+                        let handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid.as_u32());
+                        if handle != 0 {
+                            if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS {
+                                SetPriorityClass(handle, HIGH_PRIORITY_CLASS);
+                            }
+                            windows_sys::Win32::Foundation::CloseHandle(handle);
+                        }
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(15)).await;
+        }
+    });
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::command)]
@@ -164,7 +192,8 @@ pub fn run() {
             get_live_telemetry,
             run_optimization_script,
             run_benchmark,
-            purge_ram_native
+            purge_ram_native,
+            start_game_priority_monitor 
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

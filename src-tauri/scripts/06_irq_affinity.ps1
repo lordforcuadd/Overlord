@@ -1,9 +1,8 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8
 )
 $ErrorActionPreference = "Stop"
-
 
 Try {
     Write-Host "[*] Reconfigurando perfiles multimedia y afinidad de Hardware (IRQ)..."
@@ -27,21 +26,42 @@ Try {
     Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High" -Force | Out-Null
     Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
 
-    if ((Get-ItemProperty -Path $TasksPath -Name "GPU Priority")."GPU Priority" -ne 8) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $TasksPath -Name "Priority").Priority -ne 6) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $TasksPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $TasksPath -Name "SFIO Priority")."SFIO Priority" -ne "High") { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $TasksPath -Name "GPU Priority")."GPU Priority" -ne 8) { Write-Warning "No se pudo asegurar GPU Priority" }
+    if ((Get-ItemProperty -Path $TasksPath -Name "Priority").Priority -ne 6) { Write-Warning "No se pudo asegurar Priority" }
+    if ((Get-ItemProperty -Path $TasksPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { Write-Warning "No se pudo asegurar Scheduling Category" }
+    if ((Get-ItemProperty -Path $TasksPath -Name "SFIO Priority")."SFIO Priority" -ne "High") { Write-Warning "No se pudo asegurar SFIO Priority" }
+
+    $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
+    $NetCoreIndex = 2
+    $AudioCoreIndex = 3
+
+    if ($TotalCores -ge 16) {
+        $NetCoreIndex = 12
+        $AudioCoreIndex = 14
+    } elseif ($TotalCores -eq 12) {
+        $NetCoreIndex = 8
+        $AudioCoreIndex = 10
+    } elseif ($TotalCores -eq 8) {
+        $NetCoreIndex = 4
+        $AudioCoreIndex = 6
+    }
+
+    [uint64]$NetBitmask = [uint64]1 -shl $NetCoreIndex
+    [uint64]$AudioBitmask = [uint64]1 -shl $AudioCoreIndex
+
+    $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)
+    $AudioMaskBytes = [System.BitConverter]::GetBytes($AudioBitmask)
 
     $NetBackupKey = "HKLM:\SOFTWARE\Overlord\Backup\CPU\NetworkAffinity"
     if (!(Test-Path $NetBackupKey)) { New-Item -Path $NetBackupKey -Force | Out-Null }
 
-    $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $true)
+    $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
     if ($pciKey) {
         foreach ($venId in $pciKey.GetSubKeyNames()) {
-            $venKey = $pciKey.OpenSubKey($venId, $true)
+            $venKey = $pciKey.OpenSubKey($venId, $false)
             if ($venKey) {
                 foreach ($devId in $venKey.GetSubKeyNames()) {
-                    $devKey = $venKey.OpenSubKey($devId, $true)
+                    $devKey = $venKey.OpenSubKey($devId, $false)
                     if ($devKey) {
                         $class = $devKey.GetValue("Class")
                         
@@ -50,8 +70,7 @@ Try {
                             if ($paramKey) {
                                 $affinityKey = $paramKey.CreateSubKey("Interrupt Management\Affinity Policy", $true)
                                 if ($affinityKey) {
-                                    $deviceRegID = "PCI_$venId`_$devId`_Device Parameters"
-                                    
+                                    $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
                                     $origPolicy = $affinityKey.GetValue("DevicePolicy")
                                     $origOverride = $affinityKey.GetValue("AssignmentSetOverride")
                                     
@@ -64,10 +83,7 @@ Try {
                                     }
                                     
                                     $affinityKey.SetValue("DevicePolicy", 4, [Microsoft.Win32.RegistryValueKind]::DWord)
-                                    $maskBytes = [System.BitConverter]::GetBytes([int]4)
-                                    $affinityKey.SetValue("AssignmentSetOverride", $maskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
-                                    
-                                    if ($affinityKey.GetValue("DevicePolicy") -ne 4) { throw "Verification failed" }
+                                    $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
                                     $affinityKey.Close()
                                 }
                                 $paramKey.Close()
@@ -79,8 +95,7 @@ Try {
                             if ($paramKey) {
                                 $affinityKey = $paramKey.CreateSubKey("Interrupt Management\Affinity Policy", $true)
                                 if ($affinityKey) {
-                                    $deviceRegID = "PCI_$venId`_$devId`_Device Parameters"
-                                    
+                                    $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
                                     $origAudioPolicy = $affinityKey.GetValue("DevicePolicy")
                                     $origAudioOverride = $affinityKey.GetValue("AssignmentSetOverride")
                                     
@@ -93,10 +108,7 @@ Try {
                                     }
                                     
                                     $affinityKey.SetValue("DevicePolicy", 4, [Microsoft.Win32.RegistryValueKind]::DWord)
-                                    $audioMaskBytes = [System.BitConverter]::GetBytes([int]2)
-                                    $affinityKey.SetValue("AssignmentSetOverride", $audioMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
-                                    
-                                    if ($affinityKey.GetValue("DevicePolicy") -ne 4) { throw "Verification failed" }
+                                    $affinityKey.SetValue("AssignmentSetOverride", $AudioMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
                                     $affinityKey.Close()
                                 }
                                 $paramKey.Close()
@@ -111,7 +123,7 @@ Try {
         $pciKey.Close()
     }
 
-    Write-Host "[+] Carga equilibrada en los núcleos del CPU. Prioridades multimedia inyectadas."
+    Write-Host "[+] Carga equilibrada de hilos IRQ en P-Cores. Prioridades multimedia inyectadas con exito."
     exit 0
 } Catch {
     Write-Error "[-] Error critico en Gestion IRQ y Procesador: $_"

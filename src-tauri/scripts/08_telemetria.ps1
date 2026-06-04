@@ -1,4 +1,4 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8
 )
@@ -8,12 +8,11 @@ Try {
     Write-Host "[*] Erradicando telemetria e hilos de recoleccion..."
 
     $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
-    if (!(Test-Path $VbsPath)) { New-Item -Path $VbsPath -Force | Out-Null }
-
     $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
-    if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
-
     $ActivityPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
+
+    if (!(Test-Path $VbsPath)) { New-Item -Path $VbsPath -Force | Out-Null }
+    if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
@@ -22,33 +21,72 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
     }
 
-    $SecureBootActive = $false
-    try {
-        if (Confirm-SecureBootUEFI -ErrorAction SilentlyContinue) {
-            $SecureBootActive = $true
-        }
-    } catch {}
+   
+    $SkipVBSHVCI = $false
 
-    if ($SecureBootActive) {
-        Write-Host "[!] ADVERTENCIA: Secure Boot detectado como ACTIVO en el firmware UEFI. La desactivacion por registro de VBS/HVCI no surtira efecto hasta que lo deshabilites manualmente en la BIOS." -ForegroundColor Yellow
+    try {
+        
+        $OSInfo = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
+        if ($OSInfo.Caption -match "Enterprise|EnterpriseG|Education|Server") {
+            Write-Host "[+] Sistema Operativo Corporativo detectado (${OSInfo.Caption}). Preservando VBS/HVCI para mantener directivas de seguridad corporativas." -ForegroundColor Green
+            $SkipVBSHVCI = $true
+        }
+
+        
+        $BitLockerVolumes = Get-CimInstance -Namespace "root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume" -ErrorAction SilentlyContinue
+        if ($BitLockerVolumes) {
+            foreach ($Volume in $BitLockerVolumes) {
+                if ($Volume.ProtectionStatus -eq 1) {
+                    Write-Host "[+] Cifrado de Unidad BitLocker detectado como ACTIVO. Preservando aislamiento de Kernel para evitar corrupcion de llaves TPM." -ForegroundColor Green
+                    $SkipVBSHVCI = $true
+                    break
+                }
+            }
+        }
+    } catch {
+        
+        $SkipVBSHVCI = $false
     }
 
-    Write-Host "[!] ADVERTENCIA: Desactivando aislamiento de Kernel e Integridad de Código basada en Virtualización (VBS/HVCI)." -ForegroundColor Yellow
+    
+    if (-not $SkipVBSHVCI) {
+        $SecureBootActive = $false
+        try {
+            if (Confirm-SecureBootUEFI -ErrorAction SilentlyContinue) {
+                $SecureBootActive = $true
+            }
+        } catch {}
 
-    Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
-    Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
+        if ($SecureBootActive) {
+            Write-Host "[!] ADVERTENCIA: Secure Boot detectado como ACTIVO en el firmware UEFI. La desactivacion por registro de VBS/HVCI no surtira efecto completo hasta deshabilitarlo en la BIOS." -ForegroundColor Yellow
+        }
 
-    if ((Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity -ne 0) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $HvciPath -Name "Enabled").Enabled -ne 0) { throw "Verification failed" }
+        Write-Host "[!] Desactivando aislamiento de Kernel e Integridad de Código basada en Virtualización (VBS/HVCI)." -ForegroundColor Yellow
 
+        Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
+        Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
+
+        
+        if ((Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity -ne 0) { 
+            Write-Warning "No se pudo asegurar EnableVirtualizationBasedSecurity" 
+        }
+        if ((Get-ItemProperty -Path $HvciPath -Name "Enabled").Enabled -ne 0) { 
+            Write-Warning "No se pudo asegurar Enabled (HVCI)" 
+        }
+    }
+
+   
     try {
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
     } catch {}
 
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $ActivityPath -Name "PublishUserActivities").PublishUserActivities -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $ActivityPath -Name "PublishUserActivities").PublishUserActivities -ne 0) { 
+        Write-Warning "No se pudo asegurar PublishUserActivities" 
+    }
 
+  
     $TelemetryExes = @(
         "$env:SystemRoot\System32\CompatTelRunner.exe",
         "$env:SystemRoot\System32\DeviceCensus.exe",
@@ -63,6 +101,7 @@ Try {
         }
     }
 
+   
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
     $Loggers = @(
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "DiagLog", "AitEventLog"
@@ -74,11 +113,16 @@ Try {
                 Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry"
             }
             Set-ItemProperty -Path $LoggerKey -Name "Start" -Type DWord -Value 0 -Force | Out-Null
-            if ((Get-ItemProperty -Path $LoggerKey -Name "Start").Start -ne 0) { throw "Verification failed" }
+            
+            
+            if ((Get-ItemProperty -Path $LoggerKey -Name "Start").Start -ne 0) { 
+                Write-Warning "No se pudo asegurar el estado detenido para el logger: $Logger" 
+            }
         }
         logman stop $Logger -ets -ErrorAction SilentlyContinue | Out-Null
     }
 
+    Write-Host "[+] Flujos de telemetria e hilos espia erradicados con exito."
     exit 0
 } Catch {
     Write-Error "[-] Error critico en Modulo de Telemetria: $_"

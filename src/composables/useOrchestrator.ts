@@ -97,6 +97,16 @@ export function useOrchestrator(overlordSwalConfig: any) {
           gameList: gameListOpt,
         });
 
+        if (modKey === "gameHooks" && gameListOpt && !store.isMonitorRunning) {
+          store.isMonitorRunning = true;
+          await invoke("start_game_priority_monitor", {
+            gameListRaw: gameListOpt,
+          });
+          console.log(
+            "[RUST MONITOR]: Hilo dinámico de prioridad alta inicializado con éxito.",
+          );
+        }
+
         cardStatus.value[modKey] = "success";
         store.modules[modKey as keyof typeof store.modules] = false;
         modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
@@ -171,6 +181,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
         gameList: "",
       });
       store.restorePointCreated = false;
+      store.isMonitorRunning = false;
 
       Object.keys(cardStatus.value).forEach((key) => {
         cardStatus.value[key] = "idle";

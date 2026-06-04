@@ -1,4 +1,4 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8
 )
@@ -50,13 +50,9 @@ Try {
 
     $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
     foreach ($Adapter in $Adapters) {
-        if ($Adapter.InterfaceDescription -like "*Intel*") {
-            Enable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue | Out-Null
-            Enable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue | Out-Null
+        if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
             Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
-        } else {
-            Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -ErrorAction SilentlyContinue | Out-Null
-            Disable-NetAdapterRsc -Name $Adapter.Name -IPv6 -ErrorAction SilentlyContinue | Out-Null
+            Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
         }
     }
 

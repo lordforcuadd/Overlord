@@ -26,7 +26,7 @@ impl SystemStateCache {
 }
 
 pub fn get_live_metrics(cache: &SystemStateCache) -> LiveMetricsResponse {
-    let mut sys = cache.sys.lock().unwrap();
+    let mut sys = cache.sys.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_cpu();
     sys.refresh_memory();
 
@@ -36,7 +36,12 @@ pub fn get_live_metrics(cache: &SystemStateCache) -> LiveMetricsResponse {
 
     let ram_total = (total_b / 1024.0 / 1024.0 / 1024.0 * 100.0).round() / 100.0;
     let ram_used = (used_b / 1024.0 / 1024.0 / 1024.0 * 100.0).round() / 100.0;
-    let ram_percentage = ((used_b / total_b) * 100.0) as f32;
+    
+    let ram_percentage = if total_b > 0.0 {
+        ((used_b / total_b) * 100.0) as f32
+    } else {
+        0.0f32
+    };
 
     LiveMetricsResponse {
         cpu_usage,

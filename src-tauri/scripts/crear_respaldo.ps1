@@ -1,4 +1,4 @@
-﻿param([bool]$IsLaptop = $false, [int]$RamGB = 8)
+param([bool]$IsLaptop = $false, [int]$RamGB = 8)
 $ErrorActionPreference = "Stop"
 
 Try {

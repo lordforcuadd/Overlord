@@ -215,7 +215,7 @@ const runAction = async (actionId) => {
       await invoke("run_optimization_script", {
         scriptName: "quick_actions",
         isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ram,
+        ramGb: store.hardwareInfo.ramGb,
         gameList: actionId,
       });
     }

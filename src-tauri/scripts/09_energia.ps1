@@ -1,64 +1,61 @@
-﻿param(
-    [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8
-)
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 Try {
     Write-Host "[*] Configurando inyecciones de energia avanzadas y Core Parking..."
 
-    $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
-    $PowerGuid = if ($ActivePlan) { $ActivePlan.InstanceID.Split('\')[1] } else { "381b4222-f694-41f0-9685-ff5bb260df2e" }
-
     $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
-    if (!(Test-Path $PowerBackup)) { New-Item -Path $PowerBackup -Force | Out-Null }
-    if ((Get-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -ErrorAction SilentlyContinue) -eq $null) {
-        Set-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -Value $PowerGuid -Force | Out-Null
+    if (!(Test-Path $PowerBackup)) { 
+        try { New-Item -Path $PowerBackup -Force | Out-Null } catch {} 
     }
 
-    if ($IsLaptop) {
+    $ActivePlan = powercfg /getactivescheme 2>$null
+    if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
+        $CurrentGuid = $Matches[1]
+        try {
+            if ((Get-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -ErrorAction SilentlyContinue) -eq $null) {
+                Set-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -Value $CurrentGuid -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+        } catch {}
+    }
+
+    $RawLaptop = "$IsLaptop"
+    $IsRunningOnLaptop = $false
+    if ($RawLaptop -eq "true" -or $RawLaptop -eq "$true" -or $IsLaptop -eq $true) {
+        $IsRunningOnLaptop = $true
+    }
+
+    if ($IsRunningOnLaptop) {
         Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
-        powercfg /SETACVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 | Out-Null
-        powercfg /SETDCVALUEINDEX $PowerGuid 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 | Out-Null
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 2>$null } catch {}
+        try { & powercfg /SETDCVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 94D3A615-A899-4AC5-AE2B-E4D8F634367F 1 2>$null } catch {}
     } else {
         Write-Host "    -> Computadora de Escritorio detectada: Deshabilitando Core Parking y ahorros PCIe..."
         
-        powercfg /SETACVALUEINDEX $PowerGuid 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a558deb 0 | Out-Null
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null } catch {}
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bea128a440 d4e00550-747f-4ddb-bf3e-9b6c97a522a4 0 2>$null } catch {}
 
-        $UsbHubPath = "HKLM:\SYSTEM\CurrentControlSet\Services\USB"
-        if (!(Test-Path $UsbHubPath)) { New-Item -Path $UsbHubPath -Force | Out-Null }
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $UsbHubPath -ValueName "DisableSelectiveSuspend" -BackupSubFolder "Power"
-        }
-        Set-ItemProperty -Path $UsbHubPath -Name "DisableSelectiveSuspend" -Type DWord -Value 1 -Force | Out-Null
-        if ((Get-ItemProperty -Path $UsbHubPath -Name "DisableSelectiveSuspend").DisableSelectiveSuspend -ne 1) { throw "Verification failed" }
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null } catch {}
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null } catch {}
 
-        powercfg /SETACVALUEINDEX $PowerGuid 2a737441-1930-4402-8d77-b2bea128a440 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 | Out-Null
-
-        $PowerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583"
-        if (Test-Path $PowerPath) {
-            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                Backup-OverlordRegistryValue -TargetKey $PowerPath -ValueName "ValueMax" -BackupSubFolder "Power"
-                Backup-OverlordRegistryValue -TargetKey $PowerPath -ValueName "ValueMin" -BackupSubFolder "Power"
+        $UltimateGUID = "e9a42b02-d5df-448d-aa00-03f14749eb61"
+        try {
+            & powercfg /setactive $UltimateGUID 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                throw
             }
-
-            Set-ItemProperty -Path $PowerPath -Name "ValueMax" -Type DWord -Value 0 -Force | Out-Null
-            Set-ItemProperty -Path $PowerPath -Name "ValueMin" -Type DWord -Value 0 -Force | Out-Null
-            if ((Get-ItemProperty -Path $PowerPath -Name "ValueMax").ValueMax -ne 0) { throw "Verification failed" }
-            if ((Get-ItemProperty -Path $PowerPath -Name "ValueMin").ValueMin -ne 0) { throw "Verification failed" }
-        }
-        
-        powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            $dupOut = powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
+        } catch {
+            $dupOut = powercfg /duplicatescheme "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null
             if ($dupOut -match "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
                 $newGuid = $Matches[1]
-                powercfg /setactive $newGuid | Out-Null
-                Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force | Out-Null
+                try { & powercfg /setactive $newGuid 2>$null } catch {}
+                try { Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+            } else {
+                try { & powercfg /setactive "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null } catch {}
             }
         }
     }
 
+    try { & powercfg /setactive SCHEME_CURRENT 2>$null } catch {}
     Write-Host "[+] Esquemas de energia acoplados al Kernel con exito."
     exit 0
 

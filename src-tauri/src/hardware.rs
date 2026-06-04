@@ -2,8 +2,8 @@ use serde::Serialize;
 use std::path::Path;
 use winreg::enums::*;
 use winreg::RegKey;
+use std::process::Command; 
 use sysinfo::System;
-use std::process::Command;
 use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Clone)]
@@ -13,7 +13,7 @@ pub struct HardwareResponse {
     pub gpu: String,
     pub motherboard: String,
     pub ram_gb: u32,
-    pub ram_speed: u32,
+    pub ram_speed_mhz: Option<u32>,
     pub is_laptop: bool,
     pub is_hybrid: bool,
     pub is_x3d: bool,
@@ -28,34 +28,12 @@ pub struct ScanGamesResponse {
 }
 
 extern "system" {
-    fn GetLogicalProcessorInformationEx(
-        relationship_type: u32,
-        buffer: *mut u8,
-        returned_length: *mut u32,
-    ) -> i32;
-    fn CreateFileW(
-        lpFileName: *const u16,
-        dwDesiredAccess: u32,
-        dwShareMode: u32,
-        lpSecurityAttributes: *mut std::ffi::c_void,
-        dwCreationDisposition: u32,
-        dwFlagsAndAttributes: u32,
-        hTemplateFile: *mut std::ffi::c_void,
-    ) -> *mut std::ffi::c_void;
-    fn DeviceIoControl(
-        hDevice: *mut std::ffi::c_void,
-        dwIoControlCode: u32,
-        lpInBuffer: *mut std::ffi::c_void,
-        nInBufferSize: u32,
-        lpOutBuffer: *mut std::ffi::c_void,
-        nOutBufferSize: u32,
-        lpBytesReturned: *mut u32,
-        lpOverlapped: *mut std::ffi::c_void,
-    ) -> i32;
+    fn GetLogicalProcessorInformationEx(relationship_type: u32, buffer: *mut u8, returned_length: *mut u32) -> i32;
+    fn CreateFileW(lpFileName: *const u16, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *mut std::ffi::c_void, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+    fn DeviceIoControl(hDevice: *mut std::ffi::c_void, dwIoControlCode: u32, lpInBuffer: *mut std::ffi::c_void, nInBufferSize: u32, lpOutBuffer: *mut std::ffi::c_void, nOutBufferSize: u32, lpBytesReturned: *mut u32, lpOverlapped: *mut std::ffi::c_void) -> i32;
     fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
 }
 
-#[tauri::command]
 pub fn get_system_hardware() -> HardwareResponse {
     let mut sys = System::new_all();
     sys.refresh_memory();
@@ -80,7 +58,7 @@ pub fn get_system_hardware() -> HardwareResponse {
             let base_man: String = key.get_value("BaseBoardManufacturer")?;
             Ok(format!("{} {}", base_man, base_prod))
         })
-        .unwrap_or_else(|_| "Placa Base Genérica".to_string());
+        .unwrap_or_else(|_| "Placa Base Generica".to_string());
 
     let mut gpus = Vec::new();
     if let Ok(class_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}") {
@@ -97,47 +75,34 @@ pub fn get_system_hardware() -> HardwareResponse {
         }
     }
 
-    let gpu_name = if gpus.is_empty() {
-        "GPU no detectada".to_string()
-    } else {
-        gpus.join(" + ")
-    };
+    let gpu_name = if gpus.is_empty() { "GPU no detectada".to_string() } else { gpus.join(" + ") };
 
     let total_ram_bytes = sys.total_memory();
     let ram_calc = (total_ram_bytes as f64 / 1024.0 / 1024.0 / 1024.0).round() as u32;
 
-    let mut ram_speed_mhz = 0;
+    let mut detected_speed = 0;
+    if let Ok(perf_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Power") {
+        if let Ok(speed) = perf_key.get_value::<u32, _>("RamSpeedMhz") {
+            if speed > 0 { detected_speed = speed; }
+        }
+    }
 
-    if let Ok(output) = Command::new("powershell.exe")
-        .creation_flags(0x08000000)
-        .args(&[
-            "-NoProfile",
-            "-Command",
-            "(Get-CimInstance -ClassName Win32_PhysicalMemory | Select-Object -First 1).ConfiguredClockSpeed",
-        ])
-        .output()
-    {
-        if output.status.success() {
-            let speed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if let Ok(speed) = speed_str.parse::<u32>() {
-                if speed > 0 { 
-                    ram_speed_mhz = speed; 
+    if detected_speed == 0 {
+        if let Ok(output) = Command::new("powershell.exe")
+            .creation_flags(0x08000000)
+            .args(&["-NoProfile", "-Command", "(Get-CimInstance -ClassName Win32_PhysicalMemory | Select-Object -First 1).ConfiguredClockSpeed"])
+            .output()
+        {
+            if output.status.success() {
+                let speed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if let Ok(speed) = speed_str.parse::<u32>() {
+                    if speed > 0 { detected_speed = speed; }
                 }
             }
         }
     }
 
-    if ram_speed_mhz == 0 {
-        if let Ok(perf_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Power") {
-            if let Ok(speed) = perf_key.get_value::<u32, _>("RamSpeedMhz") {
-                if speed > 0 { ram_speed_mhz = speed; }
-            }
-        }
-    }
-
-    if ram_speed_mhz == 0 {
-        ram_speed_mhz = 5200;
-    }
+    let ram_speed_mhz = if detected_speed > 0 { Some(detected_speed) } else { None };
 
     let is_laptop_chassis = hklm
         .open_subkey("SYSTEM\\CurrentControlSet\\Control\\SystemInformation")
@@ -150,49 +115,18 @@ pub fn get_system_hardware() -> HardwareResponse {
     let mut drive_is_ssd = true;
     let path_drive: Vec<u16> = "\\\\.\\C:".encode_utf16().chain(std::iter::once(0)).collect();
     unsafe {
-        let handle = CreateFileW(
-            path_drive.as_ptr(),
-            0x80000000,
-            0x00000001 | 0x00000002,
-            std::ptr::null_mut(),
-            3,
-            0x00000080,
-            std::ptr::null_mut(),
-        );
-        if handle != (-1isize as *mut std::ffi::c_void) {
+        let handle = CreateFileW(path_drive.as_ptr(), 0x80000000, 0x00000001 | 0x00000002, std::ptr::null_mut(), 3, 0x00000080, std::ptr::null_mut());
+        if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
             #[repr(C)]
-            struct STORAGE_PROPERTY_QUERY {
-                property_id: u32,
-                query_type: u32,
-                additional_parameters: [u8; 1],
-            }
+            struct STORAGE_PROPERTY_QUERY { property_id: u32, query_type: u32, additional_parameters: [u8; 1] }
             #[repr(C)]
-            struct DEVICE_SEEK_PENALTY_DESCRIPTOR {
-                version: u32,
-                size: u32,
-                is_seek_penalty: u8,
-            }
-            let mut query = STORAGE_PROPERTY_QUERY {
-                property_id: 7,
-                query_type: 0,
-                additional_parameters: [0],
-            };
-            let mut descriptor = DEVICE_SEEK_PENALTY_DESCRIPTOR {
-                version: 0,
-                size: 0,
-                is_seek_penalty: 1,
-            };
+            struct DEVICE_SEEK_PENALTY_DESCRIPTOR { version: u32, size: u32, is_seek_penalty: u8 }
+            
+            let mut query = STORAGE_PROPERTY_QUERY { property_id: 7, query_type: 0, additional_parameters: [0] };
+            let mut descriptor = DEVICE_SEEK_PENALTY_DESCRIPTOR { version: 0, size: 0, is_seek_penalty: 1 };
             let mut bytes_returned = 0;
-            let res = DeviceIoControl(
-                handle,
-                0x002D1400,
-                &mut query as *mut _ as *mut std::ffi::c_void,
-                std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32,
-                &mut descriptor as *mut _ as *mut std::ffi::c_void,
-                std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32,
-                &mut bytes_returned,
-                std::ptr::null_mut(),
-            );
+            
+            let res = DeviceIoControl(handle, 0x002D1400, &mut query as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32, &mut descriptor as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32, &mut bytes_returned, std::ptr::null_mut());
             if res != 0 && descriptor.is_seek_penalty == 1 {
                 drive_is_ssd = false;
             }
@@ -202,9 +136,7 @@ pub fn get_system_hardware() -> HardwareResponse {
 
     let mut is_hybrid = false;
     let mut length = 0;
-    unsafe {
-        GetLogicalProcessorInformationEx(0, std::ptr::null_mut(), &mut length);
-    }
+    unsafe { GetLogicalProcessorInformationEx(0, std::ptr::null_mut(), &mut length); }
     if length > 0 {
         let mut buffer = vec![0u8; length as usize];
         unsafe {
@@ -223,22 +155,19 @@ pub fn get_system_hardware() -> HardwareResponse {
                     }
                     offset += size;
                 }
-                if efficiency_classes.len() > 1 {
-                    is_hybrid = true;
-                }
+                if efficiency_classes.len() > 1 { is_hybrid = true; }
             }
         }
     }
 
-    let lower_cpu = cpu_name.to_lowercase();
-    let is_x3d = lower_cpu.contains("x3d");
+    let is_x3d = cpu_name.to_lowercase().contains("x3d");
 
     HardwareResponse {
         cpu: cpu_name,
         gpu: gpu_name,
         motherboard: motherboard_name,
         ram_gb: ram_calc,
-        ram_speed: ram_speed_mhz,
+        ram_speed_mhz,
         is_laptop: is_laptop_chassis,
         is_hybrid,
         is_x3d,
@@ -263,29 +192,21 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
-    if let Ok(uninstall_key) = hklm.open_subkey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall") {
-        for subkey_name in uninstall_key.enum_keys().map(|x| x.unwrap_or_default()) {
-            if let Ok(subkey) = uninstall_key.open_subkey(&subkey_name) {
-                if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
-                    let lower_name = display_name.to_lowercase();
-                    for game in catalog.iter_mut() {
-                        if lower_name.contains(&game.name.to_lowercase()) {
-                            game.detected = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    let registry_paths = [
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+        "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+    ];
 
-    if let Ok(uninstall_wow) = hklm.open_subkey("SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall") {
-        for subkey_name in uninstall_wow.enum_keys().map(|x| x.unwrap_or_default()) {
-            if let Ok(subkey) = uninstall_wow.open_subkey(&subkey_name) {
-                if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
-                    let lower_name = display_name.to_lowercase();
-                    for game in catalog.iter_mut() {
-                        if lower_name.contains(&game.name.to_lowercase()) {
-                            game.detected = true;
+    for path in &registry_paths {
+        if let Ok(uninstall_key) = hklm.open_subkey(path) {
+            for subkey_name in uninstall_key.enum_keys().map(|x| x.unwrap_or_default()) {
+                if let Ok(subkey) = uninstall_key.open_subkey(&subkey_name) {
+                    if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
+                        let lower_name = display_name.to_lowercase();
+                        for game in catalog.iter_mut() {
+                            if lower_name.contains(&game.name.to_lowercase()) {
+                                game.detected = true;
+                            }
                         }
                     }
                 }
@@ -312,10 +233,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    let gog_paths = [
-        "SOFTWARE\\GOG.com\\Games",
-        "SOFTWARE\\Wow6432Node\\GOG.com\\Games"
-    ];
+    let gog_paths = ["SOFTWARE\\GOG.com\\Games", "SOFTWARE\\Wow6432Node\\GOG.com\\Games"];
     for path in &gog_paths {
         if let Ok(gog_key) = hklm.open_subkey(path) {
             for subkey_name in gog_key.enum_keys().map(|x| x.unwrap_or_default()) {
@@ -323,9 +241,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(title) = subkey.get_value::<String, _>("title") {
                         let lower_title = title.to_lowercase();
                         for game in catalog.iter_mut() {
-                            if lower_title.contains(&game.name.to_lowercase()) {
-                                game.detected = true;
-                            }
+                            if lower_title.contains(&game.name.to_lowercase()) { game.detected = true; }
                         }
                     }
                 }
@@ -333,20 +249,10 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    if hklm.open_subkey("SOFTWARE\\Epic Games\\EpicGamesLauncher").is_ok() {
-        if hklm.open_subkey("SOFTWARE\\EpicGames\\Unreal Engine").is_ok() {
-            for game in catalog.iter_mut() {
-                if game.name == "Fortnite" { game.detected = true; }
-            }
-        }
-    }
-    
     let common_epic_paths = ["C:\\Program Files\\Epic Games", "D:\\Epic Games"];
     for path in &common_epic_paths {
         for game in catalog.iter_mut() {
-            if Path::new(path).join(&game.name).exists() {
-                game.detected = true;
-            }
+            if Path::new(path).join(&game.name).exists() { game.detected = true; }
         }
     }
 
@@ -354,27 +260,21 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     for path in &xbox_default_paths {
         if Path::new(path).exists() {
             for game in catalog.iter_mut() {
-                if Path::new(path).join(&game.name).exists() {
-                    game.detected = true;
-                }
+                if Path::new(path).join(&game.name).exists() { game.detected = true; }
             }
         }
     }
 
-    let riot_paths = ["C:\\Riot Games\\VALORANT", "D:\\Riot Games\\VALORANT"];
-    for path in &riot_paths {
+    let static_checks = [
+        ("VALORANT", "C:\\Riot Games\\VALORANT"),
+        ("VALORANT", "D:\\Riot Games\\VALORANT"),
+        ("League of Legends", "C:\\Riot Games\\League of Legends"),
+        ("League of Legends", "D:\\Riot Games\\League of Legends"),
+    ];
+    for (name, path) in &static_checks {
         if Path::new(path).exists() {
             for game in catalog.iter_mut() {
-                if game.name == "VALORANT" { game.detected = true; }
-            }
-        }
-    }
-
-    let lol_paths = ["C:\\Riot Games\\League of Legends", "D:\\Riot Games\\League of Legends"];
-    for path in &lol_paths {
-        if Path::new(path).exists() {
-            for game in catalog.iter_mut() {
-                if game.name == "League of Legends" { game.detected = true; }
+                if game.name == *name { game.detected = true; }
             }
         }
     }

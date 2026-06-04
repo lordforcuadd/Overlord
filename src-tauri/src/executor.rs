@@ -5,7 +5,6 @@ use std::sync::Mutex;
 
 static EXECUTION_LOCK: Mutex<()> = Mutex::new(());
 
-#[tauri::command]
 pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
     let _lock = EXECUTION_LOCK.lock().map_err(|_| "Error al adquirir el candado de ejecucion concurrente".to_string())?;
 
@@ -63,10 +62,8 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
             "-NoProfile",
             "-NonInteractive",
             "-ExecutionPolicy", "Bypass",
-            "-WindowStyle",
-            "Hidden",
-            "-Command",
-            bootstrap_cmd,
+            "-WindowStyle", "Hidden",
+            "-Command", bootstrap_cmd,
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -94,99 +91,38 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
 }
 
 fn strip_param_block(script: &str) -> String {
-    let mut chars = script.char_indices().peekable();
-    let mut param_start_idx = None;
-    let mut param_end_idx = None;
+    let trimmed = script.trim_start();
+    if trimmed.to_lowercase().starts_with("param") {
+        if let Some(open_paren) = trimmed.find('(') {
+            let mut depth = 0;
+            let mut in_quote = false;
+            let mut quote_char = ' ';
+            let mut escape = false;
 
-    let mut in_double_quote = false;
-    let mut in_single_quote = false;
-    let mut in_comment = false;
-
-    while let Some(&(idx, ch)) = chars.peek() {
-        if in_comment {
-            if ch == '\n' || ch == '\r' { in_comment = false; }
-            chars.next();
-            continue;
-        }
-        if in_double_quote {
-            if ch == '"' { in_double_quote = false; }
-            chars.next();
-            continue;
-        }
-        if in_single_quote {
-            if ch == '\'' { in_single_quote = false; }
-            chars.next();
-            continue;
-        }
-        if ch == '#' { in_comment = true; chars.next(); continue; }
-        if ch == '"' { in_double_quote = true; chars.next(); continue; }
-        if ch == '\'' { in_single_quote = true; chars.next(); continue; }
-
-        if script[idx..].to_lowercase().starts_with("param") {
-            let has_invalid_prefix = if idx > 0 {
-                let prev_ch = script.chars().nth(idx - 1).unwrap_or(' ');
-                prev_ch == '$' || prev_ch == '-' || prev_ch.is_alphanumeric()
-            } else {
-                false
-            };
-
-            if !has_invalid_prefix {
-                let next_char = script[idx..].chars().skip(5).next();
-                if next_char.is_none() || next_char.unwrap().is_whitespace() || next_char.unwrap() == '(' {
-                    param_start_idx = Some(idx);
-                    break;
+            for (idx, ch) in trimmed[open_paren..].char_indices() {
+                if escape {
+                    escape = false;
+                    continue;
                 }
-            }
-        }
-        chars.next();
-    }
-
-    if let Some(start) = param_start_idx {
-        let mut depth = 0;
-        let mut found_open = false;
-
-        while let Some(&(idx, _)) = chars.peek() {
-            if idx >= start + 5 { break; }
-            chars.next();
-        }
-
-        in_double_quote = false;
-        in_single_quote = false;
-        in_comment = false;
-
-        while let Some((idx, ch)) = chars.next() {
-            if in_comment {
-                if ch == '\n' || ch == '\r' { in_comment = false; }
-                continue;
-            }
-            if in_double_quote {
-                if ch == '"' { in_double_quote = false; }
-                continue;
-            }
-            if in_single_quote {
-                if ch == '\'' { in_single_quote = false; }
-                continue;
-            }
-            if ch == '#' { in_comment = true; continue; }
-            if ch == '"' { in_double_quote = true; continue; }
-            if ch == '\'' { in_single_quote = true; continue; }
-
-            if ch == '(' {
-                depth += 1;
-                found_open = true;
-            } else if ch == ')' {
-                if depth > 0 {
+                if in_quote {
+                    if ch == '`' { escape = true; }
+                    else if ch == quote_char { in_quote = false; }
+                    continue;
+                }
+                if ch == '"' || ch == '\'' {
+                    in_quote = true;
+                    quote_char = ch;
+                    continue;
+                }
+                if ch == '(' {
+                    depth += 1;
+                } else if ch == ')' {
                     depth -= 1;
-                    if depth == 0 && found_open {
-                        param_end_idx = Some(idx + ch.len_utf8());
-                        break;
+                    if depth == 0 {
+                        return trimmed[open_paren + idx + 1..].trim().to_string();
                     }
                 }
             }
-        }
-
-        if let Some(end) = param_end_idx {
-            return script[end..].trim().to_string();
         }
     }
     script.to_string()

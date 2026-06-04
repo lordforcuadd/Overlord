@@ -1,80 +1,224 @@
-﻿param(
-    [string]$GameList = "", 
-    [bool]$IsLaptop = $false, 
+param(
+    [string]$GameList = "",
+    [bool]$IsLaptop = $false,
     [int]$RamGB = 8
 )
 $ErrorActionPreference = "Stop"
 
-Try {
-    if ([string]::IsNullOrWhiteSpace($GameList)) { 
-        Write-Host "[-] No se especificaron ejecutables en GameList. Saltando inyección de hilos."
-        exit 0 
+try {
+    if ([string]::IsNullOrWhiteSpace($GameList)) {
+        Write-Host "[-] No se especificaron ejecutables en GameList. Saltando optimizaciones."
+        exit 0
     }
 
-    Write-Host "[*] Aplicando IFEO Hooks de Alto Rendimiento para juegos detectados..."
-    
+    Write-Host "[*] Aplicando Optimizaciones Graficas de Baja Latencia para juegos..."
+
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $Games = $GameList -split "," | ForEach-Object { $_.Trim() }
 
-    $Cores = [int]$env:NUMBER_OF_PROCESSORS
-    $TargetCpuPriority = 3
-    if ($Cores -le 4) {
-        $TargetCpuPriority = 2
-    } elseif ($IsLaptop -or $Cores -le 6) {
-        $TargetCpuPriority = 6
+    $EngineConfigPatterns = @(
+        @{
+            Name = "Unreal"
+            FileName = "GameUserSettings.ini"
+            FullscreenKey = @("FullscreenMode", "LastConfirmedFullscreenMode", "PreferredFullscreenMode")
+        }
+    )
+
+    $LauncherRoots = @(
+        "C:\Riot Games",
+        "C:\Program Files\Steam\steamapps\common",
+        "C:\Program Files (x86)\Steam\steamapps\common",
+        "C:\Program Files\Epic Games",
+        "C:\Program Files (x86)\Battle.net",
+        "C:\Program Files\Overwatch",
+        "C:\Program Files\EA Games",
+        "C:\Program Files\Ubisoft",
+        "C:\XboxGames",
+        "D:\SteamLibrary\steamapps\common",
+        "D:\Games",
+        "E:\Games"
+    )
+
+    $FolderTranslationTable = @{
+        "LeagueClient" = "League of Legends"
+        "Overwatch"    = "Overwatch"
     }
 
+    $localAppDataFolders = Get-ChildItem -Path $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue
+    $TotalJuegosProcesados = 0
+    $TotalErroresFatales = 0
+
     foreach ($Game in $Games) {
-        if (![string]::IsNullOrWhiteSpace($Game)) {
-            $IfeoPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game\PerfOptions"
-            $GameKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game"
-            
-            $OrigCpuPriority = $null
-            $OrigIoPriority = $null
-            if (Test-Path $IfeoPath) {
-                $OrigCpuPriority = (Get-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -ErrorAction SilentlyContinue).CpuPriorityClass
-                $OrigIoPriority = (Get-ItemProperty -Path $IfeoPath -Name "IoPriority" -ErrorAction SilentlyContinue).IoPriority
+        if ([string]::IsNullOrWhiteSpace($Game)) { continue }
+
+        try {
+            $ExeName = if ($Game -notlike "*.exe") { "$Game.exe" } else { $Game }
+            $GameBaseName = $ExeName -replace '\.exe$',''
+            $shortName = ($GameBaseName -split '-|_')[0]
+            $FullscreenForced = $false
+
+            Write-Host "[*] Procesando: $ExeName"
+
+            $ConfigFolder = $null
+            $TranslatedName = if ($FolderTranslationTable.ContainsKey($shortName)) { $FolderTranslationTable[$shortName] } else { $null }
+
+            if ($TranslatedName -and (Test-Path (Join-Path $env:LOCALAPPDATA $TranslatedName))) {
+                $ConfigFolder = Join-Path $env:LOCALAPPDATA $TranslatedName
+            } elseif (Test-Path (Join-Path $env:LOCALAPPDATA $GameBaseName)) {
+                $ConfigFolder = Join-Path $env:LOCALAPPDATA $GameBaseName
+            } elseif (Test-Path (Join-Path $env:LOCALAPPDATA $shortName)) {
+                $ConfigFolder = Join-Path $env:LOCALAPPDATA $shortName
+            } else {
+                $filterName = if ($TranslatedName) { $TranslatedName } else { $GameBaseName }
+                $escapedFilter = [WildcardPattern]::Escape($filterName)
+                $candidate = $localAppDataFolders | Where-Object { $_.Name -like "*$escapedFilter*" } | Select-Object -First 1
+                if (-not $candidate) {
+                    $escapedShort = [WildcardPattern]::Escape($shortName)
+                    $candidate = $localAppDataFolders | Where-Object { $_.Name -like "*$escapedShort*" } | Select-Object -First 1
+                }
+                if ($candidate) { $ConfigFolder = $candidate.FullName }
             }
 
-            $OrigFsoBypass = $null
-            if (Test-Path $GameKey) {
-                $OrigFsoBypass = (Get-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -ErrorAction SilentlyContinue).DISABLEDXMAXIMIZEDWINDOWEDMODE
+            if ($ConfigFolder) {
+                foreach ($engine in $EngineConfigPatterns) {
+                    $ini = Get-ChildItem -Path $ConfigFolder -Filter $engine.FileName -Recurse -Depth 5 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($ini -and ($engine.Name -eq "Unreal")) {
+                        if ($ini.IsReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $false }
+
+                        $content = Get-Content $ini.FullName
+                        $newContent = @()
+                        $changed = $false
+                        foreach ($line in $content) {
+                            $modified = $line
+                            foreach ($key in $engine.FullscreenKey) {
+                                if ($line -match "^\s*$key\s*=") {
+                                    $targetValue = "$key=0"
+                                    if ($line.Trim() -notmatch "^\s*$key\s*=\s*0\s*$") {
+                                        $modified = $targetValue
+                                        $changed = $true
+                                    }
+                                    break
+                                }
+                            }
+                            $newContent += $modified
+                        }
+                        if ($changed) {
+                            Set-Content -Path $ini.FullName -Value $newContent -Force
+                            Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $true
+                            Write-Host "    -> Modo exclusivo forzado en $($engine.Name) ($($ini.FullName))"
+                            $FullscreenForced = $true
+                        } else {
+                            Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $true
+                            Write-Host "    -> El archivo de configuracion ya se encontraba optimizado de forma idempotente."
+                            $FullscreenForced = $true
+                        }
+                        break
+                    }
+                }
             }
 
-            if ((Get-ItemProperty -Path $BackupPath -Name "${Game}_CpuPriority" -ErrorAction SilentlyContinue) -eq $null) {
-                $BckCpu = if ($OrigCpuPriority -eq $null) { '_ABSENT_' } else { $OrigCpuPriority }
-                Set-ItemProperty -Path $BackupPath -Name "${Game}_CpuPriority" -Value $BckCpu -Force | Out-Null
+            $OldIfeo = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$ExeName"
+            if (Test-Path $OldIfeo) { Remove-Item -Path $OldIfeo -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
+
+            $AppPathRegistry = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$ExeName"
+            $RegProps = Get-ItemProperty -Path $AppPathRegistry -ErrorAction SilentlyContinue
+            $RawRegistryValue = if ($RegProps) { $RegProps.'(Default)' } else { $null }
+            $RealExePath = $null
+
+            if (![string]::IsNullOrWhiteSpace($RawRegistryValue)) {
+                $CleanedPath = $RawRegistryValue -replace '^"|"$',''
+                $CleanedPath = ($CleanedPath -split '\.exe')[0] + ".exe"
+                if (Test-Path $CleanedPath -PathType Leaf) {
+                    $RealExePath = $CleanedPath
+                }
             }
 
-            if ((Get-ItemProperty -Path $BackupPath -Name "${Game}_IoPriority" -ErrorAction SilentlyContinue) -eq $null) {
-                $BckIo = if ($OrigIoPriority -eq $null) { '_ABSENT_' } else { $OrigIoPriority }
-                Set-ItemProperty -Path $BackupPath -Name "${Game}_IoPriority" -Value $BckIo -Force | Out-Null
+            if ([string]::IsNullOrWhiteSpace($RealExePath)) {
+                $DeepHints = @(
+                    "C:\Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName",
+                    "C:\Riot Games\League of Legends\$ExeName",
+                    "C:\Program Files (x86)\Overwatch\_retail_\$ExeName",
+                    "C:\Program Files\Overwatch\_retail_\$ExeName",
+                    "C:\Program Files (x86)\Battle.net\$ExeName"
+                )
+                foreach ($Hint in $DeepHints) {
+                    if (Test-Path $Hint -PathType Leaf) {
+                        $RealExePath = $Hint
+                        break
+                    }
+                }
+
+                if ([string]::IsNullOrWhiteSpace($RealExePath)) {
+                    foreach ($Root in $LauncherRoots) {
+                        if (Test-Path $Root) {
+                            $FoundFile = Get-ChildItem -Path $Root -Filter $ExeName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                            if ($FoundFile) {
+                                $RealExePath = $FoundFile.FullName
+                                break
+                            }
+                        }
+                    }
+                }
             }
 
-            if ((Get-ItemProperty -Path $BackupPath -Name "${Game}_FsoBypass" -ErrorAction SilentlyContinue) -eq $null) {
-                $BckFso = if ($OrigFsoBypass -eq $null) { '_ABSENT_' } else { $OrigFsoBypass }
-                Set-ItemProperty -Path $BackupPath -Name "${Game}_FsoBypass" -Value $BckFso -Force | Out-Null
+            if (![string]::IsNullOrWhiteSpace($RealExePath) -and (Test-Path $RealExePath -PathType Leaf)) {
+                $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+                if (!(Test-Path $LayersPath)) { New-Item -Path $LayersPath -Force | Out-Null }
+
+                $GameBackupPath = Join-Path $BackupPath $ExeName
+                if (!(Test-Path $GameBackupPath)) { New-Item -Path $GameBackupPath -Force | Out-Null }
+
+                $ExistingLayers = (Get-ItemProperty -Path $LayersPath -Name $RealExePath -ErrorAction SilentlyContinue).$RealExePath
+                $BackupRegistryCheck = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
+                
+                if ($ExistingLayers -and !$BackupRegistryCheck.PreviousLayers) {
+                    Set-ItemProperty -Path $GameBackupPath -Name "PreviousLayers" -Value $ExistingLayers -Force | Out-Null
+                }
+                if (!$BackupRegistryCheck.Path) {
+                    Set-ItemProperty -Path $GameBackupPath -Name "Path" -Value $RealExePath -Force | Out-Null
+                }
+
+                $NewFlagsList = @()
+                if ($ExistingLayers) {
+                    $NewFlagsList += $ExistingLayers -split '\s+' | Where-Object { 
+                        $_ -and 
+                        $_ -ine "DISABLEDXMAXIMIZEDWINDOWEDMODE" -and 
+                        $_ -ine "~DISABLEDXMAXIMIZEDWINDOWEDMODE" -and 
+                        $_ -ine "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -and 
+                        $_ -ine "~HIGHDPI_SCALING_OVERRIDE_APPLICATION"
+                    }
+                }
+                $NewFlagsList += "DISABLEDXMAXIMIZEDWINDOWEDMODE"
+                $NewFlagsList += "HIGHDPI_SCALING_OVERRIDE_APPLICATION"
+                $FinalFlagsValue = ($NewFlagsList -join " ").Trim()
+
+                Set-ItemProperty -Path $LayersPath -Name $RealExePath -Type String -Value $FinalFlagsValue -Force | Out-Null
+
+                if ($FullscreenForced) {
+                    Write-Host "    -> Capas dinamicas + modo exclusivo aplicados en: $RealExePath"
+                } else {
+                    Write-Host "    -> Capas dinamicas aplicadas en: $RealExePath (sin modo exclusivo, motor no compatible)"
+                }
+                $TotalJuegosProcesados++
+            } else {
+                Write-Warning "No se pudo asegurar una ruta de ejecutable valida para: $ExeName"
+                $TotalErroresFatales++
             }
-
-            if (!(Test-Path $IfeoPath)) { New-Item -Path $IfeoPath -Force | Out-Null }
-            Set-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass" -Type DWord -Value $TargetCpuPriority -Force | Out-Null
-            Set-ItemProperty -Path $IfeoPath -Name "IoPriority" -Type DWord -Value 3 -Force | Out-Null
-            
-            if (!(Test-Path $GameKey)) { New-Item -Path $GameKey -Force | Out-Null }
-            Set-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE" -Type DWord -Value 1 -Force | Out-Null
-
-            if ((Get-ItemProperty -Path $IfeoPath -Name "CpuPriorityClass").CpuPriorityClass -ne $TargetCpuPriority) { throw "Verification failed" }
-            if ((Get-ItemProperty -Path $IfeoPath -Name "IoPriority").IoPriority -ne 3) { throw "Verification failed" }
-            if ((Get-ItemProperty -Path $GameKey -Name "DISABLEDXMAXIMIZEDWINDOWEDMODE").DISABLEDXMAXIMIZEDWINDOWEDMODE -ne 1) { throw "Verification failed" }
-
-            Write-Host "    -> Hooks inyectados para: $Game"
+        } catch {
+            Write-Warning "[-] Error no critico procesando el objetivo $Game : $_"
+            $TotalErroresFatales++
         }
     }
 
-    exit 0
-} Catch {
-    Write-Error "[-] Error critico en Modulo de Game Hooks: $_"
+    if ($TotalJuegosProcesados -eq 0 -and $TotalErroresFatales -gt 0) {
+        throw "El modulo de optimizacion gaming fallo: Ningun juego pudo ser procesado de forma valida."
+    }
+
+    Write-Host "[+] Protocolo de Game Hooks completado."
+    return
+} catch {
+    Write-Error "[-] Error critico global en Módulo de Game Hooks: $_"
     exit 1
 }

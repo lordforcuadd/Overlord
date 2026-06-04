@@ -43,9 +43,7 @@ function Restore-OverlordRegistryValue {
             if ($BackupValue -eq '_ABSENT_') {
                 Remove-ItemProperty -Path $TargetKey -Name $ValueName -ErrorAction SilentlyContinue | Out-Null
             } else {
-                if (!(Test-Path $TargetKey)) {
-                    New-Item -Path $TargetKey -Force | Out-Null
-                }
+                if (!(Test-Path $TargetKey)) { New-Item -Path $TargetKey -Force | Out-Null }
                 $Type = if ($SavedKind) { $SavedKind } else { "DWord" }
                 Set-ItemProperty -Path $TargetKey -Name $ValueName -Type $Type -Value $BackupValue -Force | Out-Null
             }

@@ -19,43 +19,47 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
     }
 
     Context "Mecanica de Entrada y Perifericos de Alta Frecuencia" {
-        It "Debe comprobar existencia y tipos correctos en colas de mouclass" {
+        It "Debe comprobar los buffers optimizados de llegada en colas de mouclass" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
             if (Test-Path $Path) {
                 $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseDataQueueSize
-                if ($null -ne $Size) {
-                    $Size.GetType().Name | Should -BeIn @("Int32", "Int64")
-                }
+                $Size | Should -Be 32
             }
         }
 
-        It "Debe comprobar existencia y tipos correctos en colas de kbdclass" {
+        It "Debe comprobar los buffers optimizados de llegada en colas de kbdclass" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
             if (Test-Path $Path) {
                 $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).KeyboardDataQueueSize
-                if ($null -ne $Size) {
-                    $Size.GetType().Name | Should -BeIn @("Int32", "Int64")
-                }
+                $Size | Should -Be 32
             }
+        }
+
+        It "Debe comprobar el desacoplamiento lineal de la aceleracion de raton de usuario" {
+            $Path = "HKCU:\Control Panel\Mouse"
+            $Speed = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseSpeed
+            $Th1 = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseThreshold1
+            $Th2 = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseThreshold2
+            $Speed | Should -Be "0"
+            $Th1 | Should -Be "0"
+            $Th2 | Should -Be "0"
         }
     }
 
     Context "Modulo 02 y 08 - Saneamiento de Telemetria y Servicios Nucleares" {
-        It "Debe auditar de forma segura la resiliencia de los servicios afectados" {
-            $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "Spooler")
+        It "Debe verificar el estado deshabilitado de los servicios residuales bloqueados" {
+            $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
             foreach ($Service in $Services) {
-                $Status = Get-Service -Name $Service -ErrorAction SilentlyContinue
-                if ($null -ne $Status) {
-                    $Status.Name | Should -Be $Service
-                } else {
-                    $null | Should -Be $null
+                $Svc = Get-Service -Name $Service -ErrorAction SilentlyContinue
+                if ($null -ne $Svc) {
+                    $Svc.StartType | Should -Be "Disabled"
                 }
             }
         }
     }
 
     Context "Modulo 02 - Verificacion de Cobertura de Tareas Programadas" {
-        It "Debe confirmar la gestion e interrogacion segura de las 16 tareas programadas" {
+        It "Debe ratificar la inhabilitacion estructural de las tareas de telemetria" {
             $Tasks = @(
                 "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
                 "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
@@ -78,9 +82,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
                 $TaskName = Split-Path $Task -Leaf
                 $Check = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
                 if ($null -ne $Check) {
-                    $Check.TaskName | Should -Be $TaskName
-                } else {
-                    $null | Should -Be $null
+                    $Check.State | Should -Be "Disabled"
                 }
             }
         }
@@ -91,61 +93,74 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
             if (Test-Path $Path) {
                 $Ttl = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MaxCacheTtl
-                if ($null -ne $Ttl) {
-                    $Ttl | Should -BeIn @(86400)
-                }
+                $Ttl | Should -Be 86400
             }
         }
 
-        It "Debe verificar la consistencia de adaptadores e interfaces de red" {
-            $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\*"
-            $Interfaces = Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue
-            $Interfaces.Count | Should -BeGreaterThan -1
+        It "Debe verificar la remocion del estrangulamiento y retardo de cola TCP" {
+            $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+            $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+            
+            $WaitDelay = (Get-ItemProperty -Path $TcpPath -ErrorAction SilentlyContinue).TcpTimedWaitDelay
+            $Throttling = (Get-ItemProperty -Path $ProfilePath -ErrorAction SilentlyContinue).NetworkThrottlingIndex
+            
+            $WaitDelay | Should -Be 30
+            $Throttling | Should -BeIn @(4294967295, -1)
         }
     }
 
     Context "Modulo 04, 05 y 07 - Kernel, Almacenamiento y Pipelines Graficos" {
-        It "Debe comprobar directivas de paginacion de ejecutivos del Kernel" {
-            if (Test-Path $MemoryManagerPath) {
-                $DisablePaging = (Get-ItemProperty -Path $MemoryManagerPath -ErrorAction SilentlyContinue).DisablePagingExecutive
-                if ($null -ne $DisablePaging) {
-                    $DisablePaging | Should -BeIn @(0, 1)
-                }
-            }
-        }
-
-        It "Debe validar esquemas HwSchMode de programacion por hardware de GPU" {
+        It "Debe validar esquemas HwSchMode de programación por hardware de GPU" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
             if (Test-Path $Path) {
                 $Hags = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).HwSchMode
-                if ($null -ne $Hags) {
-                    $Hags | Should -BeIn @(0, 1, 2)
-                }
+                $Hags | Should -Be 2
             }
         }
 
-        It "Debe auditar la consistencia estructural de NTFS Last Access" {
+        It "Debe verificar la desactivacion de perfiles MPO para prevenir microstuttering" {
+            $Path = "HKLM:\SOFTWARE\Microsoft\Windows\Dwm"
+            if (Test-Path $Path) {
+                $Mpo = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).OverlayTestMode
+                $Mpo | Should -Be 5
+            }
+        }
+
+        It "Debe comprobar el desacoplamiento de la marca de tiempo NTFS Last Access" {
             if (Test-Path $ControlFileSystem) {
                 $LastAccess = (Get-ItemProperty -Path $ControlFileSystem -ErrorAction SilentlyContinue).NtfsDisableLastAccessUpdate
-                if ($null -ne $LastAccess) {
-                    $LastAccess | Should -BeIn @(0, 1, 2, 2147483648, 2147483649)
-                }
+                $LastAccess | Should -BeIn @(1, 2, 3, 2147483649, 2147483650, 2147483651)
             }
         }
     }
 
     Context "Modulo 09 y 11 - Planes de Energia e IFEO Gaming Hooks" {
-        It "Debe comprobar la existencia de un plan de energia activo" {
-            $ActivePlan = Get-CimInstance -Namespace root\cimv2\power -ClassName Win32_PowerPlan | Where-Object { $_.IsActive -eq $true }
-            $ActivePlan | Should -Not -BeNullOrEmpty
-        }
-
-        It "Debe certificar las prioridades de la estructura multimedia de juegos" {
+        It "Debe certificar la inyeccion de la maxima prioridad multimedia de hilos" {
             $Path = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
             if (Test-Path $Path) {
+                $GpuPriority = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."GPU Priority"
                 $Priority = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).Priority
-                if ($null -ne $Priority) {
-                    $Priority | Should -Not -BeNullOrEmpty
+                $Sched = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."Scheduling Category"
+                $Sfio = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."SFIO Priority"
+                
+                $GpuPriority | Should -Be 8
+                $Priority | Should -Be 6
+                $Sched | Should -Be "High"
+                $Sfio | Should -Be "High"
+            }
+        }
+
+        It "Debe asegurar la aplicacion de DISABLEDXMAXIMIZEDWINDOWEDMODE en AppCompatFlags Layers" {
+            $GameHooksBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
+            if (Test-Path $GameHooksBackup) {
+                $SubKeys = Get-ChildItem -Path $GameHooksBackup -ErrorAction SilentlyContinue
+                foreach ($Key in $SubKeys) {
+                    $PathVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "Path" -ErrorAction SilentlyContinue
+                    if (![string]::IsNullOrWhiteSpace($PathVal)) {
+                        $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+                        $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
+                        $CurrentFlags -match "DISABLEDXMAXIMIZEDWINDOWEDMODE" | Should -Be $true
+                    }
                 }
             }
         }
@@ -171,7 +186,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             if (Test-Path $RevertPath) {
                 $Content = Get-Content -Path $RevertPath -ErrorAction SilentlyContinue
                 $Content | Should -Not -BeNullOrEmpty
-                $Content -match "HKLM:\\SOFTWARE\\Overlord\\Backup" | Should -Not -BeNullOrEmpty
+                $Content -match 'HKLM:\\SOFTWARE\\Overlord\\Backup' | Should -Not -BeNullOrEmpty
             }
         }
     }

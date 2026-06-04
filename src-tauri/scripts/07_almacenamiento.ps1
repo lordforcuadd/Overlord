@@ -1,4 +1,4 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8
 )
@@ -70,7 +70,7 @@ Try {
     if ((Get-ItemProperty -Path $MemPath -Name "LargeSystemCache").LargeSystemCache -ne 0) { throw "Verification failed" }
 
     $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
-    $DismProcess | Wait-Process -Timeout 180 -ErrorAction SilentlyContinue
+    $DismProcess | Wait-Process -Timeout 1200 -ErrorAction SilentlyContinue
     if (!$DismProcess.HasExited) { $DismProcess | Stop-Process -Force }
 
     try {

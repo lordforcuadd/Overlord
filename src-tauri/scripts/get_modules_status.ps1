@@ -42,21 +42,17 @@ if (Test-Path $DnsPath) {
 }
 
 $StorePath = "HKCU:\System\GameConfigStore"
-$MmPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 if (Test-Path $StorePath) {
     $GameDVR = Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue
-    $Fso = Get-ItemPropertyValue -Path $MmPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue
-    if ($GameDVR -eq 0 -or $Fso -eq 3) {
+    if ($GameDVR -eq 0) {
         $Status['generalPerformance'] = $true
     }
 }
 
 $GpuPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
-$DwmPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions"
 if (Test-Path $GpuPath) {
     $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
-    $DwmCpu = Get-ItemPropertyValue -Path $DwmPath -Name "CpuPriorityClass" -ErrorAction SilentlyContinue
-    if ($Hags -eq 2 -or $DwmCpu -eq 3) {
+    if ($Hags -eq 2) {
         $Status['gpuDisplay'] = $true
     }
 }
@@ -85,17 +81,14 @@ if ($pciKey) {
 $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
 if (Test-Path $NtfsPath) {
     $Last = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue
-    if ($Last -eq 1 -or $Last -eq 2) {
+    if ($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) {
         $Status['smartStorage'] = $true
     }
 }
 
-$VbsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
-if (Test-Path $VbsPath) {
-    $HvciEnabled = Get-ItemPropertyValue -Path $VbsPath -Name "Enabled" -ErrorAction SilentlyContinue
-    if ($HvciEnabled -eq 0) {
-        $Status['deepTelemetry'] = $true
-    }
+$DiagTrackType = (Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue).StartType
+if ($DiagTrackType -eq "Disabled") {
+    $Status['deepTelemetry'] = $true
 }
 
 $PowerSchemePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
@@ -106,14 +99,18 @@ if (Test-Path $PowerSchemePath) {
     }
 }
 
-$TargetGames = @("League of Legends.exe", "VALORANT-Win64-Shipping.exe", "cs2.exe")
-foreach ($Game in $TargetGames) {
-    $HookPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$Game\PerfOptions"
-    if (Test-Path $HookPath) {
-        $CpuP = Get-ItemPropertyValue -Path $HookPath -Name "CpuPriorityClass" -ErrorAction SilentlyContinue
-        if ($CpuP -eq 3) {
-            $Status['gameHooks'] = $true
-            break
+$GameHooksBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
+if (Test-Path $GameHooksBackup) {
+    $SubKeys = Get-ChildItem -Path $GameHooksBackup -ErrorAction SilentlyContinue
+    foreach ($Key in $SubKeys) {
+        $PathVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "Path" -ErrorAction SilentlyContinue
+        if (![string]::IsNullOrWhiteSpace($PathVal)) {
+            $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+            $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
+            if ($CurrentFlags -match "DISABLEDXMAXIMIZEDWINDOWEDMODE") {
+                $Status['gameHooks'] = $true
+                break
+            }
         }
     }
 }

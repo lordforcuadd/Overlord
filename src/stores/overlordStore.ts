@@ -6,7 +6,7 @@ interface HardwarePayload {
   gpu: string;
   motherboard: string;
   ramGb: number;
-  ramSpeed: number;
+  ramSpeedMhz: number | null;
   isLaptop: boolean;
   isHybrid: boolean;
   isX3d: boolean;
@@ -39,7 +39,7 @@ export const useOverlordStore = defineStore("overlord", {
       gpu: "",
       motherboard: "",
       ramGb: 0,
-      ramSpeed: 0,
+      ramSpeedMhz: 0,
       isLaptop: false,
       isHybrid: false,
       isX3d: false,
@@ -85,6 +85,7 @@ export const useOverlordStore = defineStore("overlord", {
     activeProfile: "Personalizado",
     restorePointCreated: false,
     backupExists: false,
+    isMonitorRunning: false,
     telemetryInterval: null as any,
   }),
   actions: {
@@ -107,7 +108,7 @@ export const useOverlordStore = defineStore("overlord", {
         this.hardwareInfo.gpu = info.gpu;
         this.hardwareInfo.motherboard = info.motherboard;
         this.hardwareInfo.ramGb = info.ramGb;
-        this.hardwareInfo.ramSpeed = info.ramSpeed;
+        this.hardwareInfo.ramSpeedMhz = info.ramSpeedMhz ?? 0;
         this.hardwareInfo.isLaptop = info.isLaptop;
         this.hardwareInfo.isHybrid = info.isHybrid;
         this.hardwareInfo.isX3d = info.isX3d;
@@ -123,7 +124,7 @@ export const useOverlordStore = defineStore("overlord", {
           lowerCpu.includes("ryzen 9") ||
           info.ramGb >= 32
         ) {
-          this.hardwareInfo.tier = "Gama Alta Extreme";
+          this.hardwareInfo.tier = "Gama Alta";
         } else if (
           info.ramGb >= 16 ||
           lowerGpu.includes("rtx") ||
@@ -150,7 +151,9 @@ export const useOverlordStore = defineStore("overlord", {
       }
     },
     startTelemetryPolling() {
-      if (this.telemetryInterval) return;
+      if (this.telemetryInterval) {
+        clearInterval(this.telemetryInterval);
+      }
       this.telemetryInterval = setInterval(async () => {
         try {
           const metrics = await invoke<TelemetryPayload>("get_live_telemetry");
@@ -177,7 +180,7 @@ export const useOverlordStore = defineStore("overlord", {
         this.modules[key as keyof typeof this.modules] = false;
       });
 
-      const isHighEnd = this.hardwareInfo.tier === "Gama Alta Extreme";
+      const isHighEnd = this.hardwareInfo.tier === "Gama Alta";
 
       switch (profile) {
         case "Competitivo":
