@@ -23,8 +23,12 @@ Try {
         if ($App -match "Xbox" -or $App -match "XboxIdentityProvider" -or $App -match "WindowsStore") {
             continue
         }
-        $AllPackages | Where-Object { $_.Name -eq $App } | Remove-AppxPackage -ErrorAction SilentlyContinue
-        $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        try {
+            $AllPackages | Where-Object { $_.Name -eq $App } | Remove-AppxPackage -ErrorAction SilentlyContinue
+            $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        } catch {
+            Write-Warning "No se pudo remover la aplicacion bloatware ${App}: $_"
+        }
     }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
@@ -64,8 +68,13 @@ Try {
 
     $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
     foreach ($Service in $Services) {
-        Stop-Service -Name $Service -Force -ErrorAction SilentlyContinue
-        Set-Service -Name $Service -StartupType Disabled -ErrorAction SilentlyContinue
+        $SvcObj = Get-Service -Name $Service -ErrorAction SilentlyContinue
+        if ($null -ne $SvcObj) {
+            if ($SvcObj.Status -ne "Stopped") {
+                Stop-Service -Name $Service -Force -ErrorAction SilentlyContinue
+            }
+            Set-Service -Name $Service -StartupType Disabled -ErrorAction SilentlyContinue
+        }
     }
 
     
@@ -74,7 +83,7 @@ Try {
     }
     if ($null -eq $Printers -or $Printers.Count -eq 0) {
         Stop-Service -Name "Spooler" -Force -ErrorAction SilentlyContinue
-        Set-Service -Name "Spooler" -StartupType Disabled -ErrorAction SilentlyContinue
+        Set-Service -Name "Spooler" -StartupType Manual -ErrorAction SilentlyContinue
     }
 
     $Tasks = @(

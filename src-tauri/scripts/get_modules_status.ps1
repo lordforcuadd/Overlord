@@ -33,10 +33,12 @@ if (Test-Path $DataPath) {
 
 $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
 $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+$ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
 if (Test-Path $DnsPath) {
     $Ttl = Get-ItemPropertyValue -Path $DnsPath -Name "MaxCacheTtl" -ErrorAction SilentlyContinue
     $WaitDelay = Get-ItemPropertyValue -Path $TcpPath -Name "TcpTimedWaitDelay" -ErrorAction SilentlyContinue
-    if ($Ttl -eq 86400 -or $WaitDelay -eq 30) {
+    $SysResp = Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue
+    if ($Ttl -eq 86400 -or $WaitDelay -eq 30 -or $SysResp -eq 0) {
         $Status['networkOptimized'] = $true
     }
 }
@@ -66,7 +68,7 @@ if ($pciKey) {
                 $devParamKey = $venKey.OpenSubKey("$devId\Device Parameters\Interrupt Management\Affinity Policy")
                 if ($devParamKey) {
                     $policy = $devParamKey.GetValue("DevicePolicy")
-                    if ($null -ne $policy -and $policy -eq 4) {
+                    if ($null -ne $policy -and ($policy -eq 3 -or $policy -eq 4)) {
                         $Status['irqAffinity'] = $true
                         break
                     }
@@ -79,17 +81,7 @@ if ($pciKey) {
 }
 
 $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
-$ChassisType = (Get-CimInstance -ClassName Win32_SystemEnclosure -ErrorAction SilentlyContinue).ChassisTypes
-$LaptopTypes = @(8, 9, 10, 11, 12, 14, 18, 21)
-$IsSystemLaptop = $false
-if ($null -ne $ChassisType) {
-    foreach ($Type in $ChassisType) {
-        if ($LaptopTypes -contains $Type) {
-            $IsSystemLaptop = $true
-            break
-        }
-    }
-}
+$IsSystemLaptop = $IsLaptop
 
 if ($IsSystemLaptop -and (Test-Path $PowerBackup)) {
     $Status['irqAffinity'] = $true
@@ -103,8 +95,8 @@ if (Test-Path $NtfsPath) {
     }
 }
 
-$DiagTrackType = (Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue).StartType
-if ($DiagTrackType -eq "Disabled") {
+$DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
+if ($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") {
     $Status['deepTelemetry'] = $true
 }
 
@@ -128,7 +120,7 @@ if (Test-Path $GameHooksBackup) {
         if (![string]::IsNullOrWhiteSpace($PathVal)) {
             $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
             $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
-            if ($CurrentFlags -match "DISABLEDXMAXIMIZEDWINDOWEDMODE") {
+            if ($CurrentFlags -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
                 $Status['gameHooks'] = $true
                 break
             }

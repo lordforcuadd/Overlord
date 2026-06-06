@@ -66,8 +66,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
       if (!alertConfirm.isConfirmed) return;
       await crearRespaldo();
-      await store.checkBackupStatus();
-      if (!store.backupExists) return;
+      if (!store.restorePointCreated) return;
     }
 
     isExecutingAll.value = true;
@@ -97,7 +96,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
           gameList: gameListOpt,
         });
 
-        if (modKey === "gameHooks" && gameListOpt && !store.isMonitorRunning) {
+        if (modKey === "gameHooks" && gameListOpt) {
           store.isMonitorRunning = true;
           await invoke("start_game_priority_monitor", {
             gameListRaw: gameListOpt,

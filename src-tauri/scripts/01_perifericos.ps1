@@ -32,29 +32,33 @@ Try {
                         }
 
                         if ($AllowMsi) {
-                            $paramKey = $devKey.OpenSubKey("Device Parameters", $true)
-                            if ($paramKey) {
-                                $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
-                                $msiPathName = "Interrupt Management\MessageSignaledInterruptProperties"
-                                
-                                $interruptKey = $paramKey.CreateSubKey($msiPathName, $true)
-                                if ($interruptKey) {
-                                    $origMsi = $interruptKey.GetValue("MSISupported")
+                            try {
+                                $paramKey = $devKey.OpenSubKey("Device Parameters", $true)
+                                if ($paramKey) {
+                                    $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
+                                    $msiPathName = "Interrupt Management\MessageSignaledInterruptProperties"
                                     
-                                    $backupCheck = Get-ItemProperty -Path $MsiBackupKey -Name $deviceRegID -ErrorAction SilentlyContinue
-                                    if ($null -eq $backupCheck) {
-                                        $backupVal = if ($null -eq $origMsi) { '_ABSENT_' } else { $origMsi }
-                                        Set-ItemProperty -Path $MsiBackupKey -Name $deviceRegID -Value $backupVal -Force | Out-Null
+                                    $interruptKey = $paramKey.CreateSubKey($msiPathName, $true)
+                                    if ($interruptKey) {
+                                        $origMsi = $interruptKey.GetValue("MSISupported")
+                                        
+                                        $backupCheck = Get-ItemProperty -Path $MsiBackupKey -Name $deviceRegID -ErrorAction SilentlyContinue
+                                        if ($null -eq $backupCheck) {
+                                            $backupVal = if ($null -eq $origMsi) { '_ABSENT_' } else { $origMsi }
+                                            Set-ItemProperty -Path $MsiBackupKey -Name $deviceRegID -Value $backupVal -Force | Out-Null
+                                        }
+                                        
+                                        $interruptKey.SetValue("MSISupported", 1, [Microsoft.Win32.RegistryValueKind]::DWord)
+                                        
+                                        if ($interruptKey.GetValue("MSISupported") -ne 1) { 
+                                            Write-Warning "No se pudo asegurar MSISupported para el dispositivo PCI: $devId" 
+                                        }
+                                        $interruptKey.Close()
                                     }
-                                    
-                                    $interruptKey.SetValue("MSISupported", 1, [Microsoft.Win32.RegistryValueKind]::DWord)
-                                    
-                                    if ($interruptKey.GetValue("MSISupported") -ne 1) { 
-                                        Write-Warning "No se pudo asegurar MSISupported para el dispositivo PCI: $devId" 
-                                    }
-                                    $interruptKey.Close()
+                                    $paramKey.Close()
                                 }
-                                $paramKey.Close()
+                            } catch {
+                                Write-Warning "No se pudo configurar MSI para el dispositivo PCI $devId (sin permisos): $_"
                             }
                         }
                         $devKey.Close()
@@ -96,8 +100,8 @@ Try {
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $PriorityControlPath -ValueName "Win32PrioritySeparation" -BackupSubFolder "Performance"
         }
-        Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 38 -Force | Out-Null
-        if ((Get-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation").Win32PrioritySeparation -ne 38) { 
+        Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 22 -Force | Out-Null
+        if ((Get-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation").Win32PrioritySeparation -ne 22) { 
             Write-Warning "No se pudo asegurar Win32PrioritySeparation" 
         }
     }

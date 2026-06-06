@@ -11,7 +11,7 @@ Try {
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
     $Description = "Overlord V4 - Punto Seguro"
 
-    Set-Service -Name VSS -StartupType Automatic -ErrorAction SilentlyContinue
+    Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
     Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name vmicvss -ErrorAction SilentlyContinue

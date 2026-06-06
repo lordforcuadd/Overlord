@@ -171,6 +171,10 @@ switch ($ToggleName) {
             if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
             Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value 1 -Force | Out-Null
         } else {
+            $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
+            if (Test-Path $Path) {
+                Remove-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue | Out-Null
+            }
             Start-Process "ms-windows-store://pdp/?productid=9wzdncrfj1p3"
         }
     }
@@ -200,6 +204,10 @@ switch ($ToggleName) {
 
 if ($RequiresExplorerRestart) {
     Stop-Process -Name explorer -Force
+    Start-Sleep -Seconds 1
+    if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+        Start-Process explorer.exe | Out-Null
+    }
 } else {
     if (-not ([System.Management.Automation.PSTypeName]'Win32.User32').Type) {
         Add-Type -MemberDefinition @'

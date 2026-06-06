@@ -73,7 +73,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 - Activa **MSI Mode** (Message Signaled Interrupts) en GPU y controladores USB recorriendo el árbol PCI completo mediante la API nativa `Microsoft.Win32.Registry`, eliminando las interrupciones de línea compartida (IRQ sharing) que generan latencia de respuesta variable.
 - Reconfigura el búfer de intercambio de los drivers de clase nativos `mouclass` y `kbdclass` fijando `MouseDataQueueSize` y `KeyboardDataQueueSize` en **32**, valor balanceado para polling rates de hasta 8KHz.
-- Establece `Win32PrioritySeparation = 38` (0x26): cuanto corto, variable, con boost máximo al proceso en foreground.
+- Establece `Win32PrioritySeparation = 22` (0x16): quantum de CPU interactivo corto y variable con boost de 3:1 para garantizar la máxima respuesta del juego en primer plano.
 - Desactiva la aceleración del puntero (`MouseSpeed = 0`, `MouseThreshold1/2 = 0`) y neutraliza las curvas de suavizado `SmoothMouseXCurve` y `SmoothMouseYCurve` con 40 bytes a cero, garantizando traducción 1:1 de movimiento físico a digital.
 - Desactiva StickyKeys, ToggleKeys y FilterKeys para evitar interrupciones de accesibilidad involuntarias durante el juego.
 - En desktop: deshabilita USB Selective Suspend via `powercfg` para eliminar los micro-stutters causados por la suspensión automática de puertos USB del ratón y teclado.
@@ -92,8 +92,10 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Fija `MaxCacheTtl = 86400` segundos y `MaxNegativeCacheTtl = 0` en la caché DNS, eliminando resoluciones repetitivas durante el matchmaking y anulando reintentos inmediatos ante fallos de DNS.
 - Establece `TcpTimedWaitDelay = 30` (default 240), liberando puertos TCP en estado TIME_WAIT cinco veces más rápido, crítico en reconexiones frecuentes a servidores de juego.
 - Elimina el límite de throttling del planificador de red con `NetworkThrottlingIndex = 0xFFFFFFFF`, permitiendo que la pila TCP/IP procese todos los paquetes disponibles en cada intervalo sin restricción artificial.
-- Deshabilita marcas de tiempo TCP (`timestamps=disabled`), eliminando 12 bytes de overhead por cabecera.
+- Mantiene activas las marcas de tiempo TCP (TCP Timestamps) para asegurar un correcto control de congestión, cálculo de RTT y escalamiento de ventana TCP en conexiones modernas de alta velocidad (>500 Mbps).
 - Activa RSS (Receive Side Scaling) para distribuir la carga de red entre múltiples cores.
+- Reduce el porcentaje de reserva de CPU para tareas de fondo a cero (`SystemResponsiveness = 0`) para garantizar la máxima asignación de recursos al juego o aplicación en primer plano.
+- Fuerza la autosintonización TCP a `normal` (netsh) para evitar límites arbitrarios de velocidad (común tras usar otros optimizadores) y deshabilita `ecncapability` para prevenir pérdidas de paquetes in-game en routers de consumo antiguos.
 - Deshabilita Teredo e ISATAP únicamente si el sistema no tiene conectividad IPv6 nativa activa (verificado via `Test-Connection` a `ipv6.google.com`), evitando el tráfico de fondo de los túneles IPv6 sobre IPv4.
 - Activa RSC y Checksum Offload en adaptadores Intel; deshabilita RSC en adaptadores no-Intel donde puede causar latencia adicional.
 
@@ -109,7 +111,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 ### 5. GPU, Pantalla y Compositor (`05_gpu_display.ps1`)
 
 - Activa **HAGS** (Hardware Accelerated GPU Scheduling) con `HwSchMode = 2`, habilitando compatibilidad con DLSS 3 Frame Generation y mejorando frametimes en GPUs modernas.
-- Desactiva **MPO** (Multiplane Overlay) con `OverlayTestMode = 5`, eliminando el stuttering y tearing documentado por NVIDIA, AMD y Microsoft causado por la superposición de planos gráficos.
+- Preserva **MPO** (Multiplane Overlay) activo por defecto para beneficiar la latencia de entrada y aceleración gráfica por hardware en aplicaciones y juegos en ventana sin bordes.
 - Configura FSO (Fullscreen Optimizations): `GameDVR_FSEBehaviorMode = 2`, `GameDVR_HonorUserFSEBehaviorMode = 1`, `GameDVR_FSEBehavior = 2` para correcto manejo del modo pantalla completa exclusiva.
 - Deshabilita `AllowGameDVR` via política de grupo, bloqueando el sistema de captura a nivel de políticas.
 - Eleva la prioridad del hilo de `dwm.exe` (Desktop Window Manager) a **Alta** (`CpuPriorityClass = 3`) via IFEO/PerfOptions, estabilizando el Frame Pacing y los 1% Low FPS cuando la CPU está al límite.
@@ -119,8 +121,8 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 ### 6. Afinidad IRQ y Prioridades Multimedia (`06_irq_affinity.ps1`)
 
 - Configura prioridades MMCSS para procesos de juego: `GPU Priority = 8`, `Priority = 6`, `Scheduling Category = High`, `SFIO Priority = High`.
-- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar los hilos de interrupción de **adaptadores de red** (`Class = Net`) al Core 2 (máscara `0x04`), desahogando el Core 0 del Kernel.
-- Simultáneamente aísla los hilos de interrupción de **dispositivos de audio** (`Class = MEDIA`) al Core 1 (máscara `0x02`), eliminando la contención entre audio y red que causa crackling y micro-stutters.
+- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) en un P-Core físico libre (por ejemplo, Core 4, 8 o 12 según la topología de la CPU), desahogando el Core 0 del Kernel sin desactivar el escalamiento RSS (usando `DevicePolicy = 3`).
+- Restaura la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
 - Guarda backup completo de las máscaras binarias originales con su tipo `REG_BINARY` preservado para revert exacto.
 
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
@@ -146,7 +148,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 ### 9. Gestión de Energía (`09_energia.ps1`)
 
 - Guarda backup del GUID del plan de energía activo en `HKLM:\SOFTWARE\Overlord\Backup\Power\ActivePowerPlan` antes de cualquier cambio, garantizando que el revert devuelva el plan original exacto.
-- **En desktop:** Desbloquea e inyecta el esquema oculto _Ultimate Performance_ (`e9a42b02-d5df-448d-aa00-03f14749eb61`). Si no existe en el sistema, lo duplica desde el esquema base y guarda el GUID del duplicado para el revert. Desactiva Core Parking, deshabilita USB Selective Suspend tanto via registro (`DisableSelectiveSuspend = 1`) como via `powercfg`, y fuerza los límites de Core Parking a cero.
+- **En desktop:** Desbloquea e inyecta el esquema oculto _Ultimate Performance_ (`e9a42b02-d5df-448d-aa00-03f14749eb61`). Si no existe en el sistema, clona dinámicamente el plan de Alto Rendimiento (o el plan Equilibrado como fallback garantizado si el primero fue eliminado de la ISO) y guarda el GUID del duplicado para el revert. Desactiva Core Parking, deshabilita USB Selective Suspend tanto via registro (`DisableSelectiveSuspend = 1`) como via `powercfg`, y fuerza los límites de Core Parking a cero.
 - **En laptop:** Optimiza el control térmico configurando el índice de gestión del procesador via `powercfg` sin deshabilitar las protecciones de ahorro de energía, preservando la integridad térmica.
 
 ### 10. Prioridad Absoluta para Juegos (`11_game_hooks.ps1`)
@@ -154,7 +156,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Recibe la lista de ejecutables de juegos detectados desde el frontend y aplica directivas IFEO (`Image File Execution Options`) personalizadas a cada uno.
 - Ajusta `CpuPriorityClass` de forma adaptativa según la topología del sistema: prioridad **Alta (3)** en sistemas con más de 6 cores; prioridad **AboveNormal (6)** en laptops o sistemas con 5-6 cores; prioridad **Normal (2)** en sistemas con 4 cores o menos, evitando penalizar el sistema en hardware limitado.
 - Asigna `IoPriority = 3` (Alta) para lecturas de disco preferentes.
-- Inyecta `DISABLEDXMAXIMIZEDWINDOWEDMODE = 1` para forzar pantalla completa exclusiva real en lugar del modo ventana maximizada de DirectX.
+- Inyecta la invalidación de escalamiento de PPP (High DPI) para eliminar la latencia por reescalado de pantalla y conserva las optimizaciones modernas de DirectX en modo ventana maximizada (modelo Flip nativo de Windows 10/11).
 - Guarda backup completo de todos los valores originales por ejecutable para revert limpio.
 
 ---

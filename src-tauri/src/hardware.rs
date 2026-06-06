@@ -5,6 +5,7 @@ use winreg::RegKey;
 use std::process::Command; 
 use sysinfo::System;
 use std::os::windows::process::CommandExt;
+use std::sync::OnceLock;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -34,60 +35,57 @@ extern "system" {
     fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
 }
 
+static HARDWARE_CACHE: OnceLock<HardwareResponse> = OnceLock::new();
+
 pub fn get_system_hardware() -> HardwareResponse {
-    let mut sys = System::new_all();
-    sys.refresh_memory();
-    sys.refresh_cpu();
+    HARDWARE_CACHE.get_or_init(|| {
+        let mut sys = System::new_all();
+        sys.refresh_memory();
+        sys.refresh_cpu();
 
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
-    let cpu_name = hklm
-        .open_subkey("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0")
-        .and_then(|key| key.get_value::<String, _>("ProcessorNameString"))
-        .unwrap_or_else(|_| {
-            sys.cpus()
-                .first()
-                .map(|cpu| cpu.brand().trim().to_string())
-                .unwrap_or_else(|| "CPU no detectada".to_string())
-        });
+        let cpu_name = hklm
+            .open_subkey("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0")
+            .and_then(|key| key.get_value::<String, _>("ProcessorNameString"))
+            .unwrap_or_else(|_| {
+                sys.cpus()
+                    .first()
+                    .map(|cpu| cpu.brand().trim().to_string())
+                    .unwrap_or_else(|| "CPU no detectada".to_string())
+            });
 
-    let motherboard_name = hklm
-        .open_subkey("HARDWARE\\DESCRIPTION\\System\\BIOS")
-        .and_then(|key| {
-            let base_prod: String = key.get_value("BaseBoardProduct")?;
-            let base_man: String = key.get_value("BaseBoardManufacturer")?;
-            Ok(format!("{} {}", base_man, base_prod))
-        })
-        .unwrap_or_else(|_| "Placa Base Generica".to_string());
+        let motherboard_name = hklm
+            .open_subkey("HARDWARE\\DESCRIPTION\\System\\BIOS")
+            .and_then(|key| {
+                let base_prod: String = key.get_value("BaseBoardProduct")?;
+                let base_man: String = key.get_value("BaseBoardManufacturer")?;
+                Ok(format!("{} {}", base_man, base_prod))
+            })
+            .unwrap_or_else(|_| "Placa Base Generica".to_string());
 
-    let mut gpus = Vec::new();
-    if let Ok(class_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}") {
-        for subkey_name in class_key.enum_keys().map(|x| x.unwrap_or_default()) {
-            if subkey_name.len() == 4 && subkey_name.chars().all(|c| c.is_ascii_digit()) {
-                if let Ok(subkey) = class_key.open_subkey(&subkey_name) {
-                    if let Ok(driver_desc) = subkey.get_value::<String, _>("DriverDesc") {
-                        if !driver_desc.contains("Basic Render") && !gpus.contains(&driver_desc) {
-                            gpus.push(driver_desc);
+        let mut gpus = Vec::new();
+        if let Ok(class_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}") {
+            for subkey_name in class_key.enum_keys().map(|x| x.unwrap_or_default()) {
+                if subkey_name.len() == 4 && subkey_name.chars().all(|c| c.is_ascii_digit()) {
+                    if let Ok(subkey) = class_key.open_subkey(&subkey_name) {
+                        if let Ok(driver_desc) = subkey.get_value::<String, _>("DriverDesc") {
+                            if !driver_desc.contains("Basic Render") && !gpus.contains(&driver_desc) {
+                                gpus.push(driver_desc);
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    let gpu_name = if gpus.is_empty() { "GPU no detectada".to_string() } else { gpus.join(" + ") };
+        let gpu_name = if gpus.is_empty() { "GPU no detectada".to_string() } else { gpus.join(" + ") };
 
-    let total_ram_bytes = sys.total_memory();
-    let ram_calc = (total_ram_bytes as f64 / 1024.0 / 1024.0 / 1024.0).round() as u32;
+        let total_ram_bytes = sys.total_memory();
+        let ram_calc = (total_ram_bytes as f64 / 1024.0 / 1024.0 / 1024.0).round() as u32;
 
-    let mut detected_speed = 0;
-    if let Ok(perf_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers\\Power") {
-        if let Ok(speed) = perf_key.get_value::<u32, _>("RamSpeedMhz") {
-            if speed > 0 { detected_speed = speed; }
-        }
-    }
-
-    if detected_speed == 0 {
+        let mut detected_speed = 0;
+        
         if let Ok(output) = Command::new("powershell.exe")
             .creation_flags(0x08000000)
             .args(&["-NoProfile", "-Command", "(Get-CimInstance -ClassName Win32_PhysicalMemory | Select-Object -First 1).ConfiguredClockSpeed"])
@@ -100,79 +98,144 @@ pub fn get_system_hardware() -> HardwareResponse {
                 }
             }
         }
-    }
 
-    let ram_speed_mhz = if detected_speed > 0 { Some(detected_speed) } else { None };
+        let ram_speed_mhz = if detected_speed > 0 { Some(detected_speed) } else { None };
 
-    let is_laptop_chassis = hklm
-        .open_subkey("SYSTEM\\CurrentControlSet\\Control\\SystemInformation")
-        .and_then(|key| {
-            let chassis_type: u32 = key.get_value("SystemChassisType")?;
-            Ok(matches!(chassis_type, 8 | 9 | 10 | 11 | 12 | 14))
-        })
-        .unwrap_or(false);
+        let is_laptop_chassis = hklm
+            .open_subkey("SYSTEM\\CurrentControlSet\\Control\\SystemInformation")
+            .and_then(|key| {
+                let chassis_type: u32 = key.get_value("SystemChassisType")?;
+                Ok(matches!(chassis_type, 8 | 9 | 10 | 11 | 12 | 14))
+            })
+            .unwrap_or(false);
 
-    let mut drive_is_ssd = true;
-    let path_drive: Vec<u16> = "\\\\.\\C:".encode_utf16().chain(std::iter::once(0)).collect();
-    unsafe {
-        let handle = CreateFileW(path_drive.as_ptr(), 0x80000000, 0x00000001 | 0x00000002, std::ptr::null_mut(), 3, 0x00000080, std::ptr::null_mut());
-        if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
-            #[repr(C)]
-            struct STORAGE_PROPERTY_QUERY { property_id: u32, query_type: u32, additional_parameters: [u8; 1] }
-            #[repr(C)]
-            struct DEVICE_SEEK_PENALTY_DESCRIPTOR { version: u32, size: u32, is_seek_penalty: u8 }
-            
-            let mut query = STORAGE_PROPERTY_QUERY { property_id: 7, query_type: 0, additional_parameters: [0] };
-            let mut descriptor = DEVICE_SEEK_PENALTY_DESCRIPTOR { version: 0, size: 0, is_seek_penalty: 1 };
-            let mut bytes_returned = 0;
-            
-            let res = DeviceIoControl(handle, 0x002D1400, &mut query as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32, &mut descriptor as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32, &mut bytes_returned, std::ptr::null_mut());
-            if res != 0 && descriptor.is_seek_penalty == 1 {
-                drive_is_ssd = false;
-            }
-            CloseHandle(handle);
-        }
-    }
-
-    let mut is_hybrid = false;
-    let mut length = 0;
-    unsafe { GetLogicalProcessorInformationEx(0, std::ptr::null_mut(), &mut length); }
-    if length > 0 {
-        let mut buffer = vec![0u8; length as usize];
+        let mut drive_is_ssd = true;
+        let path_drive: Vec<u16> = "\\\\.\\C:".encode_utf16().chain(std::iter::once(0)).collect();
         unsafe {
-            if GetLogicalProcessorInformationEx(0, buffer.as_mut_ptr(), &mut length) != 0 {
-                let mut offset = 0;
-                let mut efficiency_classes = Vec::new();
-                while offset + 8 <= buffer.len() {
-                    let relationship = u32::from_le_bytes([buffer[offset], buffer[offset+1], buffer[offset+2], buffer[offset+3]]);
-                    let size = u32::from_le_bytes([buffer[offset+4], buffer[offset+5], buffer[offset+6], buffer[offset+7]]) as usize;
-                    if size == 0 || offset + size > buffer.len() { break; }
-                    if relationship == 0 && size > 9 {
-                        let eff_class = buffer[offset + 9];
-                        if !efficiency_classes.contains(&eff_class) {
-                            efficiency_classes.push(eff_class);
+            let handle = CreateFileW(path_drive.as_ptr(), 0x80000000, 0x00000001 | 0x00000002, std::ptr::null_mut(), 3, 0x00000080, std::ptr::null_mut());
+            if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
+                #[repr(C)]
+                struct STORAGE_PROPERTY_QUERY { property_id: u32, query_type: u32, additional_parameters: [u8; 1] }
+                #[repr(C)]
+                struct DEVICE_SEEK_PENALTY_DESCRIPTOR { version: u32, size: u32, is_seek_penalty: u8 }
+                
+                let mut query = STORAGE_PROPERTY_QUERY { property_id: 7, query_type: 0, additional_parameters: [0] };
+                let mut descriptor = DEVICE_SEEK_PENALTY_DESCRIPTOR { version: 0, size: 0, is_seek_penalty: 1 };
+                let mut bytes_returned = 0;
+                
+                let res = DeviceIoControl(handle, 0x002D1400, &mut query as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32, &mut descriptor as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32, &mut bytes_returned, std::ptr::null_mut());
+                if res != 0 {
+                    if descriptor.is_seek_penalty == 1 {
+                        drive_is_ssd = false;
+                    }
+                } else {
+                    let err = std::io::Error::last_os_error();
+                    eprintln!("[OVERLORD WARNING] DeviceIoControl failed: {}", err);
+                }
+                CloseHandle(handle);
+            } else {
+                let err = std::io::Error::last_os_error();
+                eprintln!("[OVERLORD WARNING] CreateFileW on C: failed: {}", err);
+            }
+        }
+
+        let mut is_hybrid = false;
+        let mut length = 0;
+        unsafe { GetLogicalProcessorInformationEx(0, std::ptr::null_mut(), &mut length); }
+        if length > 0 {
+            let mut buffer = vec![0u8; length as usize];
+            unsafe {
+                if GetLogicalProcessorInformationEx(0, buffer.as_mut_ptr(), &mut length) != 0 {
+                    let mut offset = 0;
+                    let mut efficiency_classes = Vec::new();
+                    while offset + 8 <= buffer.len() {
+                        let relationship = u32::from_le_bytes([buffer[offset], buffer[offset+1], buffer[offset+2], buffer[offset+3]]);
+                        let size = u32::from_le_bytes([buffer[offset+4], buffer[offset+5], buffer[offset+6], buffer[offset+7]]) as usize;
+                        if size == 0 || offset + size > buffer.len() { break; }
+                        if relationship == 0 && size > 9 {
+                            let eff_class = buffer[offset + 9];
+                            if !efficiency_classes.contains(&eff_class) {
+                                efficiency_classes.push(eff_class);
+                            }
+                        }
+                        offset += size;
+                    }
+                    if efficiency_classes.len() > 1 { is_hybrid = true; }
+                }
+            }
+        }
+
+        let is_x3d = cpu_name.to_lowercase().contains("x3d");
+
+        HardwareResponse {
+            cpu: cpu_name,
+            gpu: gpu_name,
+            motherboard: motherboard_name,
+            ram_gb: ram_calc,
+            ram_speed_mhz,
+            is_laptop: is_laptop_chassis,
+            is_hybrid,
+            is_x3d,
+            is_ssd: drive_is_ssd,
+        }
+    }).clone()
+}
+
+fn get_steam_library_paths() -> Vec<String> {
+    let mut paths = vec![
+        "C:\\Program Files\\Steam\\steamapps\\common".to_string(),
+        "C:\\Program Files (x86)\\Steam\\steamapps\\common".to_string(),
+    ];
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    if let Ok(steam_key) = hkcu.open_subkey("Software\\Valve\\Steam") {
+        if let Ok(steam_path) = steam_key.get_value::<String, _>("SteamPath") {
+            let path = Path::new(&steam_path).join("steamapps").join("libraryfolders.vdf");
+            if let Ok(content) = std::fs::read_to_string(path) {
+                for line in content.lines() {
+                    if line.contains("\"path\"") {
+                        let parts: Vec<&str> = line.split('"').collect();
+                        if parts.len() >= 4 {
+                            let p = parts[3].replace("\\\\", "\\");
+                            let common_path = Path::new(&p).join("steamapps").join("common");
+                            if common_path.exists() {
+                                if let Some(p_str) = common_path.to_str() {
+                                    let p_string = p_str.to_string();
+                                    if !paths.contains(&p_string) {
+                                        paths.push(p_string);
+                                    }
+                                }
+                            }
                         }
                     }
-                    offset += size;
                 }
-                if efficiency_classes.len() > 1 { is_hybrid = true; }
             }
         }
     }
+    paths
+}
 
-    let is_x3d = cpu_name.to_lowercase().contains("x3d");
-
-    HardwareResponse {
-        cpu: cpu_name,
-        gpu: gpu_name,
-        motherboard: motherboard_name,
-        ram_gb: ram_calc,
-        ram_speed_mhz,
-        is_laptop: is_laptop_chassis,
-        is_hybrid,
-        is_x3d,
-        is_ssd: drive_is_ssd,
+fn get_epic_installed_games() -> Vec<(String, String)> {
+    let mut games = Vec::new();
+    let manifests_path = Path::new("C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests");
+    if manifests_path.exists() {
+        if let Ok(entries) = std::fs::read_dir(manifests_path) {
+            for entry in entries.flatten() {
+                if entry.path().extension().map_or(false, |ext| ext == "item") {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let (Some(name), Some(location)) = (
+                                json.get("MandatoryAppFolderName").and_then(|v| v.as_str()),
+                                json.get("InstallLocation").and_then(|v| v.as_str())
+                            ) {
+                                games.push((name.to_string(), location.to_string()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+    games
 }
 
 pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
@@ -192,6 +255,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
+    // 1. Scan Uninstall registry keys (64-bit and 32-bit)
     let registry_paths = [
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
         "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
@@ -214,6 +278,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
+    
     if let Ok(steam_key) = hkcu.open_subkey("Software\\Valve\\Steam\\Apps") {
         for app_id in steam_key.enum_keys().map(|x| x.unwrap_or_default()) {
             if let Ok(app_subkey) = steam_key.open_subkey(&app_id) {
@@ -233,6 +298,30 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
+    
+    let steam_paths = get_steam_library_paths();
+    for path in &steam_paths {
+        for game in catalog.iter_mut() {
+            if Path::new(path).join(&game.name).exists() {
+                game.detected = true;
+            }
+        }
+    }
+
+    
+    let epic_games = get_epic_installed_games();
+    for (folder_name, install_loc) in &epic_games {
+        let lower_folder = folder_name.to_lowercase();
+        let lower_loc = install_loc.to_lowercase();
+        for game in catalog.iter_mut() {
+            let lower_game_name = game.name.to_lowercase();
+            if lower_folder.contains(&lower_game_name) || lower_loc.contains(&lower_game_name) {
+                game.detected = true;
+            }
+        }
+    }
+
+    
     let gog_paths = ["SOFTWARE\\GOG.com\\Games", "SOFTWARE\\Wow6432Node\\GOG.com\\Games"];
     for path in &gog_paths {
         if let Ok(gog_key) = hklm.open_subkey(path) {
@@ -249,6 +338,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
+    
     let common_epic_paths = ["C:\\Program Files\\Epic Games", "D:\\Epic Games"];
     for path in &common_epic_paths {
         for game in catalog.iter_mut() {

@@ -6,20 +6,24 @@ export function useBenchmark() {
   const store = useOverlordStore();
   const isRunning = ref(false);
 
+  interface BenchmarkResponse {
+    tcp_latency: number;
+    dns_latency: number;
+  }
+
   async function ejecutarNetworkBenchmark(fase: "before" | "after") {
     if (isRunning.value) return;
     isRunning.value = true;
 
     try {
-      const latencyResult = await invoke<number>("run_benchmark");
+      const result = await invoke<BenchmarkResponse>("run_benchmark");
 
-      store.benchmarks[fase].networkLatency = latencyResult;
-
-      store.benchmarks[fase].dnsResolution = Math.round(latencyResult * 0.35);
+      store.benchmarks[fase].networkLatency = result.tcp_latency;
+      store.benchmarks[fase].dnsResolution = result.dns_latency;
       store.benchmarks[fase].measured = true;
 
       console.log(
-        `[Overlord Benchmark] Fase ${fase} completada: ${latencyResult}ms`,
+        `[Overlord Benchmark] Fase ${fase} completada - TCP: ${result.tcp_latency}ms, DNS: ${result.dns_latency}ms`,
       );
     } catch (e) {
       console.error("[BENCHMARK CRITICAL FAIL]:", e);

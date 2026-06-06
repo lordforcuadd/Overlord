@@ -28,6 +28,23 @@ try {
 
     $LauncherRoots = @(
         "C:\Riot Games",
+        "C:\XboxGames",
+        "D:\Games",
+        "E:\Games"
+    )
+
+    # Buscar rutas de Steam en el Registro dinámicamente
+    $SteamPathReg = (Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -Name "SteamPath" -ErrorAction SilentlyContinue).SteamPath
+    if ($SteamPathReg) { $LauncherRoots += Join-Path $SteamPathReg "steamapps\common" }
+    $SteamPathReg2 = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Valve\Steam" -Name "InstallPath" -ErrorAction SilentlyContinue).InstallPath
+    if ($SteamPathReg2) { $LauncherRoots += Join-Path $SteamPathReg2 "steamapps\common" }
+
+    # Buscar rutas de Epic Games en el Registro dinámicamente
+    $EpicPathReg = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\EpicGames\Unreal Engine" -Name "INSTALLDIR" -ErrorAction SilentlyContinue).INSTALLDIR
+    if ($EpicPathReg) { $LauncherRoots += $EpicPathReg }
+
+    # Agregar rutas por defecto comunes de fallback
+    $DefaultRoots = @(
         "C:\Program Files\Steam\steamapps\common",
         "C:\Program Files (x86)\Steam\steamapps\common",
         "C:\Program Files\Epic Games",
@@ -35,11 +52,11 @@ try {
         "C:\Program Files\Overwatch",
         "C:\Program Files\EA Games",
         "C:\Program Files\Ubisoft",
-        "C:\XboxGames",
-        "D:\SteamLibrary\steamapps\common",
-        "D:\Games",
-        "E:\Games"
+        "D:\SteamLibrary\steamapps\common"
     )
+    foreach ($Root in $DefaultRoots) {
+        if (!($LauncherRoots -contains $Root)) { $LauncherRoots += $Root }
+    }
 
     $FolderTranslationTable = @{
         "LeagueClient" = "League of Legends"
@@ -88,7 +105,7 @@ try {
                         if ($ini.IsReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $false }
 
                         $content = Get-Content $ini.FullName
-                        $newContent = @()
+                        $newContent = [System.Collections.Generic.List[string]]::new()
                         $changed = $false
                         foreach ($line in $content) {
                             $modified = $line
@@ -102,19 +119,17 @@ try {
                                     break
                                 }
                             }
-                            $newContent += $modified
+                            $newContent.Add($modified)
                         }
                         if ($changed) {
                             Set-Content -Path $ini.FullName -Value $newContent -Force
-                            Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $true
                             Write-Host "    -> Modo exclusivo forzado en $($engine.Name) ($($ini.FullName))"
                             $FullscreenForced = $true
                         } else {
-                            Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $true
                             Write-Host "    -> El archivo de configuracion ya se encontraba optimizado de forma idempotente."
                             $FullscreenForced = $true
                         }
-                        break
+                        break;
                     }
                 }
             }
@@ -153,10 +168,33 @@ try {
                 if ([string]::IsNullOrWhiteSpace($RealExePath)) {
                     foreach ($Root in $LauncherRoots) {
                         if (Test-Path $Root) {
-                            $FoundFile = Get-ChildItem -Path $Root -Filter $ExeName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
-                            if ($FoundFile) {
-                                $RealExePath = $FoundFile.FullName
-                                break
+                            $candidates = @()
+                            if ($TranslatedName) { $candidates += $TranslatedName }
+                            $candidates += $GameBaseName, $shortName
+                            
+                            foreach ($cand in $candidates) {
+                                $targetFolder = Join-Path $Root $cand
+                                if (Test-Path $targetFolder) {
+                                    $FoundFile = Get-ChildItem -Path $targetFolder -Filter $ExeName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                                    if ($FoundFile) {
+                                        $RealExePath = $FoundFile.FullName
+                                        break
+                                    }
+                                }
+                            }
+                            if (![string]::IsNullOrWhiteSpace($RealExePath)) { break }
+                        }
+                    }
+                    
+                    # Fallback to direct search if specific folder search fails
+                    if ([string]::IsNullOrWhiteSpace($RealExePath)) {
+                        foreach ($Root in $LauncherRoots) {
+                            if (Test-Path $Root) {
+                                $FoundFile = Get-ChildItem -Path $Root -Filter $ExeName -Recurse -Depth 2 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                                if ($FoundFile) {
+                                    $RealExePath = $FoundFile.FullName
+                                    break
+                                }
                             }
                         }
                     }
@@ -180,18 +218,16 @@ try {
                     Set-ItemProperty -Path $GameBackupPath -Name "Path" -Value $RealExePath -Force | Out-Null
                 }
 
-                $NewFlagsList = @()
+                $NewFlagsList = [System.Collections.Generic.List[string]]::new()
                 if ($ExistingLayers) {
-                    $NewFlagsList += $ExistingLayers -split '\s+' | Where-Object { 
+                    $FilteredLayers = $ExistingLayers -split '\s+' | Where-Object { 
                         $_ -and 
-                        $_ -ine "DISABLEDXMAXIMIZEDWINDOWEDMODE" -and 
-                        $_ -ine "~DISABLEDXMAXIMIZEDWINDOWEDMODE" -and 
                         $_ -ine "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -and 
                         $_ -ine "~HIGHDPI_SCALING_OVERRIDE_APPLICATION"
                     }
+                    if ($FilteredLayers) { $NewFlagsList.AddRange($FilteredLayers) }
                 }
-                $NewFlagsList += "DISABLEDXMAXIMIZEDWINDOWEDMODE"
-                $NewFlagsList += "HIGHDPI_SCALING_OVERRIDE_APPLICATION"
+                $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
                 $FinalFlagsValue = ($NewFlagsList -join " ").Trim()
 
                 Set-ItemProperty -Path $LayersPath -Name $RealExePath -Type String -Value $FinalFlagsValue -Force | Out-Null

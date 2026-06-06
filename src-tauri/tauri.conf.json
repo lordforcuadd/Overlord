@@ -37,7 +37,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["scripts/*"],
     "windows": {
       "wix": {
         "language": "es-ES"

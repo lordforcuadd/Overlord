@@ -23,7 +23,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
             if (Test-Path $Path) {
                 $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseDataQueueSize
-                $Size | Should -Be 32
+                $Size | Should -Be 64
             }
         }
 
@@ -31,7 +31,15 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
             if (Test-Path $Path) {
                 $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).KeyboardDataQueueSize
-                $Size | Should -Be 32
+                $Size | Should -Be 64
+            }
+        }
+
+        It "Debe comprobar el quantum de CPU optimizado Win32PrioritySeparation" {
+            $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
+            if (Test-Path $Path) {
+                $Separation = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).Win32PrioritySeparation
+                $Separation | Should -Be 22
             }
         }
 
@@ -97,15 +105,17 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             }
         }
 
-        It "Debe verificar la remocion del estrangulamiento y retardo de cola TCP" {
+        It "Debe verificar la remocion del estrangulamiento, responsividad y retardo de cola TCP" {
             $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
             $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
             
             $WaitDelay = (Get-ItemProperty -Path $TcpPath -ErrorAction SilentlyContinue).TcpTimedWaitDelay
             $Throttling = (Get-ItemProperty -Path $ProfilePath -ErrorAction SilentlyContinue).NetworkThrottlingIndex
+            $SysResp = (Get-ItemProperty -Path $ProfilePath -ErrorAction SilentlyContinue).SystemResponsiveness
             
             $WaitDelay | Should -Be 30
             $Throttling | Should -BeIn @(4294967295, -1)
+            $SysResp | Should -Be 0
         }
     }
 
@@ -118,11 +128,11 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             }
         }
 
-        It "Debe verificar la desactivacion de perfiles MPO para prevenir microstuttering" {
+        It "Debe verificar que MPO (Multiplane Overlay) permanezca en su estado por defecto" {
             $Path = "HKLM:\SOFTWARE\Microsoft\Windows\Dwm"
             if (Test-Path $Path) {
                 $Mpo = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).OverlayTestMode
-                $Mpo | Should -Be 5
+                $Mpo | Should -Be $null
             }
         }
 
@@ -150,7 +160,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             }
         }
 
-        It "Debe asegurar la aplicacion de DISABLEDXMAXIMIZEDWINDOWEDMODE en AppCompatFlags Layers" {
+        It "Debe asegurar la aplicacion de HIGHDPI_SCALING_OVERRIDE_APPLICATION en AppCompatFlags Layers" {
             $GameHooksBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
             if (Test-Path $GameHooksBackup) {
                 $SubKeys = Get-ChildItem -Path $GameHooksBackup -ErrorAction SilentlyContinue
@@ -159,7 +169,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
                     if (![string]::IsNullOrWhiteSpace($PathVal)) {
                         $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
                         $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
-                        $CurrentFlags -match "DISABLEDXMAXIMIZEDWINDOWEDMODE" | Should -Be $true
+                        $CurrentFlags -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION" | Should -Be $true
                     }
                 }
             }

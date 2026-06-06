@@ -1,15 +1,11 @@
-use std::process::{Command, Stdio};
-use std::io::Write;
-use std::os::windows::process::CommandExt;
-use std::sync::Mutex;
+use tokio::process::Command;
+use std::process::Stdio;
+use tokio::sync::Mutex;
+use tokio::io::AsyncWriteExt;
 
-static EXECUTION_LOCK: Mutex<()> = Mutex::new(());
+static EXECUTION_LOCK: Mutex<()> = Mutex::const_new(());
 
-pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
-    let _lock = EXECUTION_LOCK.lock().map_err(|_| "Error al adquirir el candado de ejecucion concurrente".to_string())?;
-
-    let backup_module = include_str!("../scripts/backup_manager.psm1");
-
+fn parse_qol_params(game_list: &str) -> (String, String) {
     let mut toggle_name = String::new();
     let mut is_enabled_str = String::new();
 
@@ -20,8 +16,11 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
             is_enabled_str = parts[1].to_string();
         }
     }
+    (toggle_name, is_enabled_str)
+}
 
-    let header = format!(
+fn build_script_header(is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str) -> String {
+    format!(
         "$IsLaptop = ${}\n\
          $RamGB = {}\n\
          $GameList = '{}'\n\
@@ -35,8 +34,24 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
         game_list.replace("'", "''"),
         toggle_name.replace("'", "''"),
         is_enabled_str.replace("'", "''")
-    );
+    )
+}
 
+fn encode_utf16_base64(script: &str) -> String {
+    let utf16_units: Vec<u16> = script.encode_utf16().collect();
+    let mut utf16_bytes = Vec::with_capacity(utf16_units.len() * 2);
+    for unit in utf16_units {
+        utf16_bytes.extend_from_slice(&unit.to_le_bytes());
+    }
+    custom_base64_encode(&utf16_bytes)
+}
+
+pub async fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+    let _lock = EXECUTION_LOCK.lock().await;
+
+    let backup_module = include_str!("../scripts/backup_manager.psm1");
+    let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
+    let header = build_script_header(is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str);
     let script_clean = strip_param_block(script_raw);
 
     let unified_script = format!(
@@ -46,13 +61,7 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
         script_clean
     );
 
-    let utf16_units: Vec<u16> = unified_script.encode_utf16().collect();
-    let mut utf16_bytes = Vec::with_capacity(utf16_units.len() * 2);
-    for unit in utf16_units {
-        utf16_bytes.extend_from_slice(&unit.to_le_bytes());
-    }
-
-    let b64_encoded = custom_base64_encode(&utf16_bytes);
+    let b64_encoded = encode_utf16_base64(&unified_script);
 
     let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script }";
     let mut child = Command::new("powershell.exe")
@@ -72,10 +81,10 @@ pub fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, 
 
     {
         let mut stdin = child.stdin.take().ok_or("No se pudo abrir el canal stdin de PowerShell".to_string())?;
-        stdin.write_all(b64_encoded.as_bytes()).map_err(|e| format!("Error al escribir en stdin: {}", e))?;
+        stdin.write_all(b64_encoded.as_bytes()).await.map_err(|e| format!("Error al escribir en stdin: {}", e))?;
     } 
 
-    let output = child.wait_with_output().map_err(|e| format!("Error esperando la salida del proceso: {}", e))?;
+    let output = child.wait_with_output().await.map_err(|e| format!("Error esperando la salida del proceso: {}", e))?;
 
     if !output.status.success() {
         let error_str = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -97,7 +106,7 @@ fn strip_param_block(script: &str) -> String {
             let mut in_quote = false;
             let mut quote_char = ' ';
             let mut escape = false;
-
+ 
             for (idx, ch) in trimmed[open_paren..].char_indices() {
                 if escape {
                     escape = false;

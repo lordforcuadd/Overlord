@@ -15,19 +15,12 @@ Try {
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "HwSchMode" -BackupSubFolder "GPU"
-        Backup-OverlordRegistryValue -TargetKey $DwmMpoPath -ValueName "OverlayTestMode" -BackupSubFolder "GPU"
     }
 
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
     if ((Get-ItemProperty -Path $HagsPath -Name "HwSchMode").HwSchMode -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
 
     
-    if (-not $IsLaptop) {
-        Set-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode" -Type DWord -Value 5 -Force | Out-Null
-        if ((Get-ItemProperty -Path $DwmMpoPath -Name "OverlayTestMode").OverlayTestMode -ne 5) { throw "Fallo al verificar OverlayTestMode (MPO)" }
-    } else {
-        Write-Host "    -> Laptop detectada: Preservando Multi-Plane Overlays (MPO) para maximizar la duracion de la bateria." -ForegroundColor Green
-    }
 
     $FsoPath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $FsoPath)) { New-Item -Path $FsoPath -Force | Out-Null }
@@ -54,17 +47,6 @@ Try {
     }
     Set-ItemProperty -Path $GameBarPath -Name "AllowGameDVR" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemProperty -Path $GameBarPath -Name "AllowGameDVR").AllowGameDVR -ne 0) { throw "Fallo al asegurar la desactivacion de la directiva AllowGameDVR" }
-
-    $DwmOptionsPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions"
-    if (!(Test-Path $DwmOptionsPath)) { New-Item -Path $DwmOptionsPath -Force | Out-Null }
-
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $DwmOptionsPath -ValueName "CpuPriorityClass" -BackupSubFolder "GPU"
-    }
-    
-    
-    Set-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass" -Type DWord -Value 2 -Force | Out-Null
-    if ((Get-ItemProperty -Path $DwmOptionsPath -Name "CpuPriorityClass").CpuPriorityClass -ne 2) { throw "Fallo al asegurar la prioridad segura CpuPriorityClass para dwm.exe" }
 
     $DwmColorPath = "HKCU:\Software\Microsoft\Windows\DWM"
     if (!(Test-Path $DwmColorPath)) { New-Item -Path $DwmColorPath -Force | Out-Null }

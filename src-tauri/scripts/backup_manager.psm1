@@ -16,11 +16,18 @@ function Backup-OverlordRegistryValue {
         $ExistingBackup = (Get-ItemProperty -Path $GlobalBackupPath -Name $ValueName -ErrorAction SilentlyContinue).$ValueName
         
         if ($OrigValue -ne $null -and $ExistingBackup -eq $null) {
-            $RegKey = Get-Item -Path $TargetKey
-            $Kind = $RegKey.GetValueKind($ValueName)
-            Set-ItemProperty -Path $GlobalBackupPath -Name "${ValueName}_Kind" -Value $Kind.ToString() -Force | Out-Null
-            Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value $OrigValue -Force | Out-Null
+            $RegKey = Get-Item -Path $TargetKey -ErrorAction SilentlyContinue
+            if ($null -ne $RegKey) {
+                $Kind = $RegKey.GetValueKind($ValueName)
+                Set-ItemProperty -Path $GlobalBackupPath -Name "${ValueName}_Kind" -Value $Kind.ToString() -Force | Out-Null
+                Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value $OrigValue -Force | Out-Null
+            }
         } elseif ($OrigValue -eq $null -and $ExistingBackup -eq $null) {
+            Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value '_ABSENT_' -Force | Out-Null
+        }
+    } else {
+        $ExistingBackup = (Get-ItemProperty -Path $GlobalBackupPath -Name $ValueName -ErrorAction SilentlyContinue).$ValueName
+        if ($ExistingBackup -eq $null) {
             Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value '_ABSENT_' -Force | Out-Null
         }
     }

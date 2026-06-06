@@ -15,10 +15,33 @@ switch ($ActionId) {
         reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Temporary Files" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
         reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Update Cleanup" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
         
-        cleanmgr.exe /sagerun:1 | Out-Null
+        $CleanProcess = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -WindowStyle Hidden -PassThru -ErrorAction SilentlyContinue
+        if ($CleanProcess) {
+            $Timeout = 180
+            $Interval = 2
+            $Waited = 0
+            while (-not $CleanProcess.HasExited -and $Waited -lt $Timeout) {
+                Start-Sleep -Seconds $Interval
+                $Waited += $Interval
+            }
+        }
+
+        # Limpiar los flags temporales creados para evitar polución del registro
+        $CachesPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+        if (Test-Path $CachesPath) {
+            $Caches = Get-ChildItem -Path $CachesPath -ErrorAction SilentlyContinue
+            foreach ($Cache in $Caches) {
+                Remove-ItemProperty -Path $Cache.PSPath -Name "StateFlags0001" -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
         
-        Remove-Item -Path "$env:localappdata\Temp\*" -Recurse -Force -Confirm:$false
-        Remove-Item -Path "$env:windir\Temp\*" -Recurse -Force -Confirm:$false
+        # Eliminación rápida y segura de archivos temporales sin colisiones por bloqueos profundos
+        Get-ChildItem -Path "$env:localappdata\Temp" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        Get-ChildItem -Path "$env:windir\Temp" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        }
         Write-Output "OK: Limpieza profunda de almacenamiento completada preservando logs de caidas."
     }
     "RepairOS" {

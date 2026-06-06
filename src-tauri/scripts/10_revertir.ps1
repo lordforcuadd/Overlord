@@ -62,49 +62,50 @@ Try {
                         $paramPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\$venId\$devId\Device Parameters"
 
                         if ($class -eq "Display" -or $class -eq "USB") {
-                            if (Test-Path $MsiBackupKey) {
-                                $savedMsi = (Get-ItemProperty -Path $MsiBackupKey -Name $deviceRegID -ErrorAction SilentlyContinue).$deviceRegID
-                                if ($null -ne $savedMsi) {
-                                    $MsiSubKey = "$paramPath\Interrupt Management\MessageSignaledInterruptProperties"
-                                    if ($savedMsi -eq '_ABSENT_') {
-                                        if (Test-Path $MsiSubKey) { Remove-ItemProperty -Path $MsiSubKey -Name "MSISupported" -ErrorAction SilentlyContinue | Out-Null }
-                                    } else {
-                                        if (!(Test-Path $MsiSubKey)) { New-Item -Path $MsiSubKey -Force | Out-Null }
-                                        Set-ItemProperty -Path $MsiSubKey -Name "MSISupported" -Type DWord -Value $savedMsi -Force | Out-Null
+                            try {
+                                if (Test-Path $MsiBackupKey) {
+                                    $savedMsi = (Get-ItemProperty -Path $MsiBackupKey -Name $deviceRegID -ErrorAction SilentlyContinue).$deviceRegID
+                                    if ($null -ne $savedMsi) {
+                                        $MsiSubKey = "$paramPath\Interrupt Management\MessageSignaledInterruptProperties"
+                                        if ($savedMsi -eq '_ABSENT_') {
+                                            if (Test-Path $MsiSubKey) { Remove-ItemProperty -Path $MsiSubKey -Name "MSISupported" -ErrorAction SilentlyContinue | Out-Null }
+                                        } else {
+                                            if (!(Test-Path $MsiSubKey)) { New-Item -Path $MsiSubKey -Force | Out-Null }
+                                            Set-ItemProperty -Path $MsiSubKey -Name "MSISupported" -Type DWord -Value $savedMsi -Force | Out-Null
+                                        }
                                     }
                                 }
+                            } catch {
+                                Write-Warning "No se pudieron revertir los parametros MSI para el dispositivo ${deviceRegID}: $_"
                             }
                         }
 
-                        if ($class -eq "Net" -or $class -eq "MEDIA") {
-                            if (Test-Path $NetBackupKey) {
-                                $savedPolicy = $null
-                                $savedOverride = $null
-                                if ($class -eq "Net") {
+                        if ($class -eq "Net") {
+                            try {
+                                if (Test-Path $NetBackupKey) {
                                     $savedPolicy   = (Get-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Policy"   -ErrorAction SilentlyContinue)."${deviceRegID}_Policy"
                                     $savedOverride = (Get-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Override" -ErrorAction SilentlyContinue)."${deviceRegID}_Override"
-                                } else {
-                                    $savedPolicy   = (Get-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_AudioPolicy"   -ErrorAction SilentlyContinue)."${deviceRegID}_AudioPolicy"
-                                    $savedOverride = (Get-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_AudioOverride" -ErrorAction SilentlyContinue)."${deviceRegID}_AudioOverride"
-                                }
 
-                                if ($null -ne $savedPolicy) {
-                                    $affinityPath = "$paramPath\Interrupt Management\Affinity Policy"
-                                    if ($savedPolicy -eq '_ABSENT_') {
-                                        if (Test-Path $affinityPath) {
-                                            Remove-ItemProperty -Path $affinityPath -Name "DevicePolicy" -ErrorAction SilentlyContinue | Out-Null
-                                            Remove-ItemProperty -Path $affinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue | Out-Null
-                                        }
-                                    } else {
-                                        if (!(Test-Path $affinityPath)) { New-Item -Path $affinityPath -Force | Out-Null }
-                                        Set-ItemProperty -Path $affinityPath -Name "DevicePolicy" -Type DWord -Value $savedPolicy -Force | Out-Null
-                                        if ($null -ne $savedOverride -and $savedOverride -ne '_ABSENT_') {
-                                            Set-ItemProperty -Path $affinityPath -Name "AssignmentSetOverride" -Type Binary -Value $savedOverride -Force | Out-Null
+                                    if ($null -ne $savedPolicy) {
+                                        $affinityPath = "$paramPath\Interrupt Management\Affinity Policy"
+                                        if ($savedPolicy -eq '_ABSENT_') {
+                                            if (Test-Path $affinityPath) {
+                                                Remove-ItemProperty -Path $affinityPath -Name "DevicePolicy" -ErrorAction SilentlyContinue | Out-Null
+                                                Remove-ItemProperty -Path $affinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue | Out-Null
+                                            }
                                         } else {
-                                            Remove-ItemProperty -Path $affinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue | Out-Null
+                                            if (!(Test-Path $affinityPath)) { New-Item -Path $affinityPath -Force | Out-Null }
+                                            Set-ItemProperty -Path $affinityPath -Name "DevicePolicy" -Type DWord -Value $savedPolicy -Force | Out-Null
+                                            if ($null -ne $savedOverride -and $savedOverride -ne '_ABSENT_') {
+                                                Set-ItemProperty -Path $affinityPath -Name "AssignmentSetOverride" -Type Binary -Value $savedOverride -Force | Out-Null
+                                            } else {
+                                                Remove-ItemProperty -Path $affinityPath -Name "AssignmentSetOverride" -ErrorAction SilentlyContinue | Out-Null
+                                            }
                                         }
                                     }
                                 }
+                            } catch {
+                                Write-Warning "No se pudieron revertir los parametros de Afinidad de Red para el dispositivo ${deviceRegID}: $_"
                             }
                         }
                         $devKey.Close()
@@ -144,7 +145,11 @@ Try {
         }
     }
 
-    Get-NetFirewallRule -DisplayName "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
+    try {
+        Get-NetFirewallRule -DisplayName "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
+    } catch {
+        Write-Warning "No se pudieron remover las reglas del Firewall de Windows: $_"
+    }
 
     $Tasks = @(
         "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
@@ -174,9 +179,39 @@ Try {
     Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name "MaxNegativeCacheTtl" -ErrorAction SilentlyContinue | Out-Null
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ValueName "TcpTimedWaitDelay" -BackupSubFolder "Network" -DefaultValue 30
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network" -DefaultValue 10
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -ValueName "SystemResponsiveness" -BackupSubFolder "Network" -DefaultValue 20
+
+    # Revertir configuraciones especificas de interfaces de red
+    $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
+    if (Test-Path $InterfacesPath) {
+        $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
+        foreach ($Key in $InterfaceKeys) {
+            if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                Restore-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network" | Out-Null
+                Restore-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network" | Out-Null
+            }
+        }
+    }
+
+    # Revertir ahorros de energia en adaptadores de red advanced
+    $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+    if (Test-Path $NetClassPath) {
+        $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
+        foreach ($Adapter in $NetAdapters) {
+            if ($Adapter.PSChildName -match "^\d{4}$") {
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
+                foreach ($PKey in $PowerKeys) {
+                    if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                        Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network" | Out-Null
+                    }
+                }
+            }
+        }
+    }
 
     netsh int tcp set global rss=enabled | Out-Null
-    netsh int tcp set global timestamps=enabled | Out-Null
+    netsh int tcp set global autotuninglevel=normal | Out-Null
+    netsh int tcp set global ecncapability=default | Out-Null
     netsh interface ipv6 teredo set state default | Out-Null
     netsh interface ipv6 isatap set state default  | Out-Null
 
@@ -210,14 +245,14 @@ Try {
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
     $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
 
-    Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $PrefetchPath -ValueName "EnablePrefetcher" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey $PrefetchPath -ValueName "EnableSuperfetch" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "LargeSystemCache" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage" -DefaultValue 1
     
-    fsutil behavior set disablelastaccess 0 | Out-Null
+    fsutil behavior set disablelastaccess 1 | Out-Null
     fsutil behavior set disable8dot3 0 | Out-Null
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\System\CurrentControlSet\Control\DeviceGuard" -ValueName "EnableVirtualizationBasedSecurity" -BackupSubFolder "Telemetry" -DefaultValue $null
@@ -264,11 +299,13 @@ Try {
         Invoke-OverlordSafeRestore -TargetKey $PowerSettingsPath -ValueName "ValueMin" -BackupSubFolder "Power" -DefaultValue $null
     }
 
-    $SavedHibernate = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "HibernateEnabled" -ErrorAction SilentlyContinue).HibernateEnabled
+    $StorageBackup = "HKLM:\SOFTWARE\Overlord\Backup\Storage"
+    $SavedHibernate = $null
+    if (Test-Path $StorageBackup) {
+        $SavedHibernate = (Get-ItemProperty -Path $StorageBackup -Name "HibernateEnabled" -ErrorAction SilentlyContinue).HibernateEnabled
+    }
     if ($null -ne $SavedHibernate -and $SavedHibernate -ne '_ABSENT_') {
         if ($SavedHibernate -eq 0) { powercfg.exe /hibernate off | Out-Null } else { powercfg.exe /hibernate on | Out-Null }
-    } elseif (-not $IsLaptop) {
-        powercfg.exe /hibernate on | Out-Null
     }
 
     if (Test-Path $GameHooksBackup) {
@@ -292,16 +329,34 @@ Try {
         }
     }
 
-    $GlobalAppData = Join-Path $env:LOCALAPPDATA "*"
-    Get-ChildItem -Path $GlobalAppData -Filter "GameUserSettings.ini" -Recurse -Depth 5 -File -ErrorAction SilentlyContinue | ForEach-Object {
-        if ($_.IsReadOnly) { Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue | Out-Null }
+    $KnownGameFolders = @("FortniteGame", "VALORANT", "ShooterGame", "Apex", "Cyberpunk 2077", "Dota 2", "Call of Duty")
+    foreach ($Folder in $KnownGameFolders) {
+        $GamePath = Join-Path $env:LOCALAPPDATA $Folder
+        if (Test-Path $GamePath) {
+            Get-ChildItem -Path $GamePath -Filter "GameUserSettings.ini" -Recurse -Depth 4 -File -ErrorAction SilentlyContinue | ForEach-Object {
+                if ($_.IsReadOnly) { Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue | Out-Null }
+            }
+        }
     }
 
     if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
 
+    # Eliminar la clave padre principal si queda vacía tras la reversión para no dejar huella
+    $OverlordKey = "HKLM:\SOFTWARE\Overlord"
+    if (Test-Path $OverlordKey) {
+        $Subkeys = Get-ChildItem -Path $OverlordKey -ErrorAction SilentlyContinue
+        if ($null -eq $Subkeys -or $Subkeys.Count -eq 0) {
+            Remove-Item -Path $OverlordKey -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+    }
+
     Write-Host "[+] Reversion completa de Overlord finalizada con exito."
     Write-Host "Reiniciando el entorno del Explorador de Windows..."
     Stop-Process -Name explorer -Force
+    Start-Sleep -Seconds 1
+    if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+        Start-Process explorer.exe | Out-Null
+    }
     exit 0
 
 } Catch {

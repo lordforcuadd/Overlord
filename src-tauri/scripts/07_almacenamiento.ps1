@@ -50,10 +50,10 @@ Try {
         powercfg.exe /hibernate off | Out-Null
     }
 
-    $BootDrive = Get-Disk | Where-Object { $_.IsBoot -eq $true }
+    $BootDrive = Get-Disk -ErrorAction SilentlyContinue | Where-Object { $_.IsBoot -eq $true }
     $isHDD = $false
     if ($BootDrive) {
-        $PhysicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceID -eq $BootDrive.Number }
+        $PhysicalDisk = Get-PhysicalDisk -ErrorAction SilentlyContinue | Where-Object { $_.DeviceID -eq $BootDrive.Number }
         if ($PhysicalDisk -and $PhysicalDisk.MediaType -eq "HDD") {
             $isHDD = $true
         }
@@ -73,8 +73,14 @@ Try {
     if ((Get-ItemProperty -Path $MemPath -Name "LargeSystemCache").LargeSystemCache -ne 0) { throw "Fallo al verificar LargeSystemCache" }
 
     $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
-    $DismProcess | Wait-Process -Timeout 1200 -ErrorAction SilentlyContinue
-    if (!$DismProcess.HasExited) { $DismProcess | Stop-Process -Force }
+    # Esperamos hasta 20 minutos sin lanzar excepciones si se agota el tiempo
+    $Timeout = 1200
+    $Interval = 5
+    $Waited = 0
+    while (-not $DismProcess.HasExited -and $Waited -lt $Timeout) {
+        Start-Sleep -Seconds $Interval
+        $Waited += $Interval
+    }
 
     try {
         $UpdateSession = New-Object -ComObject "Microsoft.Update.Session"

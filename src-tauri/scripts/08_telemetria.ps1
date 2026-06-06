@@ -25,11 +25,15 @@ Try {
 
     try {
         $OSInfo = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-        if ($OSInfo.Caption -match "Enterprise|EnterpriseG|Education|Server") {
-            Write-Host "[+] Sistema Operativo Corporativo detectado (${OSInfo.Caption}). Preservando VBS/HVCI para mantener directivas de seguridad corporativas." -ForegroundColor Green
+        if ($null -ne $OSInfo -and $OSInfo.Caption -match "Enterprise|EnterpriseG|Education|Server") {
+            Write-Host "[+] Sistema Operativo Corporativo detectado ($($OSInfo.Caption)). Preservando VBS/HVCI para mantener directivas de seguridad corporativas." -ForegroundColor Green
             $SkipVBSHVCI = $true
         }
+    } catch {
+        Write-Warning "No se pudo determinar el tipo de Sistema Operativo: $_"
+    }
 
+    try {
         $BitLockerVolumes = Get-CimInstance -Namespace "root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume" -ErrorAction SilentlyContinue
         if ($BitLockerVolumes) {
             foreach ($Volume in $BitLockerVolumes) {
@@ -41,7 +45,7 @@ Try {
             }
         }
     } catch {
-        $SkipVBSHVCI = $false
+        Write-Warning "No se pudo comprobar el cifrado de BitLocker: $_"
     }
 
     if (-not $SkipVBSHVCI) {
@@ -79,18 +83,22 @@ Try {
         throw "Fallo al asegurar la directiva PublishUserActivities en 0"
     }
 
-    $TelemetryExes = @(
-        "$env:SystemRoot\System32\CompatTelRunner.exe",
-        "$env:SystemRoot\System32\DeviceCensus.exe",
-        "$env:SystemRoot\System32\wsqmcons.exe"
-    )
-    foreach ($exe in $TelemetryExes) {
-        if (Test-Path $exe) {
-            $RuleName = "Overlord_Block_$(Split-Path $exe -Leaf)"
-            if (-not (Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue)) {
-                New-NetFirewallRule -DisplayName $RuleName -Direction Outbound -Program $exe -Action Block -ErrorAction SilentlyContinue | Out-Null
+    try {
+        $TelemetryExes = @(
+            "$env:SystemRoot\System32\CompatTelRunner.exe",
+            "$env:SystemRoot\System32\DeviceCensus.exe",
+            "$env:SystemRoot\System32\wsqmcons.exe"
+        )
+        foreach ($exe in $TelemetryExes) {
+            if (Test-Path $exe) {
+                $RuleName = "Overlord_Block_$(Split-Path $exe -Leaf)"
+                if (-not (Get-NetFirewallRule -Name $RuleName -ErrorAction SilentlyContinue)) {
+                    New-NetFirewallRule -Name $RuleName -DisplayName $RuleName -Direction Outbound -Program $exe -Action Block -ErrorAction SilentlyContinue | Out-Null
+                }
             }
         }
+    } catch {
+        Write-Warning "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc esté deshabilitado): $_"
     }
 
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"

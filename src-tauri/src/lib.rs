@@ -6,9 +6,12 @@ use executor::execute_script_in_memory;
 use hardware::{get_system_hardware, collect_installed_games, HardwareResponse, ScanGamesResponse};
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
 use tauri::State;
-use std::net::UdpSocket;
 use std::time::{Instant, Duration};
 use sysinfo::System;
+use std::sync::Mutex;
+use tokio::sync::oneshot;
+
+static MONITOR_CANCELLER: Mutex<Option<oneshot::Sender<()>>> = Mutex::new(None);
 
 #[link(name = "ntdll")]
 extern "system" {
@@ -57,7 +60,7 @@ fn get_live_telemetry(cache: State<'_, SystemStateCache>) -> LiveMetricsResponse
 }
 
 #[tauri::command]
-fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
+async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
     let script_raw = match script_name.as_str() {
         "01_perifericos" => include_str!("../scripts/01_perifericos.ps1"),
         "02_debloat" => include_str!("../scripts/02_debloat.ps1"),
@@ -79,14 +82,34 @@ fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, ga
         _ => return Err("Script no autorizado u omitido por seguridad".to_string()),
     };
 
-    execute_script_in_memory(script_raw, is_laptop, ram_gb, &game_list)
+    execute_script_in_memory(script_raw, is_laptop, ram_gb, &game_list).await
+}
+
+#[derive(serde::Serialize)]
+pub struct BenchmarkResponse {
+    #[serde(rename = "tcp_latency")]
+    pub tcp_latency: f64,
+    #[serde(rename = "dns_latency")]
+    pub dns_latency: f64,
 }
 
 #[tauri::command]
-fn run_benchmark() -> Result<f64, String> {
-    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    socket.set_read_timeout(Some(Duration::from_millis(1500))).map_err(|e| e.to_string())?;
+async fn run_benchmark() -> Result<BenchmarkResponse, String> {
+    // 1. Medir latencia TCP (Tráfico de red general) de forma asíncrona
+    let start_tcp = Instant::now();
+    let addr = "1.1.1.1:80".parse::<std::net::SocketAddr>().unwrap();
+    let tcp_res = tokio::time::timeout(
+        Duration::from_millis(1500),
+        tokio::net::TcpStream::connect(addr)
+    ).await;
     
+    let tcp_latency = match tcp_res {
+        Ok(Ok(_)) => start_tcp.elapsed().as_secs_f64() * 1000.0,
+        _ => 1500.0, // Timeout o fallo de red
+    };
+
+    // 2. Medir resolución DNS real vía UDP de forma asíncrona
+    let socket = tokio::net::UdpSocket::bind("0.0.0.0:0").await.map_err(|e| e.to_string())?;
     let dns_packet: [u8; 28] = [
         0xAA, 0xBB, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x06, b'g', b'o', b'o',
@@ -94,14 +117,29 @@ fn run_benchmark() -> Result<f64, String> {
         0x00, 0x01, 0x00, 0x01
     ];
 
-    let start = Instant::now();
-    socket.send_to(&dns_packet, "1.1.1.1:53").map_err(|e| e.to_string())?;
+    let start_dns = Instant::now();
+    let send_res = socket.send_to(&dns_packet, "1.1.1.1:53").await;
     
-    let mut buf = [0u8; 512];
-    let _ = socket.recv_from(&mut buf).map_err(|_| "Tiempo de espera de red UDP agotado".to_string())?;
+    let dns_latency = match send_res {
+        Ok(_) => {
+            let mut buf = [0u8; 512];
+            let recv_res = tokio::time::timeout(
+                Duration::from_millis(1500),
+                socket.recv_from(&mut buf)
+            ).await;
+            
+            match recv_res {
+                Ok(Ok(_)) => start_dns.elapsed().as_secs_f64() * 1000.0,
+                _ => 1500.0, // Timeout o error de lectura UDP
+            }
+        }
+        Err(_) => 1500.0, // Error al enviar
+    };
     
-    let duration = start.elapsed().as_secs_f64() * 1000.0;
-    Ok((duration * 100.0).round() / 100.0)
+    Ok(BenchmarkResponse {
+        tcp_latency: (tcp_latency * 100.0).round() / 100.0,
+        dns_latency: (dns_latency * 100.0).round() / 100.0,
+    })
 }
 
 #[tauri::command]
@@ -151,33 +189,51 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
         .filter(|s| !s.is_empty())
         .collect();
 
-    tokio::spawn(async move {
-        let mut sys = System::new_all();
-        loop {
-            sys.refresh_processes_specifics(
-                sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
-            );
-            for (pid, process) in sys.processes() {
-                let proc_name = process.name().to_lowercase();
-                if games.contains(&proc_name) {
-                    unsafe {
-                        use windows_sys::Win32::System::Threading::{
-                            OpenProcess, SetPriorityClass, GetPriorityClass, HIGH_PRIORITY_CLASS, 
-                            PROCESS_SET_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION
-                        };
-                        let handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid.as_u32());
-                        if handle != 0 {
-                            if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS {
-                                SetPriorityClass(handle, HIGH_PRIORITY_CLASS);
+    // Cancel dynamic game monitor if it is already running
+    {
+        let mut guard = MONITOR_CANCELLER.lock().map_err(|e| e.to_string())?;
+        if let Some(tx) = guard.take() {
+            let _ = tx.send(()); // Tell the old loop to stop
+        }
+        
+        let (tx, mut rx) = oneshot::channel::<()>();
+        *guard = Some(tx);
+        
+        tokio::spawn(async move {
+            let mut sys = System::new_all();
+            loop {
+                tokio::select! {
+                    _ = &mut rx => {
+                        // Received cancel signal, exit loop
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(15)) => {
+                        sys.refresh_processes_specifics(
+                            sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
+                        );
+                        for (pid, process) in sys.processes() {
+                            let proc_name = process.name().to_lowercase();
+                            if games.contains(&proc_name) {
+                                unsafe {
+                                    use windows_sys::Win32::System::Threading::{
+                                        OpenProcess, SetPriorityClass, GetPriorityClass, HIGH_PRIORITY_CLASS, 
+                                        PROCESS_SET_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION
+                                    };
+                                    let handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid.as_u32());
+                                    if handle != 0 {
+                                        if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS {
+                                            SetPriorityClass(handle, HIGH_PRIORITY_CLASS);
+                                        }
+                                        windows_sys::Win32::Foundation::CloseHandle(handle);
+                                    }
+                                }
                             }
-                            windows_sys::Win32::Foundation::CloseHandle(handle);
                         }
                     }
                 }
             }
-            tokio::time::sleep(Duration::from_secs(15)).await;
-        }
-    });
+        });
+    }
 
     Ok(())
 }

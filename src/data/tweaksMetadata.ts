@@ -164,6 +164,8 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Reducción agresiva del tiempo de espera de reutilización de puertos de red (TcpTimedWaitDelay a 30s).",
       "Desactivación de Receive Segment Coalescing (RSC) global para eliminar el retraso de acumulación de paquetes.",
       "Estabilización de persistencia de resolución DNS (TTL 86400) y apagado de túneles fantasma IPv6.",
+      "Prioridad de CPU dedicada (SystemResponsiveness = 0) para evitar que procesos secundarios estrangulen el hilo del juego.",
+      "Autosintonización TCP forzada a normal para desatar el ancho de banda y desactivación de ECN para prevenir pérdidas de paquetes.",
     ],
     registryMapping: [
       {
@@ -186,6 +188,13 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueName: "NetworkThrottlingIndex",
         valueType: "REG_DWORD",
         fallbackValue: 10,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+        valueName: "SystemResponsiveness",
+        valueType: "REG_DWORD",
+        fallbackValue: 20,
       },
     ],
   },
@@ -497,7 +506,8 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     warning:
       "Módulo 100% seguro para Anti-Cheats (Vanguard, EasyAntiCheat, BattlEye). La prioridad se inyecta dinámicamente desde el backend de Rust.",
     details: [
-      "Inyección del flag gráfico DISABLEDXMAXIMIZEDWINDOWEDMODE para forzar pantalla completa exclusiva real.",
+      "Inyección de invalidación de escalado de PPP (High DPI) para eliminar la latencia por reescalado de pantalla.",
+      "Forzado de pantalla completa exclusiva en archivos de configuración de juegos compatibles (como Unreal Engine).",
       "Eliminación de modificaciones IFEO estáticas en el registro de Windows para erradicar por completo falsos positivos.",
       "Aislamiento de persistencia de entorno mediante subllaves estructuradas con la ruta física completa del ejecutable.",
     ],

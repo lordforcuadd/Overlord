@@ -1,7 +1,3 @@
-param(
-    [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8
-)
 $ErrorActionPreference = "Stop"
 
 Try {
@@ -20,24 +16,61 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $DnsPath -ValueName "MaxNegativeCacheTtl" -BackupSubFolder "Network"
         Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "TcpTimedWaitDelay" -BackupSubFolder "Network"
         Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network"
+        Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "SystemResponsiveness" -BackupSubFolder "Network"
     }
 
     Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 86400 -Force | Out-Null
     Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay" -Type DWord -Value 30 -Force | Out-Null
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force | Out-Null
+    Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 0 -Force | Out-Null
 
     if ((Get-ItemProperty -Path $DnsPath -Name "MaxCacheTtl").MaxCacheTtl -ne 86400) { throw "Verification failed" }
     if ((Get-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl").MaxNegativeCacheTtl -ne 0) { throw "Verification failed" }
     if ((Get-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay").TcpTimedWaitDelay -ne 30) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness").SystemResponsiveness -ne 0) { throw "Verification failed" }
     
     $throttingVal = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
     if ($throttingVal -ne 4294967295 -and $throttingVal -ne -1) { throw "Verification failed" }
 
     
     netsh int tcp set global rss=enabled | Out-Null
-    netsh int tcp set global timestamps=enabled | Out-Null
+    netsh int tcp set global autotuninglevel=normal | Out-Null
+    netsh int tcp set global ecncapability=disabled | Out-Null
 
+    
+    $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
+    if (Test-Path $InterfacesPath) {
+        $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
+        foreach ($Key in $InterfaceKeys) {
+            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network"
+                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network"
+            }
+            Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
+            Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
+        }
+    }
+
+    
+    $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+    if (Test-Path $NetClassPath) {
+        $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
+        foreach ($Adapter in $NetAdapters) {
+            if ($Adapter.PSChildName -match "^\d{4}$") {
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
+                foreach ($PKey in $PowerKeys) {
+                    $Prop = Get-ItemProperty -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
+                    if ($null -ne $Prop) {
+                        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                            Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network"
+                        }
+                        Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
+                    }
+                }
+            }
+        }
+    }
 
     $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
     foreach ($Adapter in $Adapters) {
