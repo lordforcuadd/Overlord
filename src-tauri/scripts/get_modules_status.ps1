@@ -38,7 +38,7 @@ if (Test-Path $DnsPath) {
     $Ttl = Get-ItemPropertyValue -Path $DnsPath -Name "MaxCacheTtl" -ErrorAction SilentlyContinue
     $WaitDelay = Get-ItemPropertyValue -Path $TcpPath -Name "TcpTimedWaitDelay" -ErrorAction SilentlyContinue
     $SysResp = Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue
-    if ($Ttl -eq 86400 -or $WaitDelay -eq 30 -or $SysResp -eq 0) {
+    if ($Ttl -eq 86400 -or $WaitDelay -eq 30 -or $SysResp -eq 10) {
         $Status['networkOptimized'] = $true
     }
 }
@@ -80,10 +80,10 @@ if ($pciKey) {
     $pciKey.Close()
 }
 
-$PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
+$CpuBackup = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
 $IsSystemLaptop = $IsLaptop
 
-if ($IsSystemLaptop -and (Test-Path $PowerBackup)) {
+if ($IsSystemLaptop -and (Test-Path $CpuBackup)) {
     $Status['irqAffinity'] = $true
 }
 

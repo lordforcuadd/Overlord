@@ -23,12 +23,12 @@ Try {
     Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay" -Type DWord -Value 30 -Force | Out-Null
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force | Out-Null
-    Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 0 -Force | Out-Null
-
+    Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 10 -Force | Out-Null
+ 
     if ((Get-ItemProperty -Path $DnsPath -Name "MaxCacheTtl").MaxCacheTtl -ne 86400) { throw "Verification failed" }
     if ((Get-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl").MaxNegativeCacheTtl -ne 0) { throw "Verification failed" }
     if ((Get-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay").TcpTimedWaitDelay -ne 30) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness").SystemResponsiveness -ne 0) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness").SystemResponsiveness -ne 10) { throw "Verification failed" }
     
     $throttingVal = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
     if ($throttingVal -ne 4294967295 -and $throttingVal -ne -1) { throw "Verification failed" }

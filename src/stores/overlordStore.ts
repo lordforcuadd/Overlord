@@ -218,7 +218,7 @@ export const useOverlordStore = defineStore("overlord", {
       const activeModules = profileConfigs[profile] || [];
 
       activeModules.forEach((mod) => {
-        if (mod === "irqAffinity" && (isLaptop || isHybrid || !isHighEnd))
+        if (mod === "irqAffinity" && (isLaptop || isHybrid))
           return;
         if (mod === "powerProfiles" && isLaptop) return;
         if (mod === "deepTelemetry" && !isHighEnd) return;

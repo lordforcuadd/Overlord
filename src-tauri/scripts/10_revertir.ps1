@@ -245,14 +245,14 @@ Try {
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
     $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
 
-    Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $PrefetchPath -ValueName "EnablePrefetcher" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey $PrefetchPath -ValueName "EnableSuperfetch" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "LargeSystemCache" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage" -DefaultValue 1
     
-    fsutil behavior set disablelastaccess 1 | Out-Null
+    fsutil behavior set disablelastaccess 0 | Out-Null
     fsutil behavior set disable8dot3 0 | Out-Null
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\System\CurrentControlSet\Control\DeviceGuard" -ValueName "EnableVirtualizationBasedSecurity" -BackupSubFolder "Telemetry" -DefaultValue $null

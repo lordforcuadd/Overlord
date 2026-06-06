@@ -115,7 +115,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.0.0" {
             
             $WaitDelay | Should -Be 30
             $Throttling | Should -BeIn @(4294967295, -1)
-            $SysResp | Should -Be 0
+            $SysResp | Should -Be 10
         }
     }
 

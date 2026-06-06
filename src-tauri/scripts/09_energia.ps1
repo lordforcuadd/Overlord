@@ -78,8 +78,11 @@ Try {
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null } catch {}
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null } catch {}
         
-        
-        try { & powercfg /setactive SCHEME_CURRENT 2>$null } catch {}
+        $ActivePlan = powercfg /getactivescheme 2>$null
+        if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
+            $CurrentGuid = $Matches[1]
+            try { & powercfg /setactive $CurrentGuid 2>$null } catch {}
+        }
     }
 
     Write-Host "[+] Esquemas de energia acoplados al Kernel con exito."
