@@ -159,22 +159,22 @@ fn purge_ram_native() -> Result<String, String> {
             CloseHandle(token);
         }
 
-        let mut status = -1;
+        let mut success = false;
+        let mut last_error = 0;
         for &cmd in &[4u32, 5u32] {
             let mut command_class = cmd;
             let current_status = NtSetSystemInformation(80, &mut command_class as *mut u32 as *mut std::ffi::c_void, 4);
             if current_status >= 0 {
-                status = current_status;
-                break;
+                success = true;
             } else {
-                status = current_status;
+                last_error = current_status;
             }
         }
 
-        if status >= 0 {
-            Ok("Lista Standby purgada con exito".to_string())
+        if success {
+            Ok("Memoria física purgada con éxito (Working Sets y Lista Standby)".to_string())
         } else {
-            Err(format!("Error en llamada al sistema NT: {}", status))
+            Err(format!("Error en llamada al sistema NT: {}", last_error))
         }
     }
 }
