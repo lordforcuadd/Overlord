@@ -44,17 +44,22 @@ if (Test-Path $DnsPath) {
 }
 
 $StorePath = "HKCU:\System\GameConfigStore"
+$ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
 if (Test-Path $StorePath) {
     $GameDVR = Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue
-    if ($GameDVR -eq 0) {
+    $Split = Get-ItemPropertyValue -Path $ControlPath -Name "SvcHostSplitThresholdInKB" -ErrorAction SilentlyContinue
+    if ($GameDVR -eq 0 -or ($null -ne $Split -and $Split -gt 3800000)) {
         $Status['generalPerformance'] = $true
     }
 }
 
 $GpuPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
+$UserGpuPath = "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences"
 if (Test-Path $GpuPath) {
     $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
-    if ($Hags -eq 2) {
+    $Tdr = Get-ItemPropertyValue -Path $GpuPath -Name "TdrDelay" -ErrorAction SilentlyContinue
+    $Swap = Get-ItemPropertyValue -Path $UserGpuPath -Name "SwapEffectUpgradeDisable" -ErrorAction SilentlyContinue
+    if ($Hags -eq 2 -or $Tdr -eq 8 -or $Swap -eq 0) {
         $Status['gpuDisplay'] = $true
     }
 }
@@ -96,10 +101,12 @@ if (Test-Path $NtfsPath) {
 }
 
 $DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
-if ($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") {
+$WerSvc = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
+if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -or ($null -ne $WerSvc -and $WerSvc.StartType -eq "Disabled")) {
     $Status['deepTelemetry'] = $true
 }
 
+$PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
 $PowerSchemePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
 if (Test-Path $PowerSchemePath) {
     $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue

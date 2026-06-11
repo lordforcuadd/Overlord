@@ -16,7 +16,6 @@ Try {
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
 
-    $AllPackages = Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue
     $AllProvisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
 
     foreach ($App in $Apps) {
@@ -24,7 +23,7 @@ Try {
             continue
         }
         try {
-            $AllPackages | Where-Object { $_.Name -eq $App } | Remove-AppxPackage -ErrorAction SilentlyContinue
+            Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
             $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
         } catch {
             Write-Warning "No se pudo remover la aplicacion bloatware ${App}: $_"

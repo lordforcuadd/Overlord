@@ -58,7 +58,7 @@ Try {
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing")
                 foreach ($PKey in $PowerKeys) {
                     $Prop = Get-ItemProperty -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
                     if ($null -ne $Prop) {

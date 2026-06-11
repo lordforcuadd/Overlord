@@ -87,6 +87,8 @@ export const useOverlordStore = defineStore("overlord", {
     backupExists: false,
     isMonitorRunning: false,
     telemetryInterval: null as any,
+    isInitialized: false,
+    isBenchmarkTesting: false,
   }),
   actions: {
     async checkBackupStatus() {
@@ -180,8 +182,7 @@ export const useOverlordStore = defineStore("overlord", {
         this.modules[key as keyof typeof this.modules] = false;
       });
 
-      const { isLaptop, isHybrid, tier } = this.hardwareInfo;
-      const isHighEnd = tier === "Gama Alta";
+      const { isLaptop, isHybrid } = this.hardwareInfo;
 
       const profileConfigs: Record<string, string[]> = {
         Competitivo: [
@@ -221,10 +222,33 @@ export const useOverlordStore = defineStore("overlord", {
         if (mod === "irqAffinity" && (isLaptop || isHybrid))
           return;
         if (mod === "powerProfiles" && isLaptop) return;
-        if (mod === "deepTelemetry" && !isHighEnd) return;
 
         this.modules[mod as keyof typeof this.modules] = true;
       });
+    },
+    async ejecutarNetworkBenchmark(fase: "before" | "after") {
+      if (this.isBenchmarkTesting) return;
+      this.isBenchmarkTesting = true;
+
+      try {
+        const result = await invoke<{ tcp_latency: number; dns_latency: number }>("run_benchmark");
+
+        this.benchmarks[fase].networkLatency = result.tcp_latency;
+        this.benchmarks[fase].dnsResolution = result.dns_latency;
+        this.benchmarks[fase].measured = true;
+
+        console.log(
+          `[Overlord Benchmark] Fase ${fase} completada - TCP: ${result.tcp_latency}ms, DNS: ${result.dns_latency}ms`,
+        );
+      } catch (e) {
+        console.error("[BENCHMARK CRITICAL FAIL]:", e);
+
+        this.benchmarks[fase].networkLatency = 999;
+        this.benchmarks[fase].dnsResolution = 999;
+        this.benchmarks[fase].measured = true;
+      } finally {
+        this.isBenchmarkTesting = false;
+      }
     },
   },
 });

@@ -21,7 +21,6 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $PrefetchPath -ValueName "EnablePrefetcher" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $PrefetchPath -ValueName "EnableSuperfetch" -BackupSubFolder "Storage"
-        Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "LargeSystemCache" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage"
     }
 
@@ -68,9 +67,6 @@ Try {
     Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value $targetPrefetch -Force | Out-Null
     if ((Get-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher").EnablePrefetcher -ne $targetPrefetch) { throw "Fallo al verificar EnablePrefetcher" }
     if ((Get-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch").EnableSuperfetch -ne $targetPrefetch) { throw "Fallo al verificar EnableSuperfetch" }
-
-    Set-ItemProperty -Path $MemPath -Name "LargeSystemCache" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $MemPath -Name "LargeSystemCache").LargeSystemCache -ne 0) { throw "Fallo al verificar LargeSystemCache" }
 
     $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
     # Esperamos hasta 20 minutos sin lanzar excepciones si se agota el tiempo

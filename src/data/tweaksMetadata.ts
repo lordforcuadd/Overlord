@@ -164,7 +164,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Reducción agresiva del tiempo de espera de reutilización de puertos de red (TcpTimedWaitDelay a 30s).",
       "Desactivación de Receive Segment Coalescing (RSC) global para eliminar el retraso de acumulación de paquetes.",
       "Estabilización de persistencia de resolución DNS (TTL 86400) y apagado de túneles fantasma IPv6.",
-      "Prioridad de CPU dedicada (SystemResponsiveness = 0) para evitar que procesos secundarios estrangulen el hilo del juego.",
+      "Prioridad de CPU dedicada (SystemResponsiveness = 10) para evitar que procesos secundarios estrangulen el hilo del juego.",
       "Autosintonización TCP forzada a normal para desatar el ancho de banda y desactivación de ECN para prevenir pérdidas de paquetes.",
     ],
     registryMapping: [
@@ -222,6 +222,9 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación del limpiador del archivo de paginación para agilizar los ciclos de arranque y apagado.",
       "Gestión adaptativa de MMAgent (Memory Compression) optimizada según la cantidad total de RAM detectada.",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
+      "Desactivación de Page Combining en MMAgent para ahorrar ciclos de CPU y mitigar micro-stutters.",
+      "Aislamiento de servicios svchost por proceso para reducir la contención del planificador (svchost splitting).",
+      "Ajuste lógico de temporización de reloj (BCDedit) para desactivar Dynamic Ticks e HPET y priorizar TSC.",
     ],
     registryMapping: [
       {
@@ -252,6 +255,13 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueType: "REG_DWORD",
         fallbackValue: 1,
       },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Control",
+        valueName: "SvcHostSplitThresholdInKB",
+        valueType: "REG_DWORD",
+        fallbackValue: 3800000,
+      },
     ],
   },
   gpuDisplay: {
@@ -273,8 +283,10 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Eliminación absoluta de stuttering de escritorio, optimización de latencia gráfica y estabilidad de framerate.",
     details: [
       "Establece HwSchMode al valor oficial documentado (2) para la programación de GPU acelerada por hardware.",
-      "Desactivación perimetral de Multiplane Overlay (MPO) para erradicar parpadeos y caídas de frames.",
+      "Desactivación de GameBarPresenceWriter a nivel de usuario para prevenir micro-stutters y frametime spikes al iniciar juegos.",
       "Elevación de prioridad en tiempo real (High Priority Class) para el subproceso crítico de DWM (Desktop Window Manager).",
+      "Ajuste del timeout de detección y recuperación de GPU (TdrDelay = 8s) para mitigar crashes en motores UE5/DirectX 12.",
+      "Activación de la optimización del Flip Presentation Model para juegos en modo ventana o ventana sin bordes.",
     ],
     registryMapping: [
       {
@@ -283,6 +295,20 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueName: "HwSchMode",
         valueType: "REG_DWORD",
         fallbackValue: 2,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
+        valueName: "TdrDelay",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Software\\Microsoft\\DirectX\\UserGpuPreferences",
+        valueName: "SwapEffectUpgradeDisable",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
       },
       {
         hive: "HKEY_LOCAL_MACHINE",
@@ -429,6 +455,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Erradicación definitiva del servicio de recolección de experiencias DiagTrack y del historial de actividades de usuario.",
       "Bloqueo perimetral en el Firewall de Windows para los ejecutables de recolección nativos (CompatTelRunner, etc.).",
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
+      "Desactivación completa del servicio y políticas de Windows Error Reporting (WER) para evitar el lanzamiento de WerFault.exe en bloqueos.",
     ],
     registryMapping: [
       {
@@ -451,6 +478,13 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueName: "PublishUserActivities",
         valueType: "REG_DWORD",
         fallbackValue: 1,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting",
+        valueName: "Disabled",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
       },
     ],
   },
@@ -476,15 +510,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación de la suspensión selectiva USB de forma centralizada y segura con soporte de backup.",
       "Ajuste del estacionamiento de núcleos (Core Parking) al 100% para evitar caídas y fluctuaciones de frecuencias.",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Services\\USB",
-        valueName: "DisableSelectiveSuspend",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-    ],
+    registryMapping: [],
   },
   gameHooks: {
     id: "gameHooks",

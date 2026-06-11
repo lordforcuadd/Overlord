@@ -187,7 +187,11 @@ switch ($ToggleName) {
         $RequiresExplorerRestart = $true
     } 
     "zeroStartupDelay" {
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" "DWord" 0
+        if ($Value -eq 1) {
+            Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" "DWord" 0
+        } else {
+            Remove-RegistryKey "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize"
+        }
     }
     "enableGameMode" {
         Set-RegistryValue "Software\Microsoft\GameBar" "AllowAutoGameMode" "DWord" $Value

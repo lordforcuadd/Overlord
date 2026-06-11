@@ -200,6 +200,31 @@ export function useOrchestrator(overlordSwalConfig: any) {
     }
   }
 
+  async function syncModulesStatus() {
+    try {
+      const jsonStatus = await invoke<string>("run_optimization_script", {
+        scriptName: "get_modules_status",
+        isLaptop: store.hardwareInfo.isLaptop,
+        ramGb: store.hardwareInfo.ramGb ?? 8,
+        gameList: "",
+      });
+
+      const realStatus = JSON.parse(jsonStatus);
+      Object.keys(realStatus).forEach((key) => {
+        const moduleKey = key as keyof typeof store.modules;
+        if (realStatus[moduleKey]) {
+          cardStatus.value[moduleKey] = "success";
+          store.modules[moduleKey] = false;
+        } else {
+          cardStatus.value[moduleKey] = "idle";
+          store.modules[moduleKey] = false;
+        }
+      });
+    } catch (e) {
+      console.error("[ERROR AL CARGAR ESTADOS INICIALES]:", e);
+    }
+  }
+
   return {
     cardStatus,
     isBackingUp,
@@ -208,5 +233,6 @@ export function useOrchestrator(overlordSwalConfig: any) {
     crearRespaldo,
     ejecutarTodo,
     revertirStock,
+    syncModulesStatus,
   };
 }

@@ -9,7 +9,7 @@ Try {
     }
 
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
-    $Description = "Overlord V4 - Punto Seguro"
+    $Description = "Overlord v4.4.4 - Punto Seguro"
 
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
@@ -20,7 +20,10 @@ Try {
 
     $SysRestorePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"
     if (!(Test-Path $SysRestorePath)) { New-Item -Path $SysRestorePath -Force | Out-Null }
-    Set-ItemProperty -Path $SysRestorePath -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0 -Force
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $SysRestorePath -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage"
+    }
+    Set-ItemProperty -Path $SysRestorePath -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0 -Force | Out-Null
 
     Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
 

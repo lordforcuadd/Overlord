@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useOverlordStore } from "../stores/overlordStore";
-import { useBenchmark } from "../composables/useBenchmark";
 
 const store = useOverlordStore();
-const { isRunning: isTesting, ejecutarNetworkBenchmark } = useBenchmark();
 
 const executeBenchmark = async (fase: "before" | "after") => {
-  await ejecutarNetworkBenchmark(fase);
+  await store.ejecutarNetworkBenchmark(fase);
 };
 
 const improvementNetwork = computed(() => {
@@ -166,10 +164,10 @@ const maxDnsValue = computed(() => {
 
         <button
           @click="executeBenchmark('before')"
-          :disabled="isTesting"
+          :disabled="store.isBenchmarkTesting"
           class="mt-4 w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-[10px] font-mono font-bold rounded border border-zinc-800 transition-all duration-150 disabled:opacity-40 active:scale-[0.98]"
         >
-          {{ isTesting ? "ANALIZANDO..." : "CALIBRAR ENTORNO INICIAL" }}
+          {{ store.isBenchmarkTesting ? "ANALIZANDO..." : "CALIBRAR ENTORNO INICIAL" }}
         </button>
       </div>
 
@@ -254,10 +252,10 @@ const maxDnsValue = computed(() => {
 
         <button
           @click="executeBenchmark('after')"
-          :disabled="isTesting"
+          :disabled="store.isBenchmarkTesting"
           class="mt-4 w-full py-2 px-3 bg-cyan-950/20 hover:bg-cyan-900/30 text-cyan-400 text-[10px] font-mono font-bold rounded border border-cyan-800/40 transition-all duration-150 disabled:opacity-40 active:scale-[0.98] shadow-sm shadow-cyan-950/50"
         >
-          {{ isTesting ? "ANALIZANDO..." : "ESCANEAR MEJORA FILTRADA" }}
+          {{ store.isBenchmarkTesting ? "ANALIZANDO..." : "ESCANEAR MEJORA FILTRADA" }}
         </button>
       </div>
     </div>

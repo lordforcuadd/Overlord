@@ -55,6 +55,25 @@ Try {
                                         }
                                         $interruptKey.Close()
                                     }
+                                    
+                                    # Configurar prioridad de interrupción alta (DevicePriority = 3)
+                                    $affinityPathName = "Interrupt Management\Affinity Policy"
+                                    $affinityKey = $paramKey.CreateSubKey($affinityPathName, $true)
+                                    if ($affinityKey) {
+                                        $origPriority = $affinityKey.GetValue("DevicePriority")
+                                        
+                                        # Respaldo de prioridad original
+                                        $priorityRegID = "PCI_${venId}_${devId}_DevicePriority"
+                                        $backupPriorityCheck = Get-ItemProperty -Path $MsiBackupKey -Name $priorityRegID -ErrorAction SilentlyContinue
+                                        if ($null -eq $backupPriorityCheck) {
+                                            $backupPriorityVal = if ($null -eq $origPriority) { '_ABSENT_' } else { $origPriority }
+                                            Set-ItemProperty -Path $MsiBackupKey -Name $priorityRegID -Value $backupPriorityVal -Force | Out-Null
+                                        }
+                                        
+                                        $affinityKey.SetValue("DevicePriority", 3, [Microsoft.Win32.RegistryValueKind]::DWord)
+                                        $affinityKey.Close()
+                                    }
+                                    
                                     $paramKey.Close()
                                 }
                             } catch {

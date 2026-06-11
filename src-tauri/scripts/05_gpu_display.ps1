@@ -9,16 +9,26 @@ Try {
 
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
     $DwmMpoPath = "HKLM:\SOFTWARE\Microsoft\Windows\Dwm"
+    $UserGpuPath = "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences"
     
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
     if (!(Test-Path $DwmMpoPath)) { New-Item -Path $DwmMpoPath -Force | Out-Null }
+    if (!(Test-Path $UserGpuPath)) { New-Item -Path $UserGpuPath -Force | Out-Null }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "HwSchMode" -BackupSubFolder "GPU"
+        Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "TdrDelay" -BackupSubFolder "GPU"
+        Backup-OverlordRegistryValue -TargetKey $UserGpuPath -ValueName "SwapEffectUpgradeDisable" -BackupSubFolder "GPU"
     }
 
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
     if ((Get-ItemProperty -Path $HagsPath -Name "HwSchMode").HwSchMode -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
+
+    Set-ItemProperty -Path $HagsPath -Name "TdrDelay" -Type DWord -Value 8 -Force | Out-Null
+    if ((Get-ItemProperty -Path $HagsPath -Name "TdrDelay").TdrDelay -ne 8) { throw "Fallo al verificar TdrDelay" }
+
+    Set-ItemProperty -Path $UserGpuPath -Name "SwapEffectUpgradeDisable" -Type DWord -Value 0 -Force | Out-Null
+    if ((Get-ItemProperty -Path $UserGpuPath -Name "SwapEffectUpgradeDisable").SwapEffectUpgradeDisable -ne 0) { throw "Fallo al verificar SwapEffectUpgradeDisable" }
 
     
 
@@ -47,6 +57,14 @@ Try {
     }
     Set-ItemProperty -Path $GameBarPath -Name "AllowGameDVR" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemProperty -Path $GameBarPath -Name "AllowGameDVR").AllowGameDVR -ne 0) { throw "Fallo al asegurar la desactivacion de la directiva AllowGameDVR" }
+
+    $UserGameDVRPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR"
+    if (!(Test-Path $UserGameDVRPath)) { New-Item -Path $UserGameDVRPath -Force | Out-Null }
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $UserGameDVRPath -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU"
+    }
+    Set-ItemProperty -Path $UserGameDVRPath -Name "AppCaptureEnabled" -Type DWord -Value 0 -Force | Out-Null
+    if ((Get-ItemProperty -Path $UserGameDVRPath -Name "AppCaptureEnabled").AppCaptureEnabled -ne 0) { throw "Fallo al asegurar la desactivacion de AppCaptureEnabled a nivel de usuario" }
 
     $DwmColorPath = "HKCU:\Software\Microsoft\Windows\DWM"
     if (!(Test-Path $DwmColorPath)) { New-Item -Path $DwmColorPath -Force | Out-Null }

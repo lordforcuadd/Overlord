@@ -35,119 +35,130 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v4.0
+              Optimizador de Windows v4.4.4
             </p>
           </div>
         </div>
         <HardwareSidebar />
       </header>
 
-      <QuickActions />
-      <QolPanel />
-      <ProfileSelector />
-      <BenchmarkPanel class="mb-6" />
-      <OptimizationGrid
-        :cardStatus="cardStatus"
-        @trigger-warning="openWarningModal"
-      />
+      <div v-if="store.isInitialized">
+        <QuickActions />
+        <QolPanel />
+        <ProfileSelector />
+        <BenchmarkPanel class="mb-6" />
+        <OptimizationGrid
+          :cardStatus="cardStatus"
+          @trigger-warning="openWarningModal"
+        />
 
-      <footer
-        class="mb-24 flex flex-col items-center gap-6 border-t border-white/5 pt-10"
-      >
-        <div
-          class="flex flex-col md:flex-row justify-center gap-4 w-full md:w-auto"
+        <footer
+          class="mb-24 flex flex-col items-center gap-6 border-t border-white/5 pt-10"
         >
-          <button
-            @click="crearRespaldo"
-            :disabled="isBackingUp"
-            class="group bg-blue-500/10 backdrop-blur-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.1)] flex items-center justify-center gap-3 w-full md:w-auto disabled:opacity-50"
+          <div
+            class="flex flex-col md:flex-row justify-center gap-4 w-full md:w-auto"
           >
-            <svg
-              v-if="isBackingUp"
-              class="animate-spin h-5 w-5"
-              viewBox="0 0 24 24"
+            <button
+              @click="crearRespaldo"
+              :disabled="isBackingUp"
+              class="group bg-blue-500/10 backdrop-blur-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.1)] flex items-center justify-center gap-3 w-full md:w-auto disabled:opacity-50"
             >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
+              <svg
+                v-if="isBackingUp"
+                class="animate-spin h-5 w-5"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <svg
+                v-else
+                class="h-5 w-5"
+                fill="none"
                 stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <svg
-              v-else
-              class="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              ></path>
-            </svg>
-            <span>{{
-              isBackingUp ? "Protegiendo Sistema..." : "Crear Punto de Respaldo"
-            }}</span>
-          </button>
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                ></path>
+              </svg>
+              <span>{{
+                isBackingUp ? "Protegiendo Sistema..." : "Crear Punto de Respaldo"
+              }}</span>
+            </button>
 
-          <button
-            @click="revertirStock"
-            :disabled="isReverting"
-            class="bg-red-500/10 backdrop-blur-md border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.1)] flex items-center justify-center gap-3 w-full md:w-auto disabled:opacity-50"
-          >
-            <svg
-              v-if="isReverting"
-              class="animate-spin h-5 w-5"
-              viewBox="0 0 24 24"
+            <button
+              @click="revertirStock"
+              :disabled="isReverting"
+              class="bg-red-500/10 backdrop-blur-md border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.1)] flex items-center justify-center gap-3 w-full md:w-auto disabled:opacity-50"
             >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
+              <svg
+                v-if="isReverting"
+                class="animate-spin h-5 w-5"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <svg
+                v-else
+                class="h-5 w-5"
+                fill="none"
                 stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <svg
-              v-else
-              class="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"
-              />
-            </svg>
-            <span>{{
-              isReverting ? "Restaurando Windows..." : "Revertir Cambios"
-            }}</span>
-          </button>
-        </div>
-      </footer>
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"
+                />
+              </svg>
+              <span>{{
+                isReverting ? "Restaurando Windows..." : "Revertir Cambios"
+              }}</span>
+            </button>
+          </div>
+        </footer>
+      </div>
+      <div v-else class="flex flex-col items-center justify-center py-24 font-mono text-zinc-500 select-none border border-white/5 bg-[#0a0a0a]/40 backdrop-blur-md rounded-2xl mb-24">
+        <svg class="animate-spin h-10 w-10 text-yellow-500 mb-4" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-sm font-bold tracking-widest text-zinc-300">INICIALIZANDO MOTOR OVERLORD...</span>
+        <span class="text-[10px] text-zinc-600 mt-2 uppercase tracking-widest">Sincronizando estado de hardware y Kernel</span>
+      </div>
     </div>
   </div>
 
   <div
+    v-if="store.isInitialized"
     class="fixed bottom-0 left-0 w-full bg-[#050505]/90 backdrop-blur-xl border-t border-white/10 p-5 z-40 flex justify-center items-center shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
   >
     <div
@@ -213,7 +224,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import BenchmarkPanel from "./components/BenchmarkPanel.vue";
-import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "./stores/overlordStore";
 import { useOrchestrator } from "./composables/useOrchestrator";
 import QolPanel from "./components/QolPanel.vue";
@@ -255,6 +265,7 @@ const {
   crearRespaldo,
   ejecutarTodo,
   revertirStock,
+  syncModulesStatus,
 } = useOrchestrator(overlordSwalConfig);
 
 const openWarningModal = (payload: { key: string; message: string }) => {
@@ -278,30 +289,9 @@ const cancelDangerousTweak = () => {
 onMounted(async () => {
   await store.detectHardware();
   await store.scanGames();
+  await syncModulesStatus();
   store.startTelemetryPolling();
-
-  try {
-    const jsonStatus = await invoke<string>("run_optimization_script", {
-      scriptName: "get_modules_status",
-      isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ramGb ?? 8,
-      gameList: "",
-    });
-
-    const realStatus = JSON.parse(jsonStatus);
-    Object.keys(realStatus).forEach((key) => {
-      const moduleKey = key as keyof typeof store.modules;
-      if (realStatus[moduleKey]) {
-        cardStatus.value[moduleKey] = "success";
-        store.modules[moduleKey] = false;
-      } else {
-        cardStatus.value[moduleKey] = "idle";
-        store.modules[moduleKey] = false;
-      }
-    });
-  } catch (e) {
-    console.error("[ERROR AL CARGAR ESTADOS INICIALES]:", e);
-  }
+  store.isInitialized = true;
 });
 
 onUnmounted(() => {

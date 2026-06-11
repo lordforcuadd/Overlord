@@ -74,6 +74,19 @@ Try {
                                             Set-ItemProperty -Path $MsiSubKey -Name "MSISupported" -Type DWord -Value $savedMsi -Force | Out-Null
                                         }
                                     }
+                                    
+                                    # Revertir prioridad de interrupción
+                                    $priorityRegID = "PCI_${venId}_${devId}_DevicePriority"
+                                    $savedPriority = (Get-ItemProperty -Path $MsiBackupKey -Name $priorityRegID -ErrorAction SilentlyContinue).$priorityRegID
+                                    if ($null -ne $savedPriority) {
+                                        $AffinitySubKey = "$paramPath\Interrupt Management\Affinity Policy"
+                                        if ($savedPriority -eq '_ABSENT_') {
+                                            if (Test-Path $AffinitySubKey) { Remove-ItemProperty -Path $AffinitySubKey -Name "DevicePriority" -ErrorAction SilentlyContinue | Out-Null }
+                                        } else {
+                                            if (!(Test-Path $AffinitySubKey)) { New-Item -Path $AffinitySubKey -Force | Out-Null }
+                                            Set-ItemProperty -Path $AffinitySubKey -Name "DevicePriority" -Type DWord -Value $savedPriority -Force | Out-Null
+                                        }
+                                    }
                                 }
                             } catch {
                                 Write-Warning "No se pudieron revertir los parametros MSI para el dispositivo ${deviceRegID}: $_"
@@ -118,6 +131,8 @@ Try {
     }
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry" -DefaultValue 3
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WerSvc" -ValueName "Start" -BackupSubFolder "Telemetry" -DefaultValue 3
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -ValueName "Disabled" -BackupSubFolder "Telemetry" -DefaultValue $null
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry" -DefaultValue 1
     Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue | Out-Null
@@ -177,7 +192,7 @@ Try {
 
     Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name "MaxCacheTtl" -ErrorAction SilentlyContinue | Out-Null
     Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name "MaxNegativeCacheTtl" -ErrorAction SilentlyContinue | Out-Null
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ValueName "TcpTimedWaitDelay" -BackupSubFolder "Network" -DefaultValue 30
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ValueName "TcpTimedWaitDelay" -BackupSubFolder "Network" -DefaultValue $null
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network" -DefaultValue 10
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -ValueName "SystemResponsiveness" -BackupSubFolder "Network" -DefaultValue 20
 
@@ -199,7 +214,7 @@ Try {
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing")
                 foreach ($PKey in $PowerKeys) {
                     if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
                         Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network" | Out-Null
@@ -212,24 +227,32 @@ Try {
     netsh int tcp set global rss=enabled | Out-Null
     netsh int tcp set global autotuninglevel=normal | Out-Null
     netsh int tcp set global ecncapability=default | Out-Null
-    netsh interface ipv6 teredo set state default | Out-Null
-    netsh interface ipv6 isatap set state default  | Out-Null
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+    $ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "DisablePagingExecutive" -BackupSubFolder "Performance" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "ClearPageFileAtShutdown" -BackupSubFolder "Performance" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey $ControlPath -ValueName "SvcHostSplitThresholdInKB" -BackupSubFolder "Performance" -DefaultValue 3800000
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\System\GameConfigStore" -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\Software\Microsoft\FTH" -ValueName "Enabled" -BackupSubFolder "Performance" -DefaultValue 1
     Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
+    Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+    try {
+        bcdedit /deletevalue disabledynamictick 2>$null | Out-Null
+        bcdedit /deletevalue useplatformclock 2>$null | Out-Null
+    } catch {}
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -ValueName "HwSchMode" -BackupSubFolder "GPU" -DefaultValue 2
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -ValueName "TdrDelay" -BackupSubFolder "GPU" -DefaultValue $null
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences" -ValueName "SwapEffectUpgradeDisable" -BackupSubFolder "GPU" -DefaultValue $null
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" -ValueName "OverlayTestMode" -BackupSubFolder "GPU" -DefaultValue $null
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\dwm.exe\PerfOptions" -ValueName "CpuPriorityClass" -BackupSubFolder "GPU" -DefaultValue $null
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\DWM" -ValueName "ColorPrevalence" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "EnableTransparency" -BackupSubFolder "GPU" -DefaultValue 1
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name "AllowGameDVR" -ErrorAction SilentlyContinue | Out-Null
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU" -DefaultValue 1
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\System\GameConfigStore" -ValueName "GameDVR_FSEBehaviorMode" -BackupSubFolder "GPU" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\System\GameConfigStore" -ValueName "GameDVR_HonorUserFSEBehaviorMode" -BackupSubFolder "GPU" -DefaultValue 0
@@ -249,10 +272,11 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $PrefetchPath -ValueName "EnablePrefetcher" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey $PrefetchPath -ValueName "EnableSuperfetch" -BackupSubFolder "Storage" -DefaultValue 3
-    Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "LargeSystemCache" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage" -DefaultValue $null
+
     
-    fsutil behavior set disablelastaccess 0 | Out-Null
+    fsutil behavior set disablelastaccess 1 | Out-Null
     fsutil behavior set disable8dot3 0 | Out-Null
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\System\CurrentControlSet\Control\DeviceGuard" -ValueName "EnableVirtualizationBasedSecurity" -BackupSubFolder "Telemetry" -DefaultValue $null

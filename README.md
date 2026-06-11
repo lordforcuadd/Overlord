@@ -1,7 +1,7 @@
 <div align="center">
   <img src="overlord_icon.png" alt="Overlord Logo" width="120">
 
-# OVERLORD (v4.0)
+# OVERLORD (v4.4.4)
 
 **Suite Avanzada de Optimización, Privacidad y Reducción de Latencia de Bajo Nivel para Windows 10 y 11.**
 
@@ -25,11 +25,11 @@ Una suite de ingeniería orientada al rendimiento competitivo, depuración profu
 
 ## 🧠 Filosofía de Ingeniería y Arquitectura del Sistema
 
-A diferencia de las utilidades de optimización tradicionales, **Overlord v4.0** opera bajo auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Elimina por completo modificaciones destructivas, tweaks placebo y cambios que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel. Cada módulo verifica el resultado de cada escritura en registro mediante comprobaciones explícitas que lanzan excepciones ante cualquier fallo.
+A diferencia de las utilidades de optimización tradicionales, **Overlord v4.4.4** opera bajo auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Elimina por completo modificaciones destructivas, tweaks placebo y cambios que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel. Cada módulo verifica el resultado de cada escritura en registro mediante comprobaciones explícitas que lanzan excepciones ante cualquier fallo.
 
 ### Pilares Fundamentales de la Arquitectura
 
-- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** En v4.0, los scripts nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`. Al terminar, no queda ningún artefacto en el sistema de archivos del usuario, eliminando vectores de secuestro de archivos (_File Hijacking_).
+- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** En v4.4.4, los scripts nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`. Al terminar, no queda ningún artefacto en el sistema de archivos del usuario, eliminando vectores de secuestro de archivos (_File Hijacking_).
 
 - **Codificador Base64 Nativo en Rust:** El executor implementa su propio codificador Base64 personalizado (`custom_base64_encode`) sin dependencias externas, operando directamente sobre los bytes UTF-16 del script unificado. Esto garantiza compatibilidad exacta con el decodificador `[System.Convert]::FromBase64String` de PowerShell sin depender de crates de terceros.
 
@@ -71,7 +71,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 1. Respuesta de Periféricos (`01_perifericos.ps1`)
 
-- Activa **MSI Mode** (Message Signaled Interrupts) en GPU y controladores USB recorriendo el árbol PCI completo mediante la API nativa `Microsoft.Win32.Registry`, eliminando las interrupciones de línea compartida (IRQ sharing) que generan latencia de respuesta variable.
+- Activa **MSI Mode** (Message Signaled Interrupts) en GPU y controladores USB recorriendo el árbol PCI completo mediante la API nativa `Microsoft.Win32.Registry` y configura la prioridad de interrupción a Alta (`DevicePriority = 3`) bajo la directiva de política de afinidad, eliminando interrupciones de línea compartida (IRQ sharing) y fluctuaciones de latencia.
 - Reconfigura el búfer de intercambio de los drivers de clase nativos `mouclass` y `kbdclass` fijando `MouseDataQueueSize` y `KeyboardDataQueueSize` en **32**, valor balanceado para polling rates de hasta 8KHz.
 - Establece `Win32PrioritySeparation = 22` (0x16): quantum de CPU interactivo corto y variable con boost de 3:1 para garantizar la máxima respuesta del juego en primer plano.
 - Desactiva la aceleración del puntero (`MouseSpeed = 0`, `MouseThreshold1/2 = 0`) y neutraliza las curvas de suavizado `SmoothMouseXCurve` y `SmoothMouseYCurve` con 40 bytes a cero, garantizando traducción 1:1 de movimiento físico a digital.
@@ -94,34 +94,41 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Elimina el límite de throttling del planificador de red con `NetworkThrottlingIndex = 0xFFFFFFFF`, permitiendo que la pila TCP/IP procese todos los paquetes disponibles en cada intervalo sin restricción artificial.
 - Mantiene activas las marcas de tiempo TCP (TCP Timestamps) para asegurar un correcto control de congestión, cálculo de RTT y escalamiento de ventana TCP en conexiones modernas de alta velocidad (>500 Mbps).
 - Activa RSS (Receive Side Scaling) para distribuir la carga de red entre múltiples cores.
-- Reduce el porcentaje de reserva de CPU para tareas de fondo a cero (`SystemResponsiveness = 0`) para garantizar la máxima asignación de recursos al juego o aplicación en primer plano.
+- Establece la prioridad de reserva del programador de Windows a un balance óptimo (`SystemResponsiveness = 10`), reservando el 90% para juegos en primer plano y dejando el 10% para procesos de fondo, lo cual previene micro-cortes y stutters en Discord, Spotify y navegadores mientras se juega.
 - Fuerza la autosintonización TCP a `normal` (netsh) para evitar límites arbitrarios de velocidad (común tras usar otros optimizadores) y deshabilita `ecncapability` para prevenir pérdidas de paquetes in-game en routers de consumo antiguos.
-- Deshabilita Teredo e ISATAP únicamente si el sistema no tiene conectividad IPv6 nativa activa (verificado via `Test-Connection` a `ipv6.google.com`), evitando el tráfico de fondo de los túneles IPv6 sobre IPv4.
+- Preserva intactos los túneles nativos de IPv6 como Teredo e ISATAP para garantizar el correcto funcionamiento de los chats de voz de Xbox Live y los servicios de Microsoft Store.
 - Activa RSC y Checksum Offload en adaptadores Intel; deshabilita RSC en adaptadores no-Intel donde puede causar latencia adicional.
+- Deshabilita la **Coalescencia de Paquetes** (`*PacketCoalescing = 0`, `PacketCoalescing = 0`) en todos los adaptadores de red físicos descubiertos para asegurar que el sistema operativo procese los paquetes en el momento exacto en que son recibidos, evitando latencia por acumulación artificial.
 
 ### 4. Rendimiento de Kernel y Procesador (`04_rendimiento.ps1`)
 
 - Activa `DisablePagingExecutive = 1` exclusivamente en desktop con 16 GB de RAM o más, manteniendo los drivers y el núcleo ejecutivo paginados en RAM física y eliminando tirones por lecturas al archivo de paginación.
 - Deshabilita `ClearPageFileAtShutdown` si está activo (valor 1), convirtiendo apagados de varios minutos en apagados de segundos en sistemas donde esta política estaba habilitada.
 - Gestiona `MMAgent MemoryCompression`: la deshabilita en sistemas con 32 GB o más donde el overhead de compresión supera el beneficio; la mantiene activa en sistemas con menos RAM.
+- Deshabilita de forma universal el Page Combining en `MMAgent` para evitar que Windows gaste ciclos de reloj en segundo plano deduplicando páginas de memoria RAM, eliminando micro-stutters esporádicos en partidas de alta intensidad.
 - Deshabilita `GameDVR_Enabled` en el `GameConfigStore` del usuario, eliminando el overhead del sistema de captura de Xbox.
 - En desktop con 16 GB o más: deshabilita `FTH` (Fault Tolerant Heap), reduciendo la superficie de gestión de errores en memoria para procesos que no lo necesitan.
 - En desktop: desactiva mitigaciones de vulnerabilidades de silicio Spectre v2 y Meltdown (`FeatureSettingsOverride = 3`, `FeatureSettingsOverrideMask = 3`) con advertencia explícita visible al usuario. No se aplica en laptop.
+- Ajusta el umbral de fragmentación de procesos de servicios host (**SvcHost Splitting**) escribiendo dinámicamente `SvcHostSplitThresholdInKB` basado en la memoria RAM del sistema (`$RamGB * 1024 * 1024`), optimizando el overhead de contención de procesos del planificador de Windows.
+- Configura la temporización por hardware mediante comandos **BCDedit** desactivando temporizadores inestables y tick dinámico (`disabledynamictick yes`, `useplatformclock no`) para forzar la sincronización del Kernel con el reloj TSC del procesador.
 
 ### 5. GPU, Pantalla y Compositor (`05_gpu_display.ps1`)
 
 - Activa **HAGS** (Hardware Accelerated GPU Scheduling) con `HwSchMode = 2`, habilitando compatibilidad con DLSS 3 Frame Generation y mejorando frametimes en GPUs modernas.
 - Preserva **MPO** (Multiplane Overlay) activo por defecto para beneficiar la latencia de entrada y aceleración gráfica por hardware en aplicaciones y juegos en ventana sin bordes.
+- Deshabilita `GameBarPresenceWriter` a nivel de usuario (`AppCaptureEnabled = 0` en HKCU) para neutralizar procesos de grabación intrusivos en segundo plano de Xbox, previniendo frametime spikes y micro-stutters al iniciar cualquier videojuego.
 - Configura FSO (Fullscreen Optimizations): `GameDVR_FSEBehaviorMode = 2`, `GameDVR_HonorUserFSEBehaviorMode = 1`, `GameDVR_FSEBehavior = 2` para correcto manejo del modo pantalla completa exclusiva.
 - Deshabilita `AllowGameDVR` via política de grupo, bloqueando el sistema de captura a nivel de políticas.
 - Eleva la prioridad del hilo de `dwm.exe` (Desktop Window Manager) a **Alta** (`CpuPriorityClass = 3`) via IFEO/PerfOptions, estabilizando el Frame Pacing y los 1% Low FPS cuando la CPU está al límite.
 - Desactiva el color de acento en el compositor (`ColorPrevalence = 0`).
 - En sistemas con 6 GB de RAM o menos: deshabilita transparencias del compositor (`EnableTransparency = 0`) para liberar ancho de banda de GPU.
+- Ajusta el tiempo de recuperación del controlador gráfico (**TdrDelay = 8**) para evitar bloqueos del sistema o cuelgues repentinos (TDR) en motores modernos como Unreal Engine 5 o DirectX 12.
+- Modifica la directiva de actualización del Compositor (**SwapEffectUpgradeDisable = 0**) para forzar el uso de la cola de presentación Flip de baja latencia en juegos ejecutados en modo ventana o ventana sin bordes.
 
 ### 6. Afinidad IRQ y Prioridades Multimedia (`06_irq_affinity.ps1`)
 
 - Configura prioridades MMCSS para procesos de juego: `GPU Priority = 8`, `Priority = 6`, `Scheduling Category = High`, `SFIO Priority = High`.
-- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) en un P-Core físico libre (por ejemplo, Core 4, 8 o 12 según la topología de la CPU), desahogando el Core 0 del Kernel sin desactivar el escalamiento RSS (usando `DevicePolicy = 3`).
+- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) asignándolos de forma estática en un P-Core físico libre (por ejemplo, Core 4, 8 o 12 según la topología de la CPU) mediante `DevicePolicy = 4` y la máscara de bits correspondiente, desahogando el Core 0 del Kernel para optimizar el ping y el jitter.
 - Restaura la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
 - Guarda backup completo de las máscaras binarias originales con su tipo `REG_BINARY` preservado para revert exacto.
 
@@ -144,11 +151,12 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Bloquea la salida de red de los binarios de telemetría (`CompatTelRunner.exe`, `DeviceCensus.exe`, `wsqmcons.exe`) mediante reglas de firewall de salida nombradas con el prefijo `Overlord_Block_`.
 - Desactiva los loggers WMI de telemetría: `AutoLogger-Diagtrack-Listener`, `SQMLogger`, `DiagLog`, `AitEventLog`.
 - Desactiva `PublishUserActivities` (historial de actividad y Timeline de Windows).
+- Detiene e inhabilita estructuralmente el servicio de informes de errores de Windows **WerSvc** (Windows Error Reporting) e inyecta la directiva global de deshabilitación (`Disabled = 1`) en el registro de políticas de Windows para evitar que el spawn secundario del proceso `WerFault.exe` consuma CPU o interrumpa el juego al ocurrir fallos inesperados.
 
 ### 9. Gestión de Energía (`09_energia.ps1`)
 
 - Guarda backup del GUID del plan de energía activo en `HKLM:\SOFTWARE\Overlord\Backup\Power\ActivePowerPlan` antes de cualquier cambio, garantizando que el revert devuelva el plan original exacto.
-- **En desktop:** Desbloquea e inyecta el esquema oculto _Ultimate Performance_ (`e9a42b02-d5df-448d-aa00-03f14749eb61`). Si no existe en el sistema, clona dinámicamente el plan de Alto Rendimiento (o el plan Equilibrado como fallback garantizado si el primero fue eliminado de la ISO) y guarda el GUID del duplicado para el revert. Desactiva Core Parking, deshabilita USB Selective Suspend tanto via registro (`DisableSelectiveSuspend = 1`) como via `powercfg`, y fuerza los límites de Core Parking a cero.
+- **En desktop:** Desbloquea e inyecta el esquema oculto _Ultimate Performance_ (`e9a42b02-d5df-448d-aa00-03f14749eb61`). Si no existe en el sistema, clona dinámicamente el plan de Alto Rendimiento (o el plan Equilibrado como fallback garantizado si el primero fue eliminado de la ISO) y guarda el GUID del duplicado para el revert. Desactiva Core Parking, deshabilita USB Selective Suspend aplicando la directiva AC de `powercfg` (`SETACVALUEINDEX` a `0` para `d874b2c9-943b-47dd-9190-25e0e3c95a12`) sobre el plan de energía activo, y fuerza los límites de Core Parking a cero.
 - **En laptop:** Optimiza el control térmico configurando el índice de gestión del procesador via `powercfg` sin deshabilitar las protecciones de ahorro de energía, preservando la integridad térmica.
 
 ### 10. Prioridad Absoluta para Juegos (`11_game_hooks.ps1`)

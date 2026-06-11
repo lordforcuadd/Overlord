@@ -9,11 +9,14 @@ Try {
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
     
+    $ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
+
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "DisablePagingExecutive" -BackupSubFolder "Performance"
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance"
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance"
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "ClearPageFileAtShutdown" -BackupSubFolder "Performance"
+        Backup-OverlordRegistryValue -TargetKey $ControlPath -ValueName "SvcHostSplitThresholdInKB" -BackupSubFolder "Performance"
         
         $StorePath = "HKCU:\System\GameConfigStore"
         if (Test-Path $StorePath) {
@@ -35,6 +38,19 @@ Try {
         throw "Fallo al verificar DisablePagingExecutive en el Kernel"
     }
 
+    # Dynamic SvcHost split threshold: RAM in KB
+    $SplitThreshold = $RamGB * 1024 * 1024
+    Set-ItemProperty -Path $ControlPath -Name "SvcHostSplitThresholdInKB" -Type DWord -Value $SplitThreshold -Force | Out-Null
+    if ((Get-ItemProperty -Path $ControlPath -Name "SvcHostSplitThresholdInKB").SvcHostSplitThresholdInKB -ne $SplitThreshold) {
+        Write-Warning "No se pudo asegurar SvcHostSplitThresholdInKB"
+    }
+
+    # Configurar temporizadores BCD (Desactivar HPET platform clock y Dynamic Ticks)
+    try {
+        bcdedit /set disabledynamictick yes 2>$null | Out-Null
+        bcdedit /set useplatformclock no 2>$null | Out-Null
+    } catch {}
+
     $ClearPage = (Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -ErrorAction SilentlyContinue).ClearPageFileAtShutdown
     if ($ClearPage -eq 1) {
         Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force | Out-Null
@@ -48,6 +64,7 @@ Try {
     } else {
         Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
     }
+    Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
 
     if (-not $IsLaptop) {
         $CPUName = ""

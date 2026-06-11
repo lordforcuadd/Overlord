@@ -78,6 +78,25 @@ Try {
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
     } catch {}
 
+    try {
+        Stop-Service "WerSvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+        $WerSvcPath = "HKLM:\SYSTEM\CurrentControlSet\Services\WerSvc"
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Telemetry"
+        }
+        Set-Service "WerSvc" -StartupType Disabled -ErrorAction SilentlyContinue
+    } catch {}
+
+    $WerPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
+    if (!(Test-Path $WerPath)) { New-Item -Path $WerPath -Force | Out-Null }
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $WerPath -ValueName "Disabled" -BackupSubFolder "Telemetry"
+    }
+    Set-ItemProperty -Path $WerPath -Name "Disabled" -Type DWord -Value 1 -Force | Out-Null
+    if ((Get-ItemProperty -Path $WerPath -Name "Disabled").Disabled -ne 1) { 
+        throw "Fallo al asegurar la desactivacion de Windows Error Reporting"
+    }
+
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemProperty -Path $ActivityPath -Name "PublishUserActivities").PublishUserActivities -ne 0) { 
         throw "Fallo al asegurar la directiva PublishUserActivities en 0"
