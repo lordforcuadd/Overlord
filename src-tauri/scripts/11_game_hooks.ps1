@@ -26,12 +26,31 @@ try {
         }
     )
 
-    $LauncherRoots = @(
+    $LauncherRoots = [System.Collections.Generic.List[string]]::new()
+    $LauncherRoots.AddRange(@(
         "C:\Riot Games",
         "C:\XboxGames",
         "D:\Games",
         "E:\Games"
-    )
+    ))
+
+    try {
+        $FixedDrives = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq 'Fixed' } | ForEach-Object { $_.Name }
+        foreach ($Drive in $FixedDrives) {
+            $CandidatePaths = @(
+                (Join-Path $Drive "Riot Games"),
+                (Join-Path $Drive "Games"),
+                (Join-Path $Drive "SteamLibrary\steamapps\common")
+            )
+            foreach ($P in $CandidatePaths) {
+                if (Test-Path $P) {
+                    if (!$LauncherRoots.Contains($P)) {
+                        $LauncherRoots.Add($P)
+                    }
+                }
+            }
+        }
+    } catch {}
 
     # Buscar rutas de Steam en el Registro dinámicamente
     $SteamPathReg = (Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -Name "SteamPath" -ErrorAction SilentlyContinue).SteamPath
@@ -151,13 +170,24 @@ try {
             }
 
             if ([string]::IsNullOrWhiteSpace($RealExePath)) {
-                $DeepHints = @(
-                    "C:\Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName",
-                    "C:\Riot Games\League of Legends\$ExeName",
+                $DeepHints = [System.Collections.Generic.List[string]]::new()
+                $DeepHints.AddRange(@(
                     "C:\Program Files (x86)\Overwatch\_retail_\$ExeName",
                     "C:\Program Files\Overwatch\_retail_\$ExeName",
                     "C:\Program Files (x86)\Battle.net\$ExeName"
-                )
+                ))
+
+                try {
+                    $FixedDrives = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq 'Fixed' } | ForEach-Object { $_.Name }
+                    foreach ($Drive in $FixedDrives) {
+                        $DeepHints.Add((Join-Path $Drive "Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName"))
+                        $DeepHints.Add((Join-Path $Drive "Riot Games\League of Legends\$ExeName"))
+                        $DeepHints.Add((Join-Path $Drive "Riot Games\League of Legends\Game\$ExeName"))
+                    }
+                } catch {
+                    $DeepHints.Add("C:\Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName")
+                    $DeepHints.Add("C:\Riot Games\League of Legends\$ExeName")
+                }
                 foreach ($Hint in $DeepHints) {
                     if (Test-Path $Hint -PathType Leaf) {
                         $RealExePath = $Hint
