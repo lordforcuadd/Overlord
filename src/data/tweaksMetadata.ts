@@ -45,7 +45,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Forzar el modo MSI en concentradores USB e inyectar buffers de cola de datos avanzados requiere reiniciar el equipo.",
     details: [
       "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores USB y GPU.",
-      "Optimización de búferes de cola de datos físicos (Mouse y KeyboardDataQueueSize a 32 hilos).",
+      "Optimización de búferes de cola de datos físicos (Mouse y KeyboardDataQueueSize a 128 hilos).",
       "Eliminación absoluta de aceleración por software y filtrado SmoothMouseCurve en el registro.",
       "Desactivación estricta de filtros de accesibilidad intrusivos (StickyKeys, ToggleKeys y FilterKeys).",
     ],
@@ -216,7 +216,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Aumento de la estabilidad de los relojes de CPU, menor latencia en el intercambio de memoria y FPS mínimos más altos.",
     warning:
-      "Overlord leerá tu silicio; las mitigaciones estructurales (Speculative Execution) solo se desactivarán en CPUs legacy para tu seguridad.",
+      "Desactivar mitigaciones Spectre/Meltdown en CPUs legacy recupera ciclos de reloj pero expone al procesador a vulnerabilidades teóricas de canal lateral (Speculative Execution).",
     details: [
       "Inyección de Kernel residente en RAM (DisablePagingExecutive) para suprimir accesos lentos a disco.",
       "Desactivación del limpiador del archivo de paginación para agilizar los ciclos de arranque y apagado.",
@@ -264,6 +264,47 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       },
     ],
   },
+  disableMitigations: {
+    id: "disableMitigations",
+    title: "Desactivar Mitigaciones de CPU",
+    description:
+      "Desactiva las mitigaciones Spectre y Meltdown a nivel de Kernel para recuperar ciclos de reloj en procesadores legacy.",
+    riesgo: "Experimental",
+    reversible: true,
+    metodoReversion:
+      "Restauración de las llaves del planificador de memoria y reactivación de las directivas de seguridad nativas.",
+    hardwareRecomendado:
+      "Procesadores legacy (Intel Core 9th Gen o anterior, AMD Ryzen 3000 o anterior) que sufren sobrecarga por los parches de seguridad.",
+    windowsVersion: "Windows 10 / Windows 11",
+    fuenteOficial:
+      "https://support.microsoft.com/en-us/topic/kb4073119-guidance-to-protect-against-speculative-execution-side-channel-vulnerabilities-in-windows-devices-419d691e-3652-32b0-951b-cb6104f7b494",
+    scriptName: "disable_mitigations.ps1",
+    impactoRendimiento:
+      "Incremento de hasta un 10-15% en throughput y rendimiento de CPU de un solo núcleo en procesadores vulnerables.",
+    warning:
+      "Desactivar mitigaciones Spectre/Meltdown en CPUs legacy recupera ciclos de reloj pero expone al procesador a vulnerabilidades teóricas de canal lateral (Speculative Execution).",
+    details: [
+      "Inhabilitación de mitigaciones de speculative execution (Spectre/Meltdown).",
+      "Restauración del rendimiento perdido por parches de seguridad de kernel.",
+      "Optimización enfocada a procesadores antiguos sin mitigaciones en silicio.",
+    ],
+    registryMapping: [
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
+        valueName: "FeatureSettingsOverride",
+        valueType: "REG_DWORD",
+        fallbackValue: 0,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
+        valueName: "FeatureSettingsOverrideMask",
+        valueType: "REG_DWORD",
+        fallbackValue: 0,
+      },
+    ],
+  },
   gpuDisplay: {
     id: "gpuDisplay",
     title: "Fluidez de Pantalla y Gráficos",
@@ -284,8 +325,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Establece HwSchMode al valor oficial documentado (2) para la programación de GPU acelerada por hardware.",
       "Desactivación de GameBarPresenceWriter a nivel de usuario para prevenir micro-stutters y frametime spikes al iniciar juegos.",
-      "Elevación de prioridad en tiempo real (High Priority Class) para el subproceso crítico de DWM (Desktop Window Manager).",
-      "Ajuste del timeout de detección y recuperación de GPU (TdrDelay = 8s) para mitigar crashes en motores UE5/DirectX 12.",
+      "Ajuste del timeout de detección y recuperación de GPU (TdrDelay = 10s) para mitigar crashes en motores UE5/DirectX 12.",
       "Activación de la optimización del Flip Presentation Model para juegos en modo ventana o ventana sin bordes.",
     ],
     registryMapping: [
@@ -317,13 +357,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueType: "REG_DWORD",
         fallbackValue: null,
       },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\dwm.exe\\PerfOptions",
-        valueName: "CpuPriorityClass",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
     ],
   },
   irqAffinity: {
@@ -344,7 +377,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Reducción masiva de la latencia de llamadas de procedimiento diferidas (DPC Latency) y aislamiento térmico/de hilos.",
     warning:
-      "El script calcula dinámicamente tu hardware para evadir los hilos del OS y los E-Cores eficientes lentos.",
+      "Este módulo desactiva la distribución multicanal RSS de red para priorizar la latencia en el CPU. Puede limitar el ancho de banda máximo en conexiones de fibra de alta velocidad (>= 500 Mbps).",
     details: [
       "Cálculo topológico dinámico en tiempo de ejecución basado en el mapa de hilos físicos del procesador.",
       "Aislamiento exclusivo de las interrupciones de red (NIC Isolation) en el penúltimo P-Core físico libre.",
@@ -449,7 +482,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Incremento dramático del throughput de la CPU y estabilización de FPS mínimos por eliminación de sobrecarga de virtualización.",
     warning:
-      "Si cuentas con cifrado BitLocker activo o Windows Enterprise, el aislamiento de Kernel se preservará automáticamente por seguridad.",
+      "Desactivar el aislamiento de Kernel (VBS/HVCI) incrementa el rendimiento y la consistencia de FPS, pero reduce la seguridad estructural de memoria del sistema operativo.",
     details: [
       "Análisis en caliente de BitLocker mediante WMI para evitar la corrupción de llaves de cifrado en el arranque.",
       "Erradicación definitiva del servicio de recolección de experiencias DiagTrack y del historial de actividades de usuario.",

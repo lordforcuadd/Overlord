@@ -35,13 +35,15 @@ A diferencia de las utilidades de optimización tradicionales, **Overlord v4.4.4
 
 - **Mutex de Ejecución Concurrente:** Un `static EXECUTION_LOCK: Mutex<()>` en `executor.rs` garantiza que nunca se ejecuten dos módulos simultáneamente, evitando condiciones de carrera sobre las claves de registro de backup.
 
-- **Resolución por SID Dinámico:** Al ejecutarse con privilegios elevados, Windows mapea `HKCU:` hacia la cuenta de Administrador. El motor de Overlord intercepta el SID real del usuario interactivo mediante consultas CIM nativas, forzando la inyección directa en `Registry::HKEY_USERS\$UserSID` en los scripts QoL. Esto garantiza que los cambios surtan efecto inmediato en el perfil de usuario correcto.
+- **Resolución por SID Dinámico con Redundancia de 4 Niveles:** Al ejecutarse con privilegios elevados, Windows redirige `HKCU:` hacia la cuenta de Administrador. El motor de Overlord resuelve el SID real del usuario interactivo utilizando un esquema de fallback de 4 niveles (WMI -> Propietario de `explorer.exe` -> Traducción de clase `.NET NTAccount` -> Escaneo directo en `HKEY_USERS` de claves con entorno volátil activo), forzando la inyección en `Registry::HKEY_USERS\$UserSID` en los scripts QoL. Esto garantiza compatibilidad absoluta en sistemas optimizados o recortados con el subsistema WMI/CIM corrompido.
 
 - **Inyección de Módulos Unificada:** El executor concatena en memoria el header de variables (`$IsLaptop`, `$RamGB`, `$GameList`), `utils.ps1` y `backup_manager.psm1` antes de cada script de módulo, garantizando que las funciones de backup siempre estén disponibles sin importar el contexto de ejecución.
 
 - **Puente IPC Sanitizado:** Los argumentos dinámicos como listas de videojuegos pasan por filtros de caracteres que neutralizan vectores de inyección de comandos locales (_Local Command Injection_), escapando comillas simples antes de insertarlos en el script unificado.
 
 - **Telemetría Asíncrona No Bloqueante:** El bucle de monitoreo de hardware utiliza el temporizador asíncrono nativo de Tokio, evitando `thread::sleep` bloqueantes que congelen el hilo principal de la aplicación Tauri.
+
+- **Detección de Hardware Asíncrona No Bloqueante:** Para evitar retardos de hasta 2 segundos durante el arranque de la interfaz gráfica, la detección de la velocidad física de la memoria RAM (que anteriormente realizaba una consulta WMI/CIM síncrona lenta a través de PowerShell) se delega a un hilo de fondo en Rust de forma asíncrona mediante variables atómicas. El frontend carga al instante y actualiza reactivamente la frecuencia en MHz tras 3 segundos, eliminando demoras visuales.
 
 ---
 
@@ -72,7 +74,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 ### 1. Respuesta de Periféricos (`01_perifericos.ps1`)
 
 - Activa **MSI Mode** (Message Signaled Interrupts) en GPU y controladores USB recorriendo el árbol PCI completo mediante la API nativa `Microsoft.Win32.Registry` y configura la prioridad de interrupción a Alta (`DevicePriority = 3`) bajo la directiva de política de afinidad, eliminando interrupciones de línea compartida (IRQ sharing) y fluctuaciones de latencia.
-- Reconfigura el búfer de intercambio de los drivers de clase nativos `mouclass` y `kbdclass` fijando `MouseDataQueueSize` y `KeyboardDataQueueSize` en **32**, valor balanceado para polling rates de hasta 8KHz.
+- Reconfigura el búfer de intercambio de los drivers de clase nativos `mouclass` y `kbdclass` fijando `MouseDataQueueSize` y `KeyboardDataQueueSize` en **128**, valor balanceado para polling rates de hasta 8KHz para evitar microcongelamientos.
 - Establece `Win32PrioritySeparation = 22` (0x16): quantum de CPU interactivo corto y variable con boost de 3:1 para garantizar la máxima respuesta del juego en primer plano.
 - Desactiva la aceleración del puntero (`MouseSpeed = 0`, `MouseThreshold1/2 = 0`) y neutraliza las curvas de suavizado `SmoothMouseXCurve` y `SmoothMouseYCurve` con 40 bytes a cero, garantizando traducción 1:1 de movimiento físico a digital.
 - Desactiva StickyKeys, ToggleKeys y FilterKeys para evitar interrupciones de accesibilidad involuntarias durante el juego.
@@ -98,7 +100,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Fuerza la autosintonización TCP a `normal` (netsh) para evitar límites arbitrarios de velocidad (común tras usar otros optimizadores) y deshabilita `ecncapability` para prevenir pérdidas de paquetes in-game en routers de consumo antiguos.
 - Preserva intactos los túneles nativos de IPv6 como Teredo e ISATAP para garantizar el correcto funcionamiento de los chats de voz de Xbox Live y los servicios de Microsoft Store.
 - Activa RSC y Checksum Offload en adaptadores Intel; deshabilita RSC en adaptadores no-Intel donde puede causar latencia adicional.
-- Deshabilita la **Coalescencia de Paquetes** (`*PacketCoalescing = 0`, `PacketCoalescing = 0`) en todos los adaptadores de red físicos descubiertos para asegurar que el sistema operativo procese los paquetes en el momento exacto en que son recibidos, evitando latencia por acumulación artificial.
+- Deshabilita **Energy Efficient Ethernet (EEE)**, **Green Energy** y la **Coalescencia de Paquetes** (`*PacketCoalescing = 0`, `PacketCoalescing = 0`) en todos los adaptadores de red físicos descubiertos (interfaces cableadas Ethernet físicas con `Virtual -eq $false` y `NdisPhysicalMedium -eq 14`), previniendo micro-cortes de conexión y asegurando que el sistema operativo procese los paquetes inmediatamente al recibirse para eliminar jitter.
 
 ### 4. Rendimiento de Kernel y Procesador (`04_rendimiento.ps1`)
 
@@ -122,7 +124,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Eleva la prioridad del hilo de `dwm.exe` (Desktop Window Manager) a **Alta** (`CpuPriorityClass = 3`) via IFEO/PerfOptions, estabilizando el Frame Pacing y los 1% Low FPS cuando la CPU está al límite.
 - Desactiva el color de acento en el compositor (`ColorPrevalence = 0`).
 - En sistemas con 6 GB de RAM o menos: deshabilita transparencias del compositor (`EnableTransparency = 0`) para liberar ancho de banda de GPU.
-- Ajusta el tiempo de recuperación del controlador gráfico (**TdrDelay = 8**) para evitar bloqueos del sistema o cuelgues repentinos (TDR) en motores modernos como Unreal Engine 5 o DirectX 12.
+- Ajusta el tiempo de recuperación del controlador gráfico (**TdrDelay = 10**) para evitar bloqueos del sistema o cuelgues repentinos (TDR) en motores modernos como Unreal Engine 5 o DirectX 12.
 - Modifica la directiva de actualización del Compositor (**SwapEffectUpgradeDisable = 0**) para forzar el uso de la cola de presentación Flip de baja latencia en juegos ejecutados en modo ventana o ventana sin bordes.
 
 ### 6. Afinidad IRQ y Prioridades Multimedia (`06_irq_affinity.ps1`)
@@ -165,13 +167,20 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Ajusta `CpuPriorityClass` de forma adaptativa según la topología del sistema: prioridad **Alta (3)** en sistemas con más de 6 cores; prioridad **AboveNormal (6)** en laptops o sistemas con 5-6 cores; prioridad **Normal (2)** en sistemas con 4 cores o menos, evitando penalizar el sistema en hardware limitado.
 - Asigna `IoPriority = 3` (Alta) para lecturas de disco preferentes.
 - Inyecta la invalidación de escalamiento de PPP (High DPI) para eliminar la latencia por reescalado de pantalla y conserva las optimizaciones modernas de DirectX en modo ventana maximizada (modelo Flip nativo de Windows 10/11).
+- **Servicio de Prioridades Dinámico en Segundo Plano (De Arranque Automático):** Dado que el monitor de prioridad de Tauri en Rust finaliza al cerrar la ventana principal de Overlord, la aplicación ofrece la opción de instalar un servicio de fondo ligero. Esto crea una Tarea Programada de Windows elevada a nivel de `SYSTEM` que ejecuta un daemon de PowerShell (`priority_monitor_daemon.ps1`) en un bucle discreto cada 15 segundos. Este daemon continúa monitoreando y aplicando prioridad de CPU alta a los juegos configurados de forma automática, incluso sin tener la interfaz gráfica de la aplicación de Overlord abierta, e iniciando de manera autónoma al arrancar el ordenador (`AtStartup`).
 - Guarda backup completo de todos los valores originales por ejecutable para revert limpio.
+
+### 11. Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`)
+
+- Desactiva las mitigaciones Spectre (v2) y Meltdown (`FeatureSettingsOverride = 3` y `FeatureSettingsOverrideMask = 3`) a nivel de Kernel en la colmena Memory Management de HKLM.
+- **Caso de uso**: Recupera de un 10% a un 15% de throughput de CPU en procesadores legacy (Intel Core de 9.ª generación o anterior, y AMD Ryzen serie 3000 o anterior) que se ven ralentizados por los parches de seguridad de microcódigo.
+- Cuenta con respaldo y reversión simétrica en el desinstalador para restablecer las directivas de seguridad nativas del Kernel de Windows.
 
 ---
 
 ## 🎛️ Panel QoL — 21 Interruptores Instantáneos
 
-El script `set_qol.ps1` orquesta 21 modificaciones inmediatas de experiencia de usuario y privacidad, cada una bajo bloques `Try/Catch` independientes. Resuelve el SID del usuario interactivo real antes de aplicar cambios en `HKCU:`, garantizando que los cambios lleguen al perfil correcto.
+El script `set_qol.ps1` orquesta 21 modificaciones inmediatas de experiencia de usuario y privacidad, cada una bajo bloques `Try/Catch` independientes. Resuelve el SID del usuario interactivo real mediante la cadena de resiliencia de 4 niveles antes de aplicar cambios en `HKCU:`, garantizando que los cambios lleguen al perfil correcto.
 
 **Interfaz y apariencia:**
 Modo Oscuro Global, Rendimiento Visual Barebones (elimina animaciones de ventanas), Mostrar Extensiones de Archivo, Mostrar Archivos Ocultos, Menú Contextual Clásico de Windows 11, Barra de Tareas Alineada a la Izquierda, Inicio Directo en "Este Equipo", Alt+Tab Limpio (solo ventanas de aplicaciones).

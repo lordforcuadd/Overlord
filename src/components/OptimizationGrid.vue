@@ -38,6 +38,26 @@
               ></div>
             </label>
           </div>
+
+          <hr class="border-white/5 my-1" />
+          
+          <div class="flex items-center justify-between mt-1 pt-1">
+            <div class="flex flex-col pr-2">
+              <span class="text-xs font-bold text-gray-300">Servicio de Fondo</span>
+              <span class="text-[10px] text-gray-500 mt-0.5 leading-tight">Mantener prioridad alta sin la app abierta</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                v-model="store.priorityServiceSelected"
+                @change="handleServiceToggle"
+                class="sr-only peer"
+              />
+              <div
+                class="w-8 h-4 bg-neutral-700 rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-500"
+              ></div>
+            </label>
+          </div>
         </div>
       </template>
     </ModuleCard>
@@ -49,7 +69,7 @@ import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata } from "../data/tweaksMetadata";
 import ModuleCard from "./ModuleCard.vue";
 
-defineProps<{
+const props = defineProps<{
   cardStatus: Record<string, "idle" | "loading" | "success" | "error">;
 }>();
 
@@ -66,6 +86,9 @@ const getModuleValue = (id: string | number | symbol) => {
 const handleModuleUpdate = (tweakId: string, newValue: boolean) => {
   store.activeProfile = "Personalizado";
   store.modules[tweakId as keyof typeof store.modules] = newValue;
+  if (tweakId === "gameHooks") {
+    store.priorityServiceSelected = newValue;
+  }
 };
 
 const handleWarningRequest = (payload: { id: string; warningText: string }) => {
@@ -75,5 +98,12 @@ const handleWarningRequest = (payload: { id: string; warningText: string }) => {
     key: payload.id,
     message: payload.warningText,
   });
+};
+
+const handleServiceToggle = async () => {
+  const checked = store.priorityServiceSelected;
+  if (props.cardStatus['gameHooks'] === 'success') {
+    await store.togglePriorityService(checked);
+  }
 };
 </script>

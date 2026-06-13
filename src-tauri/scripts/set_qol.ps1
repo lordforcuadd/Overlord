@@ -12,17 +12,59 @@ if (-not $isAdmin) {
     exit 1
 }
 
-$Username = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
-if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
-if ([string]::IsNullOrWhiteSpace($Username)) { $Username = $env:USERNAME }
+$Username = $null
+try {
+    $Username = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
+    if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+} catch {}
 
-$UserSID = (Get-CimInstance -ClassName Win32_UserAccount | Where-Object { $_.Name -eq $Username }).SID
-if ([string]::IsNullOrWhiteSpace($UserSID)) {
-    $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" | Select-Object -First 1
-    if ($Explorer) {
-        $Owner = Invoke-CimMethod -InputObject $Explorer -MethodName GetOwner
-        $UserSID = (Get-CimInstance -ClassName Win32_UserAccount | Where-Object { $_.Name -eq $Owner.User }).SID
+if ([string]::IsNullOrWhiteSpace($Username)) {
+    try {
+        $Username = (Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UserName -First 1)
+        if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+    } catch {}
+}
+
+if ([string]::IsNullOrWhiteSpace($Username)) {
+    $Username = $env:USERNAME
+}
+
+$UserSID = ""
+if (-not [string]::IsNullOrWhiteSpace($Username)) {
+    try {
+        $NtAccount = New-Object System.Security.Principal.NTAccount($Username)
+        $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
+    } catch {
+        try {
+            $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $Username }).SID
+        } catch {}
     }
+}
+
+if ([string]::IsNullOrWhiteSpace($UserSID)) {
+    try {
+        $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($Explorer) {
+            $Owner = Invoke-CimMethod -InputObject $Explorer -MethodName GetOwner -ErrorAction SilentlyContinue
+            $NtAccount = New-Object System.Security.Principal.NTAccount($Owner.User)
+            $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
+        }
+    } catch {}
+}
+
+if ([string]::IsNullOrWhiteSpace($UserSID)) {
+    try {
+        $HKeyUsers = [Microsoft.Win32.Registry]::Users
+        foreach ($SubkeyName in $HKeyUsers.GetSubKeyNames()) {
+            if ($SubkeyName -match '^S-1-5-21-\d+-\d+-\d+-\d+$') {
+                $VolatileKey = "Registry::HKEY_USERS\$SubkeyName\Volatile Environment"
+                if (Test-Path $VolatileKey) {
+                    $UserSID = $SubkeyName
+                    break
+                }
+            }
+        }
+    } catch {}
 }
 
 $Targets = @()

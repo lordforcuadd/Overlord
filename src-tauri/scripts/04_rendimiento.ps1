@@ -66,38 +66,7 @@ Try {
     }
     Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
 
-    if (-not $IsLaptop) {
-        $CPUName = ""
-        try {
-            $CPUName = (Get-ItemProperty -Path "HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0" -ErrorAction SilentlyContinue).ProcessorNameString
-        } catch {}
-
-        $IsModernCPU = $false
-        if (![string]::IsNullOrWhiteSpace($CPUName)) {
-            if ($CPUName -like "*Intel*") {
-                if ($CPUName -match "i[3579]-(1\d{4})") { 
-                    $IsModernCPU = $true 
-                } elseif ($CPUName -like "*Ultra*") { 
-                    $IsModernCPU = $true 
-                }
-            } elseif ($CPUName -like "*AMD*") {
-                if ($CPUName -match "Ryzen [3579]\s+([5789]\d{3})") { 
-                    $IsModernCPU = $true 
-                }
-            }
-        }
-
-        if ($IsModernCPU) {
-            Write-Host "[+] Procesador moderno detectado ($CPUName). Las mitigaciones de seguridad ya vienen integradas de fábrica en el silicio. Saltando tweak para mantener protecciones intactas sin pérdida de throughput." -ForegroundColor Green
-        } else {
-            Write-Host "[!] Procesador legacy detectado o no identificado ($CPUName). Desactivando mitigaciones estructurales Spectre/Meltdown para maximizar ciclos por segundo." -ForegroundColor Yellow
-            Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force | Out-Null
-            Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force | Out-Null
-            
-            if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride").FeatureSettingsOverride -ne 3) { throw "Fallo de escritura en FeatureSettingsOverride (Spectre/Meltdown)" }
-            if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask").FeatureSettingsOverrideMask -ne 3) { throw "Fallo de escritura en FeatureSettingsOverrideMask (Spectre/Meltdown)" }
-        }
-    }
+    # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a través del módulo independiente disableMitigations por seguridad.
 
     $StorePath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }

@@ -23,7 +23,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
             if (Test-Path $Path) {
                 $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseDataQueueSize
-                $Size | Should Be 64
+                $Size | Should Be 128
             }
         }
 
@@ -31,7 +31,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
             if (Test-Path $Path) {
                 $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).KeyboardDataQueueSize
-                $Size | Should Be 64
+                $Size | Should Be 128
             }
         }
 
@@ -189,7 +189,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
             if (Test-Path $Path) {
                 $Tdr = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).TdrDelay
                 if ($null -ne $Tdr) {
-                    $Tdr | Should Be 8
+                    $Tdr | Should Be 10
                 }
             }
         }

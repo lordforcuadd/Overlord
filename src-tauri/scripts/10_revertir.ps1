@@ -363,6 +363,17 @@ Try {
         }
     }
 
+    $TaskName = "OverlordPriorityMonitor"
+    $InstallDir = "C:\ProgramData\Overlord"
+    $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if ($null -ne $ExistingTask) {
+        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
+    }
+    if (Test-Path $InstallDir) {
+        Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+
     if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
 
     # Eliminar la clave padre principal si queda vacía tras la reversión para no dejar huella

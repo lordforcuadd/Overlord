@@ -52,20 +52,27 @@ Try {
         }
     }
 
-    
     $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
     if (Test-Path $NetClassPath) {
+        $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+            $_.Virtual -eq $false -and 
+            $_.NdisPhysicalMedium -eq 14 
+        } | ForEach-Object { "$($_.InterfaceGuid)" }
+
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing")
-                foreach ($PKey in $PowerKeys) {
-                    $Prop = Get-ItemProperty -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
-                    if ($null -ne $Prop) {
-                        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                            Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network"
+                $NetInstanceId = (Get-ItemProperty -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue).NetCfgInstanceId
+                if ($null -ne $NetInstanceId -and ($EthernetGuids -contains $NetInstanceId)) {
+                    $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing")
+                    foreach ($PKey in $PowerKeys) {
+                        $Prop = Get-ItemProperty -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
+                        if ($null -ne $Prop) {
+                            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                                Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network"
+                            }
+                            Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
                         }
-                        Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
                     }
                 }
             }

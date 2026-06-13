@@ -24,8 +24,8 @@ Try {
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
     if ((Get-ItemProperty -Path $HagsPath -Name "HwSchMode").HwSchMode -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
 
-    Set-ItemProperty -Path $HagsPath -Name "TdrDelay" -Type DWord -Value 8 -Force | Out-Null
-    if ((Get-ItemProperty -Path $HagsPath -Name "TdrDelay").TdrDelay -ne 8) { throw "Fallo al verificar TdrDelay" }
+    Set-ItemProperty -Path $HagsPath -Name "TdrDelay" -Type DWord -Value 10 -Force | Out-Null
+    if ((Get-ItemProperty -Path $HagsPath -Name "TdrDelay").TdrDelay -ne 10) { throw "Fallo al verificar TdrDelay" }
 
     Set-ItemProperty -Path $UserGpuPath -Name "SwapEffectUpgradeDisable" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemProperty -Path $UserGpuPath -Name "SwapEffectUpgradeDisable").SwapEffectUpgradeDisable -ne 0) { throw "Fallo al verificar SwapEffectUpgradeDisable" }

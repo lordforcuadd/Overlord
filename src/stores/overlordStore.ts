@@ -63,6 +63,7 @@ export const useOverlordStore = defineStore("overlord", {
       deepTelemetry: false,
       powerProfiles: false,
       gameHooks: false,
+      disableMitigations: false,
     },
     gameList: [] as Array<{
       name: string;
@@ -86,6 +87,8 @@ export const useOverlordStore = defineStore("overlord", {
     restorePointCreated: false,
     backupExists: false,
     isMonitorRunning: false,
+    isPriorityServiceInstalled: false,
+    priorityServiceSelected: false,
     telemetryInterval: null as any,
     isInitialized: false,
     isBenchmarkTesting: false,
@@ -137,8 +140,54 @@ export const useOverlordStore = defineStore("overlord", {
           this.hardwareInfo.tier = "Gama Estándar";
         }
         await this.checkBackupStatus();
+        await this.checkPriorityServiceStatus();
+        if (!this.isInitialized) {
+          this.priorityServiceSelected = this.isPriorityServiceInstalled;
+        }
       } catch (e) {
         console.error("[ERROR DETECTANDO HARDWARE]:", e);
+      }
+    },
+    async checkPriorityServiceStatus() {
+      try {
+        const status = await invoke<string>("run_optimization_script", {
+          scriptName: "manage_priority_service",
+          isLaptop: this.hardwareInfo.isLaptop,
+          ramGb: this.hardwareInfo.ramGb,
+          gameList: "status:",
+        });
+        this.isPriorityServiceInstalled = status.trim() === "installed";
+        if (!this.isInitialized) {
+          this.priorityServiceSelected = this.isPriorityServiceInstalled;
+        }
+      } catch (e) {
+        console.error("[ERROR CHECKING PRIORITY SERVICE STATUS]:", e);
+        this.isPriorityServiceInstalled = false;
+        if (!this.isInitialized) {
+          this.priorityServiceSelected = false;
+        }
+      }
+    },
+    async togglePriorityService(enable: boolean) {
+      try {
+        const gameListOpt = this.gameList
+          .filter((g) => g.optimize)
+          .map((g) => g.exe)
+          .join(",");
+
+        const action = enable ? "install" : "uninstall";
+        const status = await invoke<string>("run_optimization_script", {
+          scriptName: "manage_priority_service",
+          isLaptop: this.hardwareInfo.isLaptop,
+          ramGb: this.hardwareInfo.ramGb,
+          gameList: `${action}:${gameListOpt}`,
+        });
+
+        this.isPriorityServiceInstalled = status.trim() === "installed";
+        this.priorityServiceSelected = this.isPriorityServiceInstalled;
+      } catch (e) {
+        console.error(`[ERROR TOGGLING PRIORITY SERVICE ${enable}]:`, e);
+        await this.checkPriorityServiceStatus();
       }
     },
     async scanGames() {
@@ -196,6 +245,7 @@ export const useOverlordStore = defineStore("overlord", {
           "deepTelemetry",
           "powerProfiles",
           "gameHooks",
+          "disableMitigations",
         ],
         "Programador & Competitivo": [
           "peripheralLatency",
@@ -218,13 +268,18 @@ export const useOverlordStore = defineStore("overlord", {
 
       const activeModules = profileConfigs[profile] || [];
 
+      let hasGameHooks = false;
       activeModules.forEach((mod) => {
-        if (mod === "irqAffinity" && (isLaptop || isHybrid))
+        if (mod === "irqAffinity" && isLaptop)
           return;
         if (mod === "powerProfiles" && isLaptop) return;
 
         this.modules[mod as keyof typeof this.modules] = true;
+        if (mod === "gameHooks") {
+          hasGameHooks = true;
+        }
       });
+      this.priorityServiceSelected = hasGameHooks;
     },
     async ejecutarNetworkBenchmark(fase: "before" | "after") {
       if (this.isBenchmarkTesting) return;

@@ -119,7 +119,25 @@ try {
 
             if ($ConfigFolder) {
                 foreach ($engine in $EngineConfigPatterns) {
-                    $ini = Get-ChildItem -Path $ConfigFolder -Filter $engine.FileName -Recurse -Depth 5 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                    $ini = $null
+                    if ($engine.Name -eq "Unreal") {
+                        $KnownPaths = @(
+                            (Join-Path $ConfigFolder "Saved\Config\WindowsNoEditor\GameUserSettings.ini"),
+                            (Join-Path $ConfigFolder "Saved\Config\Windows\GameUserSettings.ini"),
+                            (Join-Path $ConfigFolder "Saved\Config\WindowsClient\GameUserSettings.ini")
+                        )
+                        foreach ($kp in $KnownPaths) {
+                            if (Test-Path $kp) {
+                                $ini = Get-Item $kp
+                                break
+                            }
+                        }
+                        if ($null -eq $ini) {
+                            $ini = Get-ChildItem -Path $ConfigFolder -Filter $engine.FileName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                        }
+                    } else {
+                        $ini = Get-ChildItem -Path $ConfigFolder -Filter $engine.FileName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                    }
                     if ($ini -and ($engine.Name -eq "Unreal")) {
                         if ($ini.IsReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $false }
 

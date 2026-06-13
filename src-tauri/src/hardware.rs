@@ -36,9 +36,36 @@ extern "system" {
 }
 
 static HARDWARE_CACHE: OnceLock<HardwareResponse> = OnceLock::new();
+static RAM_SPEED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+static RAM_SPEED_STATUS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 pub fn get_system_hardware() -> HardwareResponse {
-    HARDWARE_CACHE.get_or_init(|| {
+    let status = RAM_SPEED_STATUS.load(std::sync::atomic::Ordering::Relaxed);
+    if status == 0 {
+        if RAM_SPEED_STATUS.compare_exchange(0, 1, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst).is_ok() {
+            std::thread::spawn(|| {
+                let mut speed_val = 0;
+                if let Ok(output) = Command::new("powershell.exe")
+                    .creation_flags(0x08000000)
+                    .args(&["-NoProfile", "-Command", "(Get-CimInstance -ClassName Win32_PhysicalMemory | Select-Object -First 1).ConfiguredClockSpeed"])
+                    .output()
+                {
+                    if output.status.success() {
+                        let speed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        if let Ok(speed) = speed_str.parse::<u32>() {
+                            if speed > 0 {
+                                speed_val = speed;
+                            }
+                        }
+                    }
+                }
+                RAM_SPEED.store(speed_val, std::sync::atomic::Ordering::SeqCst);
+                RAM_SPEED_STATUS.store(2, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
+    }
+
+    let mut response = HARDWARE_CACHE.get_or_init(|| {
         let mut sys = System::new_all();
         sys.refresh_memory();
         sys.refresh_cpu();
@@ -83,23 +110,6 @@ pub fn get_system_hardware() -> HardwareResponse {
 
         let total_ram_bytes = sys.total_memory();
         let ram_calc = (total_ram_bytes as f64 / 1024.0 / 1024.0 / 1024.0).round() as u32;
-
-        let mut detected_speed = 0;
-        
-        if let Ok(output) = Command::new("powershell.exe")
-            .creation_flags(0x08000000)
-            .args(&["-NoProfile", "-Command", "(Get-CimInstance -ClassName Win32_PhysicalMemory | Select-Object -First 1).ConfiguredClockSpeed"])
-            .output()
-        {
-            if output.status.success() {
-                let speed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if let Ok(speed) = speed_str.parse::<u32>() {
-                    if speed > 0 { detected_speed = speed; }
-                }
-            }
-        }
-
-        let ram_speed_mhz = if detected_speed > 0 { Some(detected_speed) } else { None };
 
         let is_laptop_chassis = hklm
             .open_subkey("SYSTEM\\CurrentControlSet\\Control\\SystemInformation")
@@ -172,13 +182,19 @@ pub fn get_system_hardware() -> HardwareResponse {
             gpu: gpu_name,
             motherboard: motherboard_name,
             ram_gb: ram_calc,
-            ram_speed_mhz,
+            ram_speed_mhz: None,
             is_laptop: is_laptop_chassis,
             is_hybrid,
             is_x3d,
             is_ssd: drive_is_ssd,
         }
-    }).clone()
+    }).clone();
+
+    let speed = RAM_SPEED.load(std::sync::atomic::Ordering::SeqCst);
+    if speed > 0 {
+        response.ram_speed_mhz = Some(speed);
+    }
+    response
 }
 
 fn get_steam_library_paths() -> Vec<String> {

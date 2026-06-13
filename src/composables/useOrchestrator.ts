@@ -101,8 +101,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
           await invoke("start_game_priority_monitor", {
             gameListRaw: gameListOpt,
           });
+          await store.togglePriorityService(store.priorityServiceSelected);
           console.log(
-            "[RUST MONITOR]: Hilo dinámico de prioridad alta inicializado con éxito.",
+            `[RUST MONITOR]: Hilo dinámico de prioridad alta inicializado con éxito. Servicio de fondo configurado: ${store.priorityServiceSelected}`,
           );
         }
 
@@ -220,6 +221,64 @@ export function useOrchestrator(overlordSwalConfig: any) {
           store.modules[moduleKey] = false;
         }
       });
+
+      const { isLaptop } = store.hardwareInfo;
+      const profileConfigs: Record<string, string[]> = {
+        Competitivo: [
+          "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
+          "gpuDisplay", "irqAffinity", "smartStorage", "deepTelemetry", "powerProfiles",
+          "gameHooks", "disableMitigations"
+        ],
+        "Programador & Competitivo": [
+          "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
+          "gpuDisplay", "smartStorage", "powerProfiles", "gameHooks"
+        ],
+        ...(isLaptop ? {
+          "Home Office / Laptops": ["debloat", "networkOptimized", "smartStorage"],
+          Programador: ["debloat", "networkOptimized", "smartStorage"]
+        } : {
+          Programador: ["debloat", "networkOptimized", "smartStorage"],
+          "Home Office / Laptops": ["debloat", "networkOptimized", "smartStorage"]
+        }),
+        "Usuario Casual": ["debloat", "smartStorage"]
+      };
+
+      let matchedProfile = "Personalizado";
+      for (const [profileName, profileMods] of Object.entries(profileConfigs)) {
+        let expected: Record<string, boolean> = {
+          peripheralLatency: false,
+          debloat: false,
+          networkOptimized: false,
+          generalPerformance: false,
+          gpuDisplay: false,
+          irqAffinity: false,
+          smartStorage: false,
+          deepTelemetry: false,
+          powerProfiles: false,
+          gameHooks: false,
+          disableMitigations: false
+        };
+
+        profileMods.forEach((mod) => {
+          if (mod === "irqAffinity" && isLaptop) return;
+          if (mod === "powerProfiles" && isLaptop) return;
+          expected[mod] = true;
+        });
+
+        let isMatch = true;
+        for (const modKey of Object.keys(expected)) {
+          if (!!realStatus[modKey] !== expected[modKey]) {
+            isMatch = false;
+            break;
+          }
+        }
+
+        if (isMatch) {
+          matchedProfile = profileName;
+          break;
+        }
+      }
+      store.activeProfile = matchedProfile;
     } catch (e) {
       console.error("[ERROR AL CARGAR ESTADOS INICIALES]:", e);
     }

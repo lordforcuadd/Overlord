@@ -11,6 +11,7 @@ $Status = @{
     deepTelemetry      = $false
     powerProfiles      = $false
     gameHooks          = $false
+    disableMitigations = $false
 }
 
 $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
@@ -18,7 +19,7 @@ $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
 if (Test-Path $MouPath) {
     $MouSize = Get-ItemPropertyValue -Path $MouPath -Name "MouseDataQueueSize" -ErrorAction SilentlyContinue
     $KbdSize = Get-ItemPropertyValue -Path $KbdPath -Name "KeyboardDataQueueSize" -ErrorAction SilentlyContinue
-    if (($null -ne $MouSize -and $MouSize -le 64) -or ($null -ne $KbdSize -and $KbdSize -le 64)) {
+    if (($null -ne $MouSize -and $MouSize -le 128) -or ($null -ne $KbdSize -and $KbdSize -le 128)) {
         $Status['peripheralLatency'] = $true
     }
 }
@@ -59,7 +60,7 @@ if (Test-Path $GpuPath) {
     $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
     $Tdr = Get-ItemPropertyValue -Path $GpuPath -Name "TdrDelay" -ErrorAction SilentlyContinue
     $Swap = Get-ItemPropertyValue -Path $UserGpuPath -Name "SwapEffectUpgradeDisable" -ErrorAction SilentlyContinue
-    if ($Hags -eq 2 -or $Tdr -eq 8 -or $Swap -eq 0) {
+    if ($Hags -eq 2 -or $Tdr -eq 10 -or $Swap -eq 0) {
         $Status['gpuDisplay'] = $true
     }
 }
@@ -134,5 +135,14 @@ if (Test-Path $GameHooksBackup) {
         }
     }
 }
+
+$MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+if (Test-Path $MemPath) {
+    $Override = Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue
+    if ($Override -eq 3) {
+        $Status['disableMitigations'] = $true
+    }
+}
+
 
 ConvertTo-Json $Status -Compress

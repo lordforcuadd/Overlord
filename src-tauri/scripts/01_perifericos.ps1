@@ -90,7 +90,7 @@ Try {
     }
 
     
-    $QueueSize = 64
+    $QueueSize = 128
 
     $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
     if (Test-Path $MouPath) {

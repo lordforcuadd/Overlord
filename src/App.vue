@@ -194,7 +194,7 @@
             <span class="text-white font-bold">{{
               Object.values(store.modules).filter((v) => v).length
             }}</span>
-            / 10
+            / {{ Object.keys(store.modules).length }}
           </p>
         </div>
       </div>
@@ -276,7 +276,11 @@ const openWarningModal = (payload: { key: string; message: string }) => {
 
 const confirmDangerousTweak = () => {
   const key = pendingTweakKey.value as keyof typeof store.modules;
+  store.activeProfile = "Personalizado";
   store.modules[key] = true;
+  if (key === "gameHooks") {
+    store.priorityServiceSelected = true;
+  }
   warningModalOpen.value = false;
 };
 
@@ -292,6 +296,10 @@ onMounted(async () => {
   await syncModulesStatus();
   store.startTelemetryPolling();
   store.isInitialized = true;
+  
+  setTimeout(() => {
+    store.detectHardware();
+  }, 3000);
 });
 
 onUnmounted(() => {
