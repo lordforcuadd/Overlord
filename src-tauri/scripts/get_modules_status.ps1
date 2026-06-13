@@ -19,7 +19,8 @@ $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
 if (Test-Path $MouPath) {
     $MouSize = Get-ItemPropertyValue -Path $MouPath -Name "MouseDataQueueSize" -ErrorAction SilentlyContinue
     $KbdSize = Get-ItemPropertyValue -Path $KbdPath -Name "KeyboardDataQueueSize" -ErrorAction SilentlyContinue
-    if (($null -ne $MouSize -and $MouSize -le 128) -or ($null -ne $KbdSize -and $KbdSize -le 128)) {
+    # Las colas optimizadas por Overlord son exactamente de 128 (el valor stock de Windows es 100)
+    if (($null -ne $MouSize -and $MouSize -eq 128) -and ($null -ne $KbdSize -and $KbdSize -eq 128)) {
         $Status['peripheralLatency'] = $true
     }
 }
@@ -60,7 +61,8 @@ if (Test-Path $GpuPath) {
     $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
     $Tdr = Get-ItemPropertyValue -Path $GpuPath -Name "TdrDelay" -ErrorAction SilentlyContinue
     $Swap = Get-ItemPropertyValue -Path $UserGpuPath -Name "SwapEffectUpgradeDisable" -ErrorAction SilentlyContinue
-    if ($Hags -eq 2 -or $Tdr -eq 10 -or $Swap -eq 0) {
+    # HAGS debe estar activo (2) y además deben estar inyectados los tweaks avanzados (TdrDelay = 10 o SwapEffectUpgradeDisable = 0)
+    if ($Hags -eq 2 -and ($Tdr -eq 10 -or $Swap -eq 0)) {
         $Status['gpuDisplay'] = $true
     }
 }
@@ -94,9 +96,12 @@ if ($IsSystemLaptop -and (Test-Path $CpuBackup)) {
 }
 
 $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+$FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
 if (Test-Path $NtfsPath) {
     $Last = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue
-    if ($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) {
+    $FastStart = Get-ItemPropertyValue -Path $FastStartPath -Name "HiberbootEnabled" -ErrorAction SilentlyContinue
+    # NtfsDisableLastAccessUpdate debe estar activo y el Inicio Rápido desactivado (0)
+    if (($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) -and $FastStart -eq 0) {
         $Status['smartStorage'] = $true
     }
 }
