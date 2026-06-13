@@ -231,7 +231,7 @@ export const useOverlordStore = defineStore("overlord", {
         this.modules[key as keyof typeof this.modules] = false;
       });
 
-      const { isLaptop, isHybrid } = this.hardwareInfo;
+      const { isLaptop } = this.hardwareInfo;
 
       const profileConfigs: Record<string, string[]> = {
         Competitivo: [
