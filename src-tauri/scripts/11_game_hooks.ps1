@@ -27,7 +27,7 @@ try {
     )
 
     $LauncherRoots = [System.Collections.Generic.List[string]]::new()
-    $LauncherRoots.AddRange(@(
+    $LauncherRoots.AddRange([string[]]@(
         "C:\Riot Games",
         "C:\XboxGames",
         "D:\Games",
@@ -189,7 +189,7 @@ try {
 
             if ([string]::IsNullOrWhiteSpace($RealExePath)) {
                 $DeepHints = [System.Collections.Generic.List[string]]::new()
-                $DeepHints.AddRange(@(
+                $DeepHints.AddRange([string[]]@(
                     "C:\Program Files (x86)\Overwatch\_retail_\$ExeName",
                     "C:\Program Files\Overwatch\_retail_\$ExeName",
                     "C:\Program Files (x86)\Battle.net\$ExeName"
@@ -273,7 +273,7 @@ try {
                         $_ -ine "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -and 
                         $_ -ine "~HIGHDPI_SCALING_OVERRIDE_APPLICATION"
                     }
-                    if ($FilteredLayers) { $NewFlagsList.AddRange($FilteredLayers) }
+                    if ($FilteredLayers) { $NewFlagsList.AddRange([string[]]$FilteredLayers) }
                 }
                 $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
                 $FinalFlagsValue = ($NewFlagsList -join " ").Trim()
