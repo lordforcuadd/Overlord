@@ -76,14 +76,10 @@ Try {
             Start-Service wuauserv -ErrorAction SilentlyContinue
         }
     } catch {
-        Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+        # Si falla el objeto COM, evitamos apagar wuauserv por seguridad para no interrumpir parches en caliente.
+        # Se borran únicamente los temporales no bloqueados por el sistema.
         Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-        Start-Service wuauserv -ErrorAction SilentlyContinue
     }
-
-    try {
-        Remove-Item -Path "$env:windir\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    } catch {}
 
     try {
         Remove-Item -Path "$env:TEMP\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue

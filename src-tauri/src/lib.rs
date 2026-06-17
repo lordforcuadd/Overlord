@@ -67,7 +67,11 @@ fn check_backup_exists() -> bool {
 
 #[tauri::command]
 async fn fetch_hardware() -> HardwareResponse {
-    get_system_hardware()
+    let hw = get_system_hardware();
+    if let Ok(json) = serde_json::to_string_pretty(&hw) {
+        let _ = std::fs::write("c:/laragon/www/Overlord/detected_hardware.json", json);
+    }
+    hw
 }
 
 #[tauri::command]
@@ -262,6 +266,11 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
     Ok(())
 }
 
+#[tauri::command]
+fn log_from_js(msg: String) {
+    let _ = std::fs::write("c:/laragon/www/Overlord/js_debug.log", msg);
+}
+
 #[cfg_attr(mobile, tauri::command)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -276,7 +285,8 @@ pub fn run() {
             run_optimization_script,
             run_benchmark,
             purge_ram_native,
-            start_game_priority_monitor 
+            start_game_priority_monitor,
+            log_from_js
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

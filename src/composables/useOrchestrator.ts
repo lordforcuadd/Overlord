@@ -222,7 +222,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
         }
       });
 
-      const { isLaptop } = store.hardwareInfo;
+      const { isLaptop, tier } = store.hardwareInfo;
       const profileConfigs: Record<string, string[]> = {
         Competitivo: [
           "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
@@ -231,15 +231,10 @@ export function useOrchestrator(overlordSwalConfig: any) {
         ],
         "Programador & Competitivo": [
           "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
-          "gpuDisplay", "smartStorage", "powerProfiles", "gameHooks"
+          "gpuDisplay", "smartStorage", "powerProfiles", "gameHooks", "disableMitigations"
         ],
-        ...(isLaptop ? {
-          "Home Office / Laptops": ["debloat", "networkOptimized", "smartStorage"],
-          Programador: ["debloat", "networkOptimized", "smartStorage"]
-        } : {
-          Programador: ["debloat", "networkOptimized", "smartStorage"],
-          "Home Office / Laptops": ["debloat", "networkOptimized", "smartStorage"]
-        }),
+        Programador: ["debloat", "networkOptimized", "smartStorage"],
+        "Home Office / Laptops": ["debloat", "networkOptimized", "smartStorage"],
         "Usuario Casual": ["debloat", "smartStorage"]
       };
 
@@ -262,6 +257,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
         profileMods.forEach((mod) => {
           if (mod === "irqAffinity" && isLaptop) return;
           if (mod === "powerProfiles" && isLaptop) return;
+          if (mod === "networkOptimized" && isLaptop) return;
+          if (mod === "irqAffinity" && tier === "Gama Estándar") return;
+          if (mod === "disableMitigations" && tier !== "Gama Estándar") return;
           expected[mod] = true;
         });
 

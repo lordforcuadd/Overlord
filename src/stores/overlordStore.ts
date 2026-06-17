@@ -144,6 +144,9 @@ export const useOverlordStore = defineStore("overlord", {
         if (!this.isInitialized) {
           this.priorityServiceSelected = this.isPriorityServiceInstalled;
         }
+        await invoke("log_from_js", {
+          msg: `detectHardware done: isLaptop=${this.hardwareInfo.isLaptop}, cpu=${this.hardwareInfo.cpu}, motherboard=${this.hardwareInfo.motherboard}`
+        });
       } catch (e) {
         console.error("[ERROR DETECTANDO HARDWARE]:", e);
       }
@@ -256,6 +259,7 @@ export const useOverlordStore = defineStore("overlord", {
           "smartStorage",
           "powerProfiles",
           "gameHooks",
+          "disableMitigations",
         ],
         Programador: ["debloat", "networkOptimized", "smartStorage"],
         "Home Office / Laptops": [
@@ -267,12 +271,24 @@ export const useOverlordStore = defineStore("overlord", {
       };
 
       const activeModules = profileConfigs[profile] || [];
+      const { tier } = this.hardwareInfo;
 
       let hasGameHooks = false;
       activeModules.forEach((mod) => {
-        if (mod === "irqAffinity" && isLaptop)
-          return;
+        // 1. Filtros por Laptop
+        if (mod === "irqAffinity" && isLaptop) return;
         if (mod === "powerProfiles" && isLaptop) return;
+        if (mod === "networkOptimized" && isLaptop) return;
+
+        // 2. Filtros inteligentes por Gama (Tier) de Hardware
+        // La afinidad de interrupciones (IRQ) requiere procesadores multinúcleo modernos.
+        // En equipos básicos (Gama Estándar), forzar afinidad puede saturar los pocos hilos disponibles y causar micro-stutters.
+        if (mod === "irqAffinity" && tier === "Gama Estándar") return;
+
+        // Desactivar mitigaciones de CPU solo da ventaja real en CPUs antiguos (Gama Estándar) con mitigaciones por software.
+        // En PCs modernas (Gama Alta / Gama Media-Alta), el silicio ya mitiga Spectre/Meltdown sin pérdida de rendimiento,
+        // por lo que desactivarlo no aporta fps pero sí reduce innecesariamente la seguridad.
+        if (mod === "disableMitigations" && tier !== "Gama Estándar") return;
 
         this.modules[mod as keyof typeof this.modules] = true;
         if (mod === "gameHooks") {
@@ -280,6 +296,9 @@ export const useOverlordStore = defineStore("overlord", {
         }
       });
       this.priorityServiceSelected = hasGameHooks;
+      invoke("log_from_js", {
+        msg: `applyProfile done: profile=${profile}, isLaptop=${isLaptop}, tier=${tier}, activeModules=${JSON.stringify(activeModules)}, modulesState=${JSON.stringify(this.modules)}`
+      });
     },
     async ejecutarNetworkBenchmark(fase: "before" | "after") {
       if (this.isBenchmarkTesting) return;

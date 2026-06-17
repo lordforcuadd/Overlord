@@ -116,6 +116,28 @@ pub fn get_system_hardware() -> HardwareResponse {
             }
         }
 
+        // Fallback a PowerShell si wmic.exe no está disponible en Windows 11 modernos (24H2)
+        if ram_speed_val.is_none() {
+            let output = Command::new("powershell.exe")
+                .creation_flags(0x08000000)
+                .args(&[
+                    "-NoProfile",
+                    "-Command",
+                    "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
+                ])
+                .output();
+            if let Ok(out) = output {
+                if out.status.success() {
+                    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if let Ok(speed) = text.parse::<u32>() {
+                        if speed > 0 {
+                            ram_speed_val = Some(speed);
+                        }
+                    }
+                }
+            }
+        }
+
         let mut drive_is_ssd = true;
         let path_drive: Vec<u16> = "\\\\.\\C:".encode_utf16().chain(std::iter::once(0)).collect();
         unsafe {
