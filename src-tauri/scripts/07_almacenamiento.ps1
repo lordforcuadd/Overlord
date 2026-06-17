@@ -49,19 +49,8 @@ Try {
         powercfg.exe /hibernate off | Out-Null
     }
 
-    $BootDrive = Get-Disk -ErrorAction SilentlyContinue | Where-Object { $_.IsBoot -eq $true }
-    $isHDD = $false
-    if ($BootDrive) {
-        $PhysicalDisk = Get-PhysicalDisk -ErrorAction SilentlyContinue | Where-Object { $_.DeviceID -eq $BootDrive.Number }
-        if ($PhysicalDisk -and $PhysicalDisk.MediaType -eq "HDD") {
-            $isHDD = $true
-        }
-    }
 
-    $targetPrefetch = 0
-    if ($isHDD) {
-        $targetPrefetch = 3
-    }
+    $targetPrefetch = 3
     
     Set-ItemProperty -Path $PrefetchPath -Name "EnablePrefetcher" -Type DWord -Value $targetPrefetch -Force | Out-Null
     Set-ItemProperty -Path $PrefetchPath -Name "EnableSuperfetch" -Type DWord -Value $targetPrefetch -Force | Out-Null

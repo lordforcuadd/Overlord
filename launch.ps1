@@ -27,14 +27,14 @@ if (!(Test-Path $TempDir)) {
 
 $ExePath = Join-Path $TempDir $FileName
 $HashPath = Join-Path $TempDir "Overlord.exe.sha256"
-$GlobalLog = "C:\overlord_errors.log"
+$GlobalLog = Join-Path $TempDir "overlord_errors.log"
 
 if (Test-Path $GlobalLog) { Remove-Item $GlobalLog -Force }
 
 Write-Host "[*] Descargando la suite Overlord v4.4.4..." -ForegroundColor Gray
 Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath -UseBasicParsing
 
-$ExecutionPermitted = $true
+$ExecutionPermitted = $false
 
 if (Test-Path $ExePath) {
     if ($null -ne $HashAsset) {
@@ -52,6 +52,7 @@ if (Test-Path $ExePath) {
 
             if ($CalculatedHash -eq $ExpectedHash) {
                 Write-Host "[+] Validacion SHA256 Exitosa. Integridad y procedencia del binario confirmadas [100% Seguro]." -ForegroundColor Green
+                $ExecutionPermitted = $true
             } else {
                 Write-Host "`n=======================================================" -ForegroundColor Red
                 Write-Host "🚨 ¡ALERTA CRÍTICA DE MANIPULACIÓN / CORRUPCIÓN DETECTADA!" -ForegroundColor Red -BackgroundColor Black
@@ -61,14 +62,12 @@ if (Test-Path $ExePath) {
                 Write-Host " -> Hash Esperado: $ExpectedHash" -ForegroundColor Green
                 Write-Host " -> Hash Obtenido: $CalculatedHash" -ForegroundColor Red
                 Write-Host "=======================================================\n" -ForegroundColor Red
-                
-                $ExecutionPermitted = $false
             }
         } else {
-            Write-Warning "Firma descargada pero ilegible. Procediendo con precaucion..."
+            Write-Error "[-] Firma descargada pero ilegible. Abortando ejecucion por seguridad."
         }
     } else {
-        Write-Host "[!] ADVERTENCIA: No se encontro el archivo Overlord.exe.sha256 en la release. Saltando puerta criptografica por ausencia de firma de release." -ForegroundColor Yellow
+        Write-Error "[-] ERROR CRÍTICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad."
     }
 
     if ($ExecutionPermitted) {
@@ -93,4 +92,6 @@ if (Test-Path $ExePath) {
     }
 
     Remove-Item -Path $TempDir -Recurse -Force
+} else {
+    Write-Host "[-] Error critico: No se pudo descargar u obtener el ejecutable de Overlord." -ForegroundColor Red
 }

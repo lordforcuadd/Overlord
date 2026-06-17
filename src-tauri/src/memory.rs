@@ -25,6 +25,7 @@ impl SystemStateCache {
     }
 }
 
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 pub fn get_live_metrics(cache: &SystemStateCache) -> LiveMetricsResponse {
     let mut sys = cache.sys.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_cpu();

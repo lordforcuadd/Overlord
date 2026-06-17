@@ -138,6 +138,12 @@ Try {
         Write-Warning "No se pudo asegurar MouseSpeed lineal" 
     }
 
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\ToggleKeys" -ValueName "Flags" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "Accessibility"
+    }
+
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Type String -Value "506" -Force | Out-Null
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "58" -Force | Out-Null
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\Keyboard Response" -Name "Flags" -Type String -Value "122" -Force | Out-Null

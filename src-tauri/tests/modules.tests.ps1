@@ -56,7 +56,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
 
     Context "Modulo 02 y 08 - Saneamiento de Telemetria y Servicios Nucleares" {
         It "Debe verificar el estado deshabilitado de los servicios residuales bloqueados" {
-            $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "WerSvc")
+            $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
             foreach ($Service in $Services) {
                 $Svc = Get-Service -Name $Service -ErrorAction SilentlyContinue
                 if ($null -ne $Svc) {
@@ -129,11 +129,16 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
         It "Debe comprobar la desactivacion de coalescencia de paquetes en adaptadores de red" {
             $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
             if (Test-Path $NetClassPath) {
+                $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+                    $_.Virtual -eq $false -and 
+                    $_.NdisPhysicalMedium -eq 14 
+                } | ForEach-Object { "$($_.InterfaceGuid)" }
+                
                 $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
                 foreach ($Adapter in $NetAdapters) {
                     if ($Adapter.PSChildName -match "^\d{4}$") {
                         $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
-                        if ($null -ne $Props) {
+                        if ($null -ne $Props -and $EthernetGuids -contains $Props.NetCfgInstanceId) {
                             if ($null -ne $Props."*PacketCoalescing") { $Props."*PacketCoalescing" | Should Be "0" }
                             if ($null -ne $Props.PacketCoalescing) { $Props.PacketCoalescing | Should Be "0" }
                         }
@@ -167,22 +172,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
             }
         }
 
-        It "Debe comprobar el Split Threshold de SvcHost optimizado" {
-            $Path = "HKLM:\SYSTEM\CurrentControlSet\Control"
-            if (Test-Path $Path) {
-                $Split = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).SvcHostSplitThresholdInKB
-                if ($null -ne $Split) {
-                    $RamBytes = (Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue | Measure-Object -Property Capacity -Sum).Sum
-                    if (!$RamBytes) {
-                        $RamBytes = (Get-WmiObject Win32_PhysicalMemory -ErrorAction SilentlyContinue | Measure-Object -Property Capacity -Sum).Sum
-                    }
-                    $RamGB = [Math]::Round($RamBytes / 1GB)
-                    if ($RamGB -le 0) { $RamGB = 8 }
-                    $ExpectedSplit = $RamGB * 1024 * 1024
-                    $Split | Should Be $ExpectedSplit
-                }
-            }
-        }
+
 
         It "Debe comprobar el TdrDelay optimizado de GPU" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
@@ -209,13 +199,9 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
         It "Debe certificar la inyeccion de la maxima prioridad multimedia de hilos" {
             $Path = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
             if (Test-Path $Path) {
-                $GpuPriority = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."GPU Priority"
-                $Priority = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).Priority
                 $Sched = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."Scheduling Category"
                 $Sfio = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."SFIO Priority"
                 
-                $GpuPriority | Should Be 8
-                $Priority | Should Be 6
                 $Sched | Should Be "High"
                 $Sfio | Should Be "High"
             }

@@ -296,10 +296,6 @@ onMounted(async () => {
   await syncModulesStatus();
   store.startTelemetryPolling();
   store.isInitialized = true;
-  
-  setTimeout(() => {
-    store.detectHardware();
-  }, 3000);
 });
 
 onUnmounted(() => {

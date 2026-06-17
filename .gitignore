@@ -47,3 +47,6 @@ src-tauri/gen/
 *.njsproj
 *.sln
 *.sw?
+
+release_binaries/
+scratch/

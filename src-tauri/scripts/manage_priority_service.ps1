@@ -15,6 +15,15 @@ $ConfigFile = Join-Path $InstallDir "games_to_optimize.txt"
 if ($Action -eq "install") {
     if (!(Test-Path $InstallDir)) {
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
+        $Acl = Get-Acl $InstallDir
+        $Acl.SetAccessRuleProtection($true, $false)
+        $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $Acl.AddAccessRule($SystemRule)
+        $Acl.AddAccessRule($AdminsRule)
+        $Acl.AddAccessRule($UsersRule)
+        Set-Acl -Path $InstallDir -AclObject $Acl | Out-Null
     }
 
     $GameList | Out-File -FilePath $ConfigFile -Encoding utf8 -Force
@@ -28,18 +37,15 @@ while ($true) {
     if ($Games) {
         $GamesList = $Games -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
         if ($GamesList) {
-            $RunningProcesses = Get-Process -ErrorAction SilentlyContinue | Group-Object -Property Name -AsHashTable -AsString
             foreach ($Game in $GamesList) {
                 $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
-                if ($RunningProcesses.ContainsKey($ProcName)) {
-                    $Procs = $RunningProcesses[$ProcName]
-                    foreach ($Proc in $Procs) {
-                        try {
-                            if ($Proc.PriorityClass -ne 'High') {
-                                $Proc.PriorityClass = 'High'
-                            }
-                        } catch {}
-                    }
+                $Procs = Get-Process -Name $ProcName -ErrorAction SilentlyContinue
+                foreach ($Proc in $Procs) {
+                    try {
+                        if ($Proc.PriorityClass -ne 'High') {
+                            $Proc.PriorityClass = 'High'
+                        }
+                    } catch {}
                 }
             }
         }

@@ -86,7 +86,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - **Conserva intactos** `Microsoft.GamingApp` y `Microsoft.XboxApp`, blindando Xbox Game Pass, Auto HDR y Xbox Game Bar.
 - Deshabilita búsqueda Bing integrada en el menú inicio y Cortana Consent.
 - Desactiva Copilot tanto a nivel de usuario como de sistema via políticas de grupo.
-- Deshabilita y detiene servicios de telemetría: `DiagTrack`, `dmwappushservice`, `Fax`, `RetailDemo`, `MapsBroker`, `PhoneSvc`. El servicio `Spooler` (cola de impresión) se deshabilita únicamente si no se detecta ninguna impresora instalada via `Win32_Printer`.
+- Deshabilita y detiene servicios de telemetría y diagnóstico innecesarios: `DiagTrack`, `dmwappushservice`, `Fax`, `RetailDemo`, `MapsBroker`, `PhoneSvc`.
 - Deshabilita 16 tareas programadas de telemetría, diagnóstico, CEIP, informes de errores, mapas y monitoreo familiar, guardando el estado original de cada una para el revert.
 
 ### 3. Optimización de Red TCP/IP (`03_red.ps1`)
@@ -109,10 +109,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Gestiona `MMAgent MemoryCompression`: la deshabilita en sistemas con 32 GB o más donde el overhead de compresión supera el beneficio; la mantiene activa en sistemas con menos RAM.
 - Deshabilita de forma universal el Page Combining en `MMAgent` para evitar que Windows gaste ciclos de reloj en segundo plano deduplicando páginas de memoria RAM, eliminando micro-stutters esporádicos en partidas de alta intensidad.
 - Deshabilita `GameDVR_Enabled` en el `GameConfigStore` del usuario, eliminando el overhead del sistema de captura de Xbox.
-- En desktop con 16 GB o más: deshabilita `FTH` (Fault Tolerant Heap), reduciendo la superficie de gestión de errores en memoria para procesos que no lo necesitan.
-- En desktop: desactiva mitigaciones de vulnerabilidades de silicio Spectre v2 y Meltdown (`FeatureSettingsOverride = 3`, `FeatureSettingsOverrideMask = 3`) con advertencia explícita visible al usuario. No se aplica en laptop.
-- Ajusta el umbral de fragmentación de procesos de servicios host (**SvcHost Splitting**) escribiendo dinámicamente `SvcHostSplitThresholdInKB` basado en la memoria RAM del sistema (`$RamGB * 1024 * 1024`), optimizando el overhead de contención de procesos del planificador de Windows.
-- Configura la temporización por hardware mediante comandos **BCDedit** desactivando temporizadores inestables y tick dinámico (`disabledynamictick yes`, `useplatformclock no`) para forzar la sincronización del Kernel con el reloj TSC del procesador.
+- Configura la temporización por hardware mediante comandos **BCDedit** desactivando el temporizador HPET (`useplatformclock no`) para forzar la sincronización del Kernel con el reloj TSC del procesador.
 
 ### 5. GPU, Pantalla y Compositor (`05_gpu_display.ps1`)
 
@@ -121,7 +118,6 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Deshabilita `GameBarPresenceWriter` a nivel de usuario (`AppCaptureEnabled = 0` en HKCU) para neutralizar procesos de grabación intrusivos en segundo plano de Xbox, previniendo frametime spikes y micro-stutters al iniciar cualquier videojuego.
 - Configura FSO (Fullscreen Optimizations): `GameDVR_FSEBehaviorMode = 2`, `GameDVR_HonorUserFSEBehaviorMode = 1`, `GameDVR_FSEBehavior = 2` para correcto manejo del modo pantalla completa exclusiva.
 - Deshabilita `AllowGameDVR` via política de grupo, bloqueando el sistema de captura a nivel de políticas.
-- Eleva la prioridad del hilo de `dwm.exe` (Desktop Window Manager) a **Alta** (`CpuPriorityClass = 3`) via IFEO/PerfOptions, estabilizando el Frame Pacing y los 1% Low FPS cuando la CPU está al límite.
 - Desactiva el color de acento en el compositor (`ColorPrevalence = 0`).
 - En sistemas con 6 GB de RAM o menos: deshabilita transparencias del compositor (`EnableTransparency = 0`) para liberar ancho de banda de GPU.
 - Ajusta el tiempo de recuperación del controlador gráfico (**TdrDelay = 10**) para evitar bloqueos del sistema o cuelgues repentinos (TDR) en motores modernos como Unreal Engine 5 o DirectX 12.
@@ -129,9 +125,9 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 6. Afinidad IRQ y Prioridades Multimedia (`06_irq_affinity.ps1`)
 
-- Configura prioridades MMCSS para procesos de juego: `GPU Priority = 8`, `Priority = 6`, `Scheduling Category = High`, `SFIO Priority = High`.
+- Configura prioridades MMCSS para procesos de juego: `Scheduling Category = High`, `SFIO Priority = High`.
 - Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) asignándolos de forma estática en un P-Core físico libre (por ejemplo, Core 4, 8 o 12 según la topología de la CPU) mediante `DevicePolicy = 4` y la máscara de bits correspondiente, desahogando el Core 0 del Kernel para optimizar el ping y el jitter.
-- Restaura la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
+- Preserva la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
 - Guarda backup completo de las máscaras binarias originales con su tipo `REG_BINARY` preservado para revert exacto.
 
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
@@ -139,7 +135,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Activa `NtfsDisableLastAccessUpdate = 1` via registro y `fsutil behavior set disablelastaccess 1`, eliminando escrituras innecesarias en cada lectura de archivo.
 - Activa `disable8dot3` via `fsutil behavior set disable8dot3 1`, eliminando la generación de nombres de archivo cortos en formato DOS 8.3.
 - Ajusta `NtfsMemoryUsage`: valor `2` (máximo) en sistemas con más de 8 GB de RAM; valor `0` en sistemas con menos.
-- Detección inteligente del disco de arranque: interroga `.IsBoot` para identificar la unidad raíz, luego comprueba `MediaType` via `Get-PhysicalDisk`. Si es **HDD**, activa Prefetcher y Superfetch (`= 3`); si es **SSD/NVMe**, los desactiva (`= 0`).
+- Activa el Prefetcher y Superfetch (`= 3`) de forma universal para garantizar la estabilidad y rendimiento del cargador de Windows.
 - Desactiva **Fast Startup** (`HiberbootEnabled = 0`), evitando el estado inconsistente de drivers entre sesiones que puede impedir que los tweaks de registro surtan efecto correctamente tras el reinicio.
 - En desktop: desactiva hibernación completa para liberar el espacio del `hiberfil.sys`.
 - Ejecuta `DISM /Cleanup-Image /StartComponentCleanup` con timeout de 180 segundos para compactar el store de componentes de Windows.
@@ -148,12 +144,11 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 8. Blindaje de Seguridad y Privacidad (`08_telemetria.ps1`)
 
-- Deshabilita VBS (Virtualization Based Security) y HVCI (Hypervisor-Protected Code Integrity) con advertencia explícita de color amarillo. Detecta previamente el estado de Secure Boot via `Confirm-SecureBootUEFI` y advierte al usuario si está activo, ya que en ese caso el cambio requiere desactivarlo manualmente en la BIOS.
 - Detiene y deshabilita `DiagTrack` (Connected User Experiences and Telemetry).
 - Bloquea la salida de red de los binarios de telemetría (`CompatTelRunner.exe`, `DeviceCensus.exe`, `wsqmcons.exe`) mediante reglas de firewall de salida nombradas con el prefijo `Overlord_Block_`.
 - Desactiva los loggers WMI de telemetría: `AutoLogger-Diagtrack-Listener`, `SQMLogger`, `DiagLog`, `AitEventLog`.
 - Desactiva `PublishUserActivities` (historial de actividad y Timeline de Windows).
-- Detiene e inhabilita estructuralmente el servicio de informes de errores de Windows **WerSvc** (Windows Error Reporting) e inyecta la directiva global de deshabilitación (`Disabled = 1`) en el registro de políticas de Windows para evitar que el spawn secundario del proceso `WerFault.exe` consuma CPU o interrumpa el juego al ocurrir fallos inesperados.
+- Inyecta la directiva global de deshabilitación de Windows Error Reporting (`Disabled = 1`) en el registro de políticas de Windows para evitar que el spawn secundario del proceso `WerFault.exe` consuma CPU o interrumpa el juego al ocurrir fallos inesperados.
 
 ### 9. Gestión de Energía (`09_energia.ps1`)
 
@@ -244,7 +239,6 @@ src-tauri\target\release\bundle\nsis\
 ## ⚠️ Consideraciones Importantes
 
 - Requiere **PowerShell 5.1** y ejecución como **Administrador**.
-- Varios módulos requieren **reinicio** para tener efecto completo: MSI Mode, HAGS, MPO, VBS/HVCI y las mitigaciones Spectre/Meltdown.
-- La desactivación de **VBS/HVCI** en Windows 11 con Secure Boot activo requiere adicionalmente desactivar Secure Boot en la BIOS/UEFI.
-- Las mitigaciones **Spectre/Meltdown** solo se desactivan en desktop, nunca en laptop. Esto representa un tradeoff de seguridad documentado por Microsoft orientado a maximizar throughput en entornos de uso single-user.
+- Varios módulos requieren **reinicio** para tener efecto completo: MSI Mode, HAGS y las mitigaciones Spectre/Meltdown.
+- La desactivación de mitigaciones **Spectre/Meltdown** es ahora un módulo independiente opcional. Esto representa un tradeoff de seguridad documentado por Microsoft orientado a maximizar throughput en entornos de un solo usuario, por lo que debe aplicarse con criterio.
 - Overlord **nunca** modifica archivos del sistema, desinstala Windows Update, elimina Windows Defender ni toca componentes de seguridad sin advertencia explícita al usuario.

@@ -7,70 +7,12 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Erradicando telemetria e hilos de recoleccion..."
 
-    $VbsPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard"
-    $HvciPath = "HKLM:\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
     $ActivityPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
 
-    if (!(Test-Path $VbsPath)) { New-Item -Path $VbsPath -Force | Out-Null }
-    if (!(Test-Path $HvciPath)) { New-Item -Path $HvciPath -Force | Out-Null }
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $VbsPath -ValueName "EnableVirtualizationBasedSecurity" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey $HvciPath -ValueName "Enabled" -BackupSubFolder "Telemetry"
         Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
-    }
-
-    $SkipVBSHVCI = $false
-
-    try {
-        $OSInfo = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-        if ($null -ne $OSInfo -and $OSInfo.Caption -match "Enterprise|EnterpriseG|Education|Server") {
-            Write-Host "[+] Sistema Operativo Corporativo detectado ($($OSInfo.Caption)). Preservando VBS/HVCI para mantener directivas de seguridad corporativas." -ForegroundColor Green
-            $SkipVBSHVCI = $true
-        }
-    } catch {
-        Write-Warning "No se pudo determinar el tipo de Sistema Operativo: $_"
-    }
-
-    try {
-        $BitLockerVolumes = Get-CimInstance -Namespace "root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume" -ErrorAction SilentlyContinue
-        if ($BitLockerVolumes) {
-            foreach ($Volume in $BitLockerVolumes) {
-                if ($Volume.ProtectionStatus -eq 1) {
-                    Write-Host "[+] Cifrado de Unidad BitLocker detectado como ACTIVO. Preservando aislamiento de Kernel para evitar corrupcion de llaves TPM." -ForegroundColor Green
-                    $SkipVBSHVCI = $true
-                    break
-                }
-            }
-        }
-    } catch {
-        Write-Warning "No se pudo comprobar el cifrado de BitLocker: $_"
-    }
-
-    if (-not $SkipVBSHVCI) {
-        $SecureBootActive = $false
-        try {
-            if (Confirm-SecureBootUEFI -ErrorAction SilentlyContinue) {
-                $SecureBootActive = $true
-            }
-        } catch {}
-
-        if ($SecureBootActive) {
-            Write-Host "[!] ADVERTENCIA: Secure Boot detectado como ACTIVO en el firmware UEFI. La desactivacion por registro de VBS/HVCI no surtira efecto completo hasta deshabilitarlo en la BIOS." -ForegroundColor Yellow
-        }
-
-        Write-Host "[!] Desactivando aislamiento de Kernel e Integridad de Código basada en Virtualización (VBS/HVCI)." -ForegroundColor Yellow
-
-        Set-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity" -Type DWord -Value 0 -Force | Out-Null
-        Set-ItemProperty -Path $HvciPath -Name "Enabled" -Type DWord -Value 0 -Force | Out-Null
-
-        if ((Get-ItemProperty -Path $VbsPath -Name "EnableVirtualizationBasedSecurity").EnableVirtualizationBasedSecurity -ne 0) { 
-            throw "Fallo al asegurar la desactivacion de EnableVirtualizationBasedSecurity"
-        }
-        if ((Get-ItemProperty -Path $HvciPath -Name "Enabled").Enabled -ne 0) { 
-            throw "Fallo al asegurar la desactivacion de Enabled (HVCI)"
-        }
     }
 
     try {

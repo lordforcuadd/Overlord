@@ -1,8 +1,29 @@
+#![allow(
+    clippy::unreadable_literal,
+    clippy::too_many_lines,
+    clippy::redundant_closure_for_method_calls,
+    clippy::explicit_iter_loop,
+    clippy::unnecessary_map_or,
+    clippy::borrow_as_ptr,
+    clippy::ptr_as_ptr,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_lossless,
+    clippy::wildcard_imports,
+    clippy::struct_excessive_bools,
+    clippy::map_unwrap_or,
+    clippy::uninlined_format_args,
+    clippy::cast_sign_loss,
+    clippy::needless_borrows_for_generic_args,
+    clippy::ref_as_ptr,
+    clippy::single_char_pattern,
+    clippy::manual_div_ceil
+)]
 mod executor;
 mod hardware;
 mod memory;
 
-use executor::execute_script_in_memory;
+use executor::{execute_script_in_memory, execute_script_in_memory_readonly};
 use hardware::{get_system_hardware, collect_installed_games, HardwareResponse, ScanGamesResponse};
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
 use tauri::State;
@@ -21,8 +42,8 @@ extern "system" {
 #[link(name = "advapi32")]
 extern "system" {
     fn OpenProcessToken(process_handle: *mut std::ffi::c_void, desired_access: u32, token_handle: *mut *mut std::ffi::c_void) -> i32;
-    fn LookupPrivilegeValueW(lp_system_name: *const u16, lp_name: *const u16, lp_luid: *mut LUID) -> i32;
-    fn AdjustTokenPrivileges(token_handle: *mut std::ffi::c_void, disable_all_privileges: i32, new_state: *const TOKEN_PRIVILEGES, buffer_length: u32, previous_state: *mut TOKEN_PRIVILEGES, return_length: *mut u32) -> i32;
+    fn LookupPrivilegeValueW(lp_system_name: *const u16, lp_name: *const u16, lp_luid: *mut Luid) -> i32;
+    fn AdjustTokenPrivileges(token_handle: *mut std::ffi::c_void, disable_all_privileges: i32, new_state: *const TokenPrivileges, buffer_length: u32, previous_state: *mut TokenPrivileges, return_length: *mut u32) -> i32;
 }
 
 #[link(name = "kernel32")]
@@ -32,11 +53,11 @@ extern "system" {
 }
 
 #[repr(C)]
-struct LUID { low_part: u32, high_part: i32 }
+struct Luid { low_part: u32, high_part: i32 }
 #[repr(C)]
-struct LUID_AND_ATTRIBUTES { luid: LUID, attributes: u32 }
+struct LuidAndAttributes { luid: Luid, attributes: u32 }
 #[repr(C)]
-struct TOKEN_PRIVILEGES { privilege_count: u32, privileges: [LUID_AND_ATTRIBUTES; 1] }
+struct TokenPrivileges { privilege_count: u32, privileges: [LuidAndAttributes; 1] }
 
 #[tauri::command]
 fn check_backup_exists() -> bool {
@@ -55,6 +76,7 @@ async fn fetch_games() -> Vec<ScanGamesResponse> {
 }
 
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
 fn get_live_telemetry(cache: State<'_, SystemStateCache>) -> LiveMetricsResponse {
     get_live_metrics(&cache)
 }
@@ -84,7 +106,17 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
         _ => return Err("Script no autorizado u omitido por seguridad".to_string()),
     };
 
-    execute_script_in_memory(script_raw, is_laptop, ram_gb, &game_list).await
+    let is_readonly = match script_name.as_str() {
+        "get_qol" | "get_modules_status" => true,
+        "manage_priority_service" => game_list.starts_with("status:"),
+        _ => false,
+    };
+
+    if is_readonly {
+        execute_script_in_memory_readonly(script_raw, is_laptop, ram_gb, &game_list).await
+    } else {
+        execute_script_in_memory(script_raw, is_laptop, ram_gb, &game_list).await
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -148,35 +180,25 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
 fn purge_ram_native() -> Result<String, String> {
     unsafe {
         let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
-        if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &mut token) != 0 {
+        if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &raw mut token) != 0 {
             let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
-            let mut luid = LUID { low_part: 0, high_part: 0 };
-            if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &mut luid) != 0 {
-                let tp = TOKEN_PRIVILEGES {
+            let mut luid = Luid { low_part: 0, high_part: 0 };
+            if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) != 0 {
+                let tp = TokenPrivileges {
                     privilege_count: 1,
-                    privileges: [LUID_AND_ATTRIBUTES { luid, attributes: 0x00000002 }],
+                    privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }],
                 };
-                AdjustTokenPrivileges(token, 0, &tp, 0, std::ptr::null_mut(), std::ptr::null_mut());
+                AdjustTokenPrivileges(token, 0, &raw const tp, 0, std::ptr::null_mut(), std::ptr::null_mut());
             }
             CloseHandle(token);
         }
+        let mut command_class = 4u32;
+        let current_status = NtSetSystemInformation(80, &raw mut command_class as *mut std::ffi::c_void, 4);
 
-        let mut success = false;
-        let mut last_error = 0;
-        for &cmd in &[4u32, 5u32] {
-            let mut command_class = cmd;
-            let current_status = NtSetSystemInformation(80, &mut command_class as *mut u32 as *mut std::ffi::c_void, 4);
-            if current_status >= 0 {
-                success = true;
-            } else {
-                last_error = current_status;
-            }
-        }
-
-        if success {
-            Ok("Memoria física purgada con éxito (Working Sets y Lista Standby)".to_string())
+        if current_status >= 0 {
+            Ok("Lista Standby del sistema purgada correctamente sin afectar el Working Set activo.".to_string())
         } else {
-            Err(format!("Error en llamada al sistema NT: {}", last_error))
+            Err(format!("Error en llamada al sistema NT: {current_status}"))
         }
     }
 }
@@ -209,7 +231,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         // Received cancel signal, exit loop
                         break;
                     }
-                    _ = tokio::time::sleep(Duration::from_secs(15)) => {
+                    () = tokio::time::sleep(Duration::from_secs(15)) => {
                         sys.refresh_processes_specifics(
                             sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
                         );
@@ -241,6 +263,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
 }
 
 #[cfg_attr(mobile, tauri::command)]
+#[allow(clippy::missing_panics_doc)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

@@ -49,8 +49,7 @@ $StorePath = "HKCU:\System\GameConfigStore"
 $ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
 if (Test-Path $StorePath) {
     $GameDVR = Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue
-    $Split = Get-ItemPropertyValue -Path $ControlPath -Name "SvcHostSplitThresholdInKB" -ErrorAction SilentlyContinue
-    if ($GameDVR -eq 0 -or ($null -ne $Split -and $Split -gt 3800000)) {
+    if ($GameDVR -eq 0) {
         $Status['generalPerformance'] = $true
     }
 }

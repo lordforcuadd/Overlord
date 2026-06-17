@@ -116,7 +116,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Remoción de software preinstalado innecesario (Cortana, Bing, Weather, Maps, etc.).",
       "Eliminación de telemetría GPO básica y sugerencias web invasivas de Bing en el menú de inicio.",
       "Remoción estructural de las barras laterales y servicios de Windows Copilot.",
-      "Detención inteligente del servicio de impresión Spooler si no se detectan impresoras físicas.",
+      "Detención de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc).",
     ],
     registryMapping: [
       {
@@ -162,7 +162,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Erradicación total del estrangulamiento de ancho de banda (NetworkThrottlingIndex deshabilitado).",
       "Reducción agresiva del tiempo de espera de reutilización de puertos de red (TcpTimedWaitDelay a 30s).",
-      "Desactivación de Receive Segment Coalescing (RSC) global para eliminar el retraso de acumulación de paquetes.",
       "Estabilización de persistencia de resolución DNS (TTL 86400) y apagado de túneles fantasma IPv6.",
       "Prioridad de CPU dedicada (SystemResponsiveness = 10) para evitar que procesos secundarios estrangulen el hilo del juego.",
       "Autosintonización TCP forzada a normal para desatar el ancho de banda y desactivación de ECN para prevenir pérdidas de paquetes.",
@@ -223,8 +222,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Gestión adaptativa de MMAgent (Memory Compression) optimizada según la cantidad total de RAM detectada.",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
       "Desactivación de Page Combining en MMAgent para ahorrar ciclos de CPU y mitigar micro-stutters.",
-      "Aislamiento de servicios svchost por proceso para reducir la contención del planificador (svchost splitting).",
-      "Ajuste lógico de temporización de reloj (BCDedit) para desactivar Dynamic Ticks e HPET y priorizar TSC.",
+      "Ajuste lógico de temporización de reloj (BCDedit) para desactivar HPET y priorizar TSC.",
     ],
     registryMapping: [
       {
@@ -247,20 +245,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueName: "GameDVR_Enabled",
         valueType: "REG_DWORD",
         fallbackValue: 1,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "Software\\Microsoft\\FTH",
-        valueName: "Enabled",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control",
-        valueName: "SvcHostSplitThresholdInKB",
-        valueType: "REG_DWORD",
-        fallbackValue: 3800000,
       },
     ],
   },
@@ -350,20 +334,13 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueType: "REG_DWORD",
         fallbackValue: null,
       },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows\\Dwm",
-        valueName: "OverlayTestMode",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
     ],
   },
   irqAffinity: {
     id: "irqAffinity",
     title: "Afinidad de Hardware (IRQ)",
     description:
-      "Aísla de forma exclusiva las cargas de interrupciones físicas de red y audio fuera de los hilos principales del sistema operativo y núcleos de eficiencia.",
+      "Aísla de forma exclusiva las cargas de interrupciones físicas de red fuera de los hilos principales del sistema operativo y núcleos de eficiencia.",
     riesgo: "Experimental",
     reversible: true,
     metodoReversion:
@@ -380,25 +357,10 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Este módulo desactiva la distribución multicanal RSS de red para priorizar la latencia en el CPU. Puede limitar el ancho de banda máximo en conexiones de fibra de alta velocidad (>= 500 Mbps).",
     details: [
       "Cálculo topológico dinámico en tiempo de ejecución basado en el mapa de hilos físicos del procesador.",
-      "Aislamiento exclusivo de las interrupciones de red (NIC Isolation) en el penúltimo P-Core físico libre.",
-      "Aislamiento del búfer de audio multimedia (Multimedia Isolation) en el último P-Core físico limpio disponible.",
+      "Aislamiento de las interrupciones de red (NIC Isolation) en el penúltimo P-Core físico libre.",
       "Ajuste de prioridades del planificador multimedia (MMCSS Tasks Games) a categoría High.",
     ],
     registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "Priority",
-        valueType: "REG_DWORD",
-        fallbackValue: 2,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "GPU Priority",
-        valueType: "REG_DWORD",
-        fallbackValue: 8,
-      },
       {
         hive: "HKEY_LOCAL_MACHINE",
         path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
@@ -468,43 +430,28 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "deepTelemetry",
     title: "Blindaje de Seguridad y Privacidad",
     description:
-      "Purga por completo los flujos ocultos de recolección de diagnóstico, detiene event loggers y desactiva el aislamiento basado en virtualización (VBS/HVCI).",
+      "Purga por completo los flujos ocultos de recolección de diagnóstico, detiene event loggers y tareas programadas del sistema.",
     riesgo: "Experimental",
     reversible: true,
     metodoReversion:
-      "Restauración de llaves DeviceGuard nativas y reconfiguración de loggers asíncronos al estado de fábrica.",
+      "Restauración de loggers asíncronos y servicios de telemetría a su estado de fábrica.",
     hardwareRecomendado:
       "Computadoras enfocadas puramente al alto rendimiento gaming de baja latencia.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
-      "https://learn.microsoft.com/en-us/windows/security/hardware-security/virtualization-based-security",
+      "https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization",
     scriptName: "08_telemetria.ps1",
     impactoRendimiento:
-      "Incremento dramático del throughput de la CPU y estabilización de FPS mínimos por eliminación de sobrecarga de virtualización.",
+      "Reducción del consumo de CPU en segundo plano y prevención de picos de latencia debido a procesos de recolección de Microsoft.",
     warning:
-      "Desactivar el aislamiento de Kernel (VBS/HVCI) incrementa el rendimiento y la consistencia de FPS, pero reduce la seguridad estructural de memoria del sistema operativo.",
+      "Desactivar servicios y autologgers de telemetría bloquea la transmisión de datos a servidores de Microsoft, pero reduce el diagnóstico automático de fallas.",
     details: [
-      "Análisis en caliente de BitLocker mediante WMI para evitar la corrupción de llaves de cifrado en el arranque.",
+      "Deshabilitación de la directiva de Windows Error Reporting a nivel de políticas de sistema.",
       "Erradicación definitiva del servicio de recolección de experiencias DiagTrack y del historial de actividades de usuario.",
       "Bloqueo perimetral en el Firewall de Windows para los ejecutables de recolección nativos (CompatTelRunner, etc.).",
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
-      "Desactivación completa del servicio y políticas de Windows Error Reporting (WER) para evitar el lanzamiento de WerFault.exe en bloqueos.",
     ],
     registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard",
-        valueName: "EnableVirtualizationBasedSecurity",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity",
-        valueName: "Enabled",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
       {
         hive: "HKEY_LOCAL_MACHINE",
         path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System",

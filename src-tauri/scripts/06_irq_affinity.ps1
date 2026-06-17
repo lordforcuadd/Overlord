@@ -15,19 +15,13 @@ Try {
     if (!(Test-Path $TasksPath)) { New-Item -Path $TasksPath -Force | Out-Null }
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "GPU Priority" -BackupSubFolder "CPU"
-        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "Priority" -BackupSubFolder "CPU"
         Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "Scheduling Category" -BackupSubFolder "CPU"
         Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "SFIO Priority" -BackupSubFolder "CPU"
     }
 
-    Set-ItemProperty -Path $TasksPath -Name "GPU Priority" -Type DWord -Value 8 -Force | Out-Null
-    Set-ItemProperty -Path $TasksPath -Name "Priority" -Type DWord -Value 6 -Force | Out-Null
     Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High" -Force | Out-Null
     Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
 
-    if ((Get-ItemProperty -Path $TasksPath -Name "GPU Priority")."GPU Priority" -ne 8) { Write-Warning "No se pudo asegurar GPU Priority" }
-    if ((Get-ItemProperty -Path $TasksPath -Name "Priority").Priority -ne 6) { Write-Warning "No se pudo asegurar Priority" }
     if ((Get-ItemProperty -Path $TasksPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { Write-Warning "No se pudo asegurar Scheduling Category" }
     if ((Get-ItemProperty -Path $TasksPath -Name "SFIO Priority")."SFIO Priority" -ne "High") { Write-Warning "No se pudo asegurar SFIO Priority" }
 
@@ -37,14 +31,14 @@ Try {
     }
 
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
-    $NetCoreIndex = 2
-
+    # Mapeo inteligente de afinidad para evitar E-Cores (que ocupan los hilos finales en arquitecturas híbridas Intel)
+    $NetCoreIndex = 2 # Fallback seguro (hilo 2, tercer core si no hay HT, o segundo core con HT)
     if ($TotalCores -ge 16) {
-        $NetCoreIndex = 12
-    } elseif ($TotalCores -eq 12) {
-        $NetCoreIndex = 8
-    } elseif ($TotalCores -eq 8) {
-        $NetCoreIndex = 4
+        $NetCoreIndex = 4 # Hilo 4 (P-Core seguro en CPUs de 16+ hilos)
+    } elseif ($TotalCores -ge 8) {
+        $NetCoreIndex = 2 # Hilo 2 (P-Core seguro en CPUs de 8+ hilos)
+    } else {
+        $NetCoreIndex = 1 # Para CPUs muy antiguas de 2 o 4 hilos
     }
 
     [uint64]$NetBitmask = [uint64]1 -shl $NetCoreIndex

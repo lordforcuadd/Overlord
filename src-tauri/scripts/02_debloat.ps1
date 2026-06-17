@@ -42,7 +42,6 @@ Try {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RetailDemo" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\MapsBroker" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\PhoneSvc" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Spooler" -ValueName "Start" -BackupSubFolder "Services"
     }
 
     $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
@@ -77,13 +76,6 @@ Try {
     }
 
     
-    $Printers = Get-CimInstance -ClassName Win32_Printer -ErrorAction SilentlyContinue | Where-Object { 
-        $_.DriverName -notmatch "Microsoft Print To PDF|Microsoft XPS Document Writer|OneNote|Send to OneNote|Microsoft Software Printer Driver" 
-    }
-    if ($null -eq $Printers -or $Printers.Count -eq 0) {
-        Stop-Service -Name "Spooler" -Force -ErrorAction SilentlyContinue
-        Set-Service -Name "Spooler" -StartupType Manual -ErrorAction SilentlyContinue
-    }
 
     $Tasks = @(
         "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",

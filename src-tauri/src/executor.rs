@@ -46,9 +46,7 @@ fn encode_utf16_base64(script: &str) -> String {
     custom_base64_encode(&utf16_bytes)
 }
 
-pub async fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
-    let _lock = EXECUTION_LOCK.lock().await;
-
+async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
     let backup_module = include_str!("../scripts/backup_manager.psm1");
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
     let header = build_script_header(is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str);
@@ -96,6 +94,15 @@ pub async fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb:
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+pub async fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+    let _lock = EXECUTION_LOCK.lock().await;
+    execute_script_in_memory_impl(script_raw, is_laptop, ram_gb, game_list).await
+}
+
+pub async fn execute_script_in_memory_readonly(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+    execute_script_in_memory_impl(script_raw, is_laptop, ram_gb, game_list).await
 }
 
 fn strip_param_block(script: &str) -> String {
