@@ -6,6 +6,13 @@ param(
 $ErrorActionPreference = "Stop"
 
 try {
+    $SysDrive = $env:SystemDrive
+    if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
+    $ProgramFiles = $env:ProgramFiles
+    if ([string]::IsNullOrWhiteSpace($ProgramFiles)) { $ProgramFiles = Join-Path $SysDrive "Program Files" }
+    $ProgramFilesx86 = ${env:ProgramFiles(x86)}
+    if ([string]::IsNullOrWhiteSpace($ProgramFilesx86)) { $ProgramFilesx86 = Join-Path $SysDrive "Program Files (x86)" }
+
     if ([string]::IsNullOrWhiteSpace($GameList)) {
         Write-Host "[-] No se especificaron ejecutables en GameList. Saltando optimizaciones."
         exit 0
@@ -28,8 +35,8 @@ try {
 
     $LauncherRoots = [System.Collections.Generic.List[string]]::new()
     $LauncherRoots.AddRange([string[]]@(
-        "C:\Riot Games",
-        "C:\XboxGames",
+        (Join-Path $SysDrive "Riot Games"),
+        (Join-Path $SysDrive "XboxGames"),
         "D:\Games",
         "E:\Games"
     ))
@@ -64,13 +71,13 @@ try {
 
     # Agregar rutas por defecto comunes de fallback
     $DefaultRoots = @(
-        "C:\Program Files\Steam\steamapps\common",
-        "C:\Program Files (x86)\Steam\steamapps\common",
-        "C:\Program Files\Epic Games",
-        "C:\Program Files (x86)\Battle.net",
-        "C:\Program Files\Overwatch",
-        "C:\Program Files\EA Games",
-        "C:\Program Files\Ubisoft",
+        (Join-Path $ProgramFiles "Steam\steamapps\common"),
+        (Join-Path $ProgramFilesx86 "Steam\steamapps\common"),
+        (Join-Path $ProgramFiles "Epic Games"),
+        (Join-Path $ProgramFilesx86 "Battle.net"),
+        (Join-Path $ProgramFiles "Overwatch"),
+        (Join-Path $ProgramFiles "EA Games"),
+        (Join-Path $ProgramFiles "Ubisoft"),
         "D:\SteamLibrary\steamapps\common"
     )
     foreach ($Root in $DefaultRoots) {
@@ -190,9 +197,9 @@ try {
             if ([string]::IsNullOrWhiteSpace($RealExePath)) {
                 $DeepHints = [System.Collections.Generic.List[string]]::new()
                 $DeepHints.AddRange([string[]]@(
-                    "C:\Program Files (x86)\Overwatch\_retail_\$ExeName",
-                    "C:\Program Files\Overwatch\_retail_\$ExeName",
-                    "C:\Program Files (x86)\Battle.net\$ExeName"
+                    (Join-Path $ProgramFilesx86 "Overwatch\_retail_\$ExeName"),
+                    (Join-Path $ProgramFiles "Overwatch\_retail_\$ExeName"),
+                    (Join-Path $ProgramFilesx86 "Battle.net\$ExeName")
                 ))
 
                 try {
@@ -203,8 +210,8 @@ try {
                         $DeepHints.Add((Join-Path $Drive "Riot Games\League of Legends\Game\$ExeName"))
                     }
                 } catch {
-                    $DeepHints.Add("C:\Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName")
-                    $DeepHints.Add("C:\Riot Games\League of Legends\$ExeName")
+                    $DeepHints.Add((Join-Path $SysDrive "Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName"))
+                    $DeepHints.Add((Join-Path $SysDrive "Riot Games\League of Legends\$ExeName"))
                 }
                 foreach ($Hint in $DeepHints) {
                     if (Test-Path $Hint -PathType Leaf) {

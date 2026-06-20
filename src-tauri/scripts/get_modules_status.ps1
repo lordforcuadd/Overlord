@@ -14,54 +14,98 @@ $Status = @{
     disableMitigations = $false
 }
 
-$MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
-$KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
-if (Test-Path $MouPath) {
-    $MouSize = Get-ItemPropertyValue -Path $MouPath -Name "MouseDataQueueSize" -ErrorAction SilentlyContinue
-    $KbdSize = Get-ItemPropertyValue -Path $KbdPath -Name "KeyboardDataQueueSize" -ErrorAction SilentlyContinue
-    # Las colas optimizadas por Overlord son exactamente de 128 (el valor stock de Windows es 100)
-    if (($null -ne $MouSize -and $MouSize -eq 128) -and ($null -ne $KbdSize -and $KbdSize -eq 128)) {
+$MousePath = "HKCU:\Control Panel\Mouse"
+$KeyRespPath = "HKCU:\Control Panel\Accessibility\Keyboard Response"
+$PriorityPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
+if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
+    $Speed = Get-ItemPropertyValue -Path $MousePath -Name "MouseSpeed" -ErrorAction SilentlyContinue
+    $Delay = Get-ItemPropertyValue -Path $KeyRespPath -Name "AutoRepeatDelay" -ErrorAction SilentlyContinue
+    $Rate = Get-ItemPropertyValue -Path $KeyRespPath -Name "AutoRepeatRate" -ErrorAction SilentlyContinue
+    $Priority = Get-ItemPropertyValue -Path $PriorityPath -Name "Win32PrioritySeparation" -ErrorAction SilentlyContinue
+    if ($Speed -eq "0" -and $Delay -eq "200" -and $Rate -eq "15" -and $Priority -eq 26) {
         $Status['peripheralLatency'] = $true
     }
+}
+
+$ServicesToCheck = @("AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost")
+$ServicesOk = $true
+foreach ($SvcName in $ServicesToCheck) {
+    $Svc = Get-Service -Name $SvcName -ErrorAction SilentlyContinue
+    if ($null -ne $Svc -and $Svc.StartType -ne "Disabled") {
+        $ServicesOk = $false
+    }
+}
+$BgAppPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
+$EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
+$BgAppDisabled = $true
+if (Test-Path $BgAppPath) {
+    $BgAppVal = Get-ItemPropertyValue -Path $BgAppPath -Name "GlobalUserDisabled" -ErrorAction SilentlyContinue
+    if ($BgAppVal -ne 1) { $BgAppDisabled = $false }
+} else {
+    $BgAppDisabled = $false
+}
+$EdgePoliciesOk = $true
+if (Test-Path $EdgePolicyPath) {
+    $SbVal = Get-ItemPropertyValue -Path $EdgePolicyPath -Name "StartupBoostEnabled" -ErrorAction SilentlyContinue
+    $BmVal = Get-ItemPropertyValue -Path $EdgePolicyPath -Name "BackgroundModeEnabled" -ErrorAction SilentlyContinue
+    if ($SbVal -ne 0 -or $BmVal -ne 0) { $EdgePoliciesOk = $false }
+} else {
+    $EdgePoliciesOk = $false
 }
 
 $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
 if (Test-Path $DataPath) {
     $Tele = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
-    if ($Tele -eq 0) {
+    if ($Tele -eq 0 -and $ServicesOk -and $BgAppDisabled -and $EdgePoliciesOk) {
         $Status['debloat'] = $true
     }
 }
 
-$DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
-$TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
 $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
-if (Test-Path $DnsPath) {
-    $Ttl = Get-ItemPropertyValue -Path $DnsPath -Name "MaxCacheTtl" -ErrorAction SilentlyContinue
-    $WaitDelay = Get-ItemPropertyValue -Path $TcpPath -Name "TcpTimedWaitDelay" -ErrorAction SilentlyContinue
+if (Test-Path $ProfilePath) {
     $SysResp = Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue
-    if ($Ttl -eq 86400 -or $WaitDelay -eq 30 -or $SysResp -eq 10) {
+    $Throt = Get-ItemPropertyValue -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue
+    
+    $NagleOk = $false
+    $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
+    if (Test-Path $InterfacesPath) {
+        $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
+        foreach ($Key in $InterfaceKeys) {
+            $Ack = Get-ItemPropertyValue -Path $Key.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue
+            $NoDelay = Get-ItemPropertyValue -Path $Key.PSPath -Name "TcpNoDelay" -ErrorAction SilentlyContinue
+            if ($Ack -eq 1 -and $NoDelay -eq 1) {
+                $NagleOk = $true
+                break
+            }
+        }
+    }
+    
+    $InitialRtoVal = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "InitialRto" -ErrorAction SilentlyContinue
+    
+    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000) {
         $Status['networkOptimized'] = $true
     }
 }
 
 $StorePath = "HKCU:\System\GameConfigStore"
-$ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
 if (Test-Path $StorePath) {
     $GameDVR = Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue
-    if ($GameDVR -eq 0) {
+    $GamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
+    $SchedCat = Get-ItemPropertyValue -Path $GamesPath -Name "Scheduling Category" -ErrorAction SilentlyContinue
+    $PriorityVal = Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue
+    if ($GameDVR -eq 0 -and $SchedCat -eq "High" -and $PriorityVal -eq 6) {
         $Status['generalPerformance'] = $true
     }
 }
 
 $GpuPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
-$UserGpuPath = "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences"
+$GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
+$UserGameDVRPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR"
 if (Test-Path $GpuPath) {
     $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
-    $Tdr = Get-ItemPropertyValue -Path $GpuPath -Name "TdrDelay" -ErrorAction SilentlyContinue
-    $Swap = Get-ItemPropertyValue -Path $UserGpuPath -Name "SwapEffectUpgradeDisable" -ErrorAction SilentlyContinue
-    # HAGS debe estar activo (2) y además deben estar inyectados los tweaks avanzados (TdrDelay = 10 o SwapEffectUpgradeDisable = 0)
-    if ($Hags -eq 2 -and ($Tdr -eq 10 -or $Swap -eq 0)) {
+    $AllowDVR = Get-ItemPropertyValue -Path $GameBarPath -Name "AllowGameDVR" -ErrorAction SilentlyContinue
+    $AppCap = Get-ItemPropertyValue -Path $UserGameDVRPath -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue
+    if ($Hags -eq 2 -and $AllowDVR -eq 0 -and $AppCap -eq 0) {
         $Status['gpuDisplay'] = $true
     }
 }
@@ -75,7 +119,7 @@ if ($pciKey) {
                 $devParamKey = $venKey.OpenSubKey("$devId\Device Parameters\Interrupt Management\Affinity Policy")
                 if ($devParamKey) {
                     $policy = $devParamKey.GetValue("DevicePolicy")
-                    if ($null -ne $policy -and ($policy -eq 3 -or $policy -eq 4)) {
+                    if ($null -ne $policy -and ($policy -eq 2 -or $policy -eq 3 -or $policy -eq 4)) {
                         $Status['irqAffinity'] = $true
                         break
                     }
@@ -99,15 +143,26 @@ $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
 if (Test-Path $NtfsPath) {
     $Last = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue
     $FastStart = Get-ItemPropertyValue -Path $FastStartPath -Name "HiberbootEnabled" -ErrorAction SilentlyContinue
-    # NtfsDisableLastAccessUpdate debe estar activo y el Inicio Rápido desactivado (0)
-    if (($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) -and $FastStart -eq 0) {
+    $Ntfs8dot3 = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -ErrorAction SilentlyContinue
+    $NtfsMem = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue
+    
+    $StorageOk = $false
+    if (($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) -and $FastStart -eq 0 -and $Ntfs8dot3 -eq 1) {
+        if ($RamGB -ge 16) {
+            if ($NtfsMem -eq 2) { $StorageOk = $true }
+        } else {
+            $StorageOk = $true
+        }
+    }
+    
+    if ($StorageOk) {
         $Status['smartStorage'] = $true
     }
 }
 
 $DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
 $WerSvc = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
-if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -or ($null -ne $WerSvc -and $WerSvc.StartType -eq "Disabled")) {
+if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and $WerSvc.StartType -eq "Disabled")) {
     $Status['deepTelemetry'] = $true
 }
 

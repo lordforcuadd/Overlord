@@ -308,7 +308,7 @@ const uiToggles = [
   {
     id: "barebonesVisual" as const,
     title: "Rendimiento Visual (Barebones)",
-    desc: "Apaga transparencias y animaciones.",
+    desc: "Optimiza efectos y animaciones conservando suavizado ClearType.",
   },
   {
     id: "darkMode" as const,
@@ -342,7 +342,7 @@ const privacyToggles = [
   {
     id: "disableBing" as const,
     title: "Erradicar Bing",
-    desc: "Acelera el buscador del Menú Inicio.",
+    desc: "Desactiva búsquedas y sugerencias web en el Menú Inicio.",
   },
   {
     id: "disableLockScreen" as const,
@@ -357,7 +357,7 @@ const privacyToggles = [
   {
     id: "disableScoobe" as const,
     title: 'Ocultar "Terminemos de Configurar"',
-    desc: "Elimina las pantallas azules.",
+    desc: "Bloquea pantallas de bienvenida y sugerencias post-update.",
   },
   {
     id: "disableCopilot" as const,
@@ -413,7 +413,7 @@ const gamingToggles = [
   {
     id: "enableGameMode" as const,
     title: "Modo Juego",
-    desc: "Pausa procesos de fondo.",
+    desc: "Prioriza hilos de juegos y apaga grabación GameDVR de fondo.",
   },
 ];
 

@@ -67,11 +67,7 @@ fn check_backup_exists() -> bool {
 
 #[tauri::command]
 async fn fetch_hardware() -> HardwareResponse {
-    let hw = get_system_hardware();
-    if let Ok(json) = serde_json::to_string_pretty(&hw) {
-        let _ = std::fs::write("c:/laragon/www/Overlord/detected_hardware.json", json);
-    }
-    hw
+    get_system_hardware()
 }
 
 #[tauri::command]
@@ -268,7 +264,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
 
 #[tauri::command]
 fn log_from_js(msg: String) {
-    let _ = std::fs::write("c:/laragon/www/Overlord/js_debug.log", msg);
+    println!("[JS LOG]: {}", msg);
 }
 
 #[cfg_attr(mobile, tauri::command)]

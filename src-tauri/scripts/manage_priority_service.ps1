@@ -8,7 +8,13 @@ if ($null -ne $IsEnabledStr -and $IsEnabledStr -ne "") { $GameList = $IsEnabledS
 
 $ErrorActionPreference = "Stop"
 $TaskName = "OverlordPriorityMonitor"
-$InstallDir = "C:\ProgramData\Overlord"
+$ProgData = $env:ProgramData
+if ([string]::IsNullOrWhiteSpace($ProgData)) {
+    $SysDrive = $env:SystemDrive
+    if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
+    $ProgData = Join-Path $SysDrive "ProgramData"
+}
+$InstallDir = Join-Path $ProgData "Overlord"
 $DaemonScript = Join-Path $InstallDir "priority_monitor_daemon.ps1"
 $ConfigFile = Join-Path $InstallDir "games_to_optimize.txt"
 
@@ -30,22 +36,25 @@ if ($Action -eq "install") {
 
     $DaemonCode = @'
 $ErrorActionPreference = "SilentlyContinue"
-$ConfigPath = "C:\ProgramData\Overlord\games_to_optimize.txt"
+$ConfigPath = Join-Path $env:ProgramData "Overlord\games_to_optimize.txt"
 if (!(Test-Path $ConfigPath)) { exit 0 }
 while ($true) {
     $Games = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
     if ($Games) {
         $GamesList = $Games -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
         if ($GamesList) {
+            $ActiveProcs = Get-Process -ErrorAction SilentlyContinue | Group-Object -Property Name -AsHashTable -AsString
             foreach ($Game in $GamesList) {
                 $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
-                $Procs = Get-Process -Name $ProcName -ErrorAction SilentlyContinue
-                foreach ($Proc in $Procs) {
-                    try {
-                        if ($Proc.PriorityClass -ne 'High') {
-                            $Proc.PriorityClass = 'High'
-                        }
-                    } catch {}
+                $Procs = $ActiveProcs[$ProcName]
+                if ($null -ne $Procs) {
+                    foreach ($Proc in $Procs) {
+                        try {
+                            if ($Proc.PriorityClass -ne 'High') {
+                                $Proc.PriorityClass = 'High'
+                            }
+                        } catch {}
+                    }
                 }
             }
         }

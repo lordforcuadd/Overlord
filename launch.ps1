@@ -31,7 +31,7 @@ $GlobalLog = Join-Path $TempDir "overlord_errors.log"
 
 if (Test-Path $GlobalLog) { Remove-Item $GlobalLog -Force }
 
-Write-Host "[*] Descargando la suite Overlord v4.4.4..." -ForegroundColor Gray
+Write-Host "[*] Descargando la suite Overlord v4.5.0..." -ForegroundColor Gray
 Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath -UseBasicParsing
 
 $ExecutionPermitted = $false
@@ -76,7 +76,7 @@ if (Test-Path $ExePath) {
         
         if (Test-Path $GlobalLog) {
             Write-Host "`n=======================================================" -ForegroundColor Red
-            Write-Host "⚠️  OVERLORD V4.4.4 - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
+            Write-Host "⚠️  OVERLORD V4.5.0 - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
             Write-Host "=======================================================" -ForegroundColor Red
             
             Get-Content $GlobalLog | ForEach-Object {

@@ -115,27 +115,40 @@ switch ($ToggleName) {
             $RequiresExplorerRestart = $true
         }
         else {
-            if ($Value -eq 1) {
-                $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
-                if (Test-Path $epConfig) {
-                    $content = Get-Content $epConfig -Raw
-                    $content = $content -replace 'ControlInterface=.*', 'ControlInterface=1'
-                    Set-Content $epConfig -Value $content -Force
-                    $RequiresExplorerRestart = $true
-                }
+            $hasEP = Test-Path "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+            $hasSAB = Test-Path "$env:APPDATA\StartAllBack\Config.cfg"
+            if (-not $hasEP -and -not $hasSAB) {
+                Write-Output "ADVERTENCIA: Para habilitar el menu clasico en compilaciones >= 26000 se requiere ExplorerPatcher o StartAllBack instalado."
             } else {
-                $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
-                if (Test-Path $epConfig) {
-                    $content = Get-Content $epConfig -Raw
-                    $content = $content -replace 'ControlInterface=.*', 'ControlInterface=0'
-                    Set-Content $epConfig -Value $content -Force
-                    $RequiresExplorerRestart = $true
+                if ($Value -eq 1) {
+                    if ($hasEP) {
+                        $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+                        if (Test-Path $epConfig) {
+                            $content = Get-Content $epConfig -Raw
+                            $content = $content -replace 'ControlInterface=.*', 'ControlInterface=1'
+                            Set-Content $epConfig -Value $content -Force
+                            $RequiresExplorerRestart = $true
+                        }
+                    }
+                } else {
+                    if ($hasEP) {
+                        $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+                        if (Test-Path $epConfig) {
+                            $content = Get-Content $epConfig -Raw
+                            $content = $content -replace 'ControlInterface=.*', 'ControlInterface=0'
+                            Set-Content $epConfig -Value $content -Force
+                            $RequiresExplorerRestart = $true
+                        }
+                    }
                 }
             }
         }
     }
     "disableBing" {
         Set-RegistryValue "Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" "DWord" $Value
+        $searchVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" "DWord" $searchVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Search" "CortanaConsent" "DWord" $searchVal
     }
     "disableLockScreen" {
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization"
@@ -170,6 +183,12 @@ switch ($ToggleName) {
     "disableScoobe" {
         $scoobeVal = if ($Value -eq 1) { 0 } else { 1 }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" "DWord" $scoobeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-310093Enabled" "DWord" $scoobeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338387Enabled" "DWord" $scoobeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338388Enabled" "DWord" $scoobeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338389Enabled" "DWord" $scoobeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353696Enabled" "DWord" $scoobeVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353694Enabled" "DWord" $scoobeVal
     }
     "disableFilterKeys" {
         $filterVal = if ($Value -eq 1) { "122" } else { "126" }
@@ -199,8 +218,8 @@ switch ($ToggleName) {
             $Paths = @(
                 "$env:LOCALAPPDATA\Microsoft\OneDrive\Update\OneDriveSetup.exe",
                 "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDriveSetup.exe",
-                "C:\Windows\SysWOW64\OneDriveSetup.exe",
-                "C:\Windows\System32\OneDriveSetup.exe"
+                "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
+                "$env:SystemRoot\System32\OneDriveSetup.exe"
             )
             foreach ($Setup in $Paths) {
                 if (Test-Path $Setup) {
@@ -237,10 +256,35 @@ switch ($ToggleName) {
     }
     "enableGameMode" {
         Set-RegistryValue "Software\Microsoft\GameBar" "AllowAutoGameMode" "DWord" $Value
+        Set-RegistryValue "Software\Microsoft\GameBar" "AutoGameModeEnabled" "DWord" $Value
+        
+        $dvrVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\GameDVR" "AppCaptureEnabled" "DWord" $dvrVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\GameDVR" "AudioCaptureEnabled" "DWord" $dvrVal
+        
+        $policyPath = "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR"
+        if (Test-Path $policyPath) {
+            Set-ItemProperty -Path $policyPath -Name "value" -Type DWord -Value $dvrVal -Force -ErrorAction SilentlyContinue | Out-Null
+        }
     }
     "barebonesVisual" {
         $visualVal = if ($Value -eq 1) { "0" } else { "1" }
         Set-RegistryValue "Control Panel\Desktop\WindowMetrics" "MinAnimate" "String" $visualVal
+        
+        if ($Value -eq 1) {
+            Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" "DWord" 2
+            $mask = [byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00)
+            Set-RegistryValue "Control Panel\Desktop" "UserPreferencesMask" "Binary" $mask
+            Set-RegistryValue "Control Panel\Desktop" "FontSmoothing" "String" "2"
+            Set-RegistryValue "Control Panel\Desktop" "FontSmoothingType" "DWord" 2
+        } else {
+            Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" "DWord" 0
+            $mask = [byte[]](0x9E,0x3E,0x07,0x80,0x12,0x00,0x00,0x00)
+            Set-RegistryValue "Control Panel\Desktop" "UserPreferencesMask" "Binary" $mask
+            Set-RegistryValue "Control Panel\Desktop" "FontSmoothing" "String" "2"
+            Set-RegistryValue "Control Panel\Desktop" "FontSmoothingType" "DWord" 2
+        }
+        $RequiresExplorerRestart = $true
     }
     default {
         Write-Error "ERROR: Toggle desconocido: $ToggleName"

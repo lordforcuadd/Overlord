@@ -35,7 +35,7 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v4.4.4
+              Optimizador de Windows v4.5.0
             </p>
           </div>
         </div>
@@ -97,7 +97,9 @@
                 ></path>
               </svg>
               <span>{{
-                isBackingUp ? "Protegiendo Sistema..." : "Crear Punto de Respaldo"
+                isBackingUp
+                  ? "Protegiendo Sistema..."
+                  : "Crear Punto de Respaldo"
               }}</span>
             </button>
 
@@ -146,13 +148,34 @@
           </div>
         </footer>
       </div>
-      <div v-else class="flex flex-col items-center justify-center py-24 font-mono text-zinc-500 select-none border border-white/5 bg-[#0a0a0a]/40 backdrop-blur-md rounded-2xl mb-24">
-        <svg class="animate-spin h-10 w-10 text-yellow-500 mb-4" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      <div
+        v-else
+        class="flex flex-col items-center justify-center py-24 font-mono text-zinc-500 select-none border border-white/5 bg-[#0a0a0a]/40 backdrop-blur-md rounded-2xl mb-24"
+      >
+        <svg
+          class="animate-spin h-10 w-10 text-yellow-500 mb-4"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
         </svg>
-        <span class="text-sm font-bold tracking-widest text-zinc-300">INICIALIZANDO MOTOR OVERLORD...</span>
-        <span class="text-[10px] text-zinc-600 mt-2 uppercase tracking-widest">Sincronizando estado de hardware y Kernel</span>
+        <span class="text-sm font-bold tracking-widest text-zinc-300"
+          >INICIALIZANDO MOTOR OVERLORD...</span
+        >
+        <span class="text-[10px] text-zinc-600 mt-2 uppercase tracking-widest"
+          >Sincronizando estado de hardware y Kernel</span
+        >
       </div>
     </div>
   </div>

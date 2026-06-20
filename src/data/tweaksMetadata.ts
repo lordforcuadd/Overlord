@@ -28,11 +28,11 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "peripheralLatency",
     title: "Respuesta de Teclado y Ratón",
     description:
-      "Optimiza el tamaño de la cola de procesamiento de los controladores HID nativos para reducir el tiempo de respuesta de los periféricos e inyecta MSI Mode.",
+      "Desactiva la aceleración del puntero, optimiza los tiempos de repetición del teclado y deshabilita la suspensión selectiva de puertos USB para reducir la latencia de respuesta.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
-      "Restauración de valores por defecto en los servicios nativos mouclass y kbdclass, y limpieza de la llave MSI en el registro de Windows.",
+      "Restauración de la aceleración del ratón por defecto, reactivación de suspensión de USB y restablecimiento de velocidad de teclado stock.",
     hardwareRecomendado:
       "Cualquier placa base con controladores de bus USB xHCI nativos de Intel o AMD.",
     windowsVersion: "Windows 10 / Windows 11",
@@ -40,30 +40,17 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/hid/keyboard-and-mouse-class-drivers",
     scriptName: "01_perifericos.ps1",
     impactoRendimiento:
-      "Reducción medible del Input Lag del sistema y mayor consistencia del puntero en periféricos de alta tasa de sondeo (polling rate).",
+      "Mayor consistencia en el movimiento físico del ratón y reducción del retraso de repetición del teclado.",
     warning:
-      "Forzar el modo MSI en concentradores USB e inyectar buffers de cola de datos avanzados requiere reiniciar el equipo.",
+      "Requiere reconectar los periféricos USB o reiniciar el equipo para aplicar la desactivación del modo de suspensión selectiva.",
     details: [
-      "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores USB y GPU.",
-      "Optimización de búferes de cola de datos físicos (Mouse y KeyboardDataQueueSize a 128 hilos).",
-      "Eliminación absoluta de aceleración por software y filtrado SmoothMouseCurve en el registro.",
-      "Desactivación estricta de filtros de accesibilidad intrusivos (StickyKeys, ToggleKeys y FilterKeys).",
+      "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores USB, GPU y de sonido (Class MEDIA y AudioEndpoint).",
+      "Ajuste del programador de CPU (Win32PrioritySeparation = 26) para establecer Quanta Corta y Fija, evitando micro-stutters.",
+      "Eliminación absoluta de la aceleración por software de Windows (MouseSpeed = 0).",
+      "Optimización de la latencia y repetición del teclado (FilterKeys con retraso a 200ms y repetición a 15ms).",
+      "Desactivación del USB Selective Suspend para mantener energizados los puertos HID de forma continua.",
     ],
     registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Services\\mouclass\\Parameters",
-        valueName: "MouseDataQueueSize",
-        valueType: "REG_DWORD",
-        fallbackValue: 100,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Services\\kbdclass\\Parameters",
-        valueName: "KeyboardDataQueueSize",
-        valueType: "REG_DWORD",
-        fallbackValue: 100,
-      },
       {
         hive: "HKEY_LOCAL_MACHINE",
         path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl",
@@ -81,16 +68,51 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       {
         hive: "HKEY_CURRENT_USER",
         path: "Control Panel\\Mouse",
-        valueName: "SmoothMouseXCurve",
-        valueType: "REG_BINARY",
-        fallbackValue: null,
+        valueName: "MouseThreshold1",
+        valueType: "REG_SZ",
+        fallbackValue: "6",
       },
       {
         hive: "HKEY_CURRENT_USER",
         path: "Control Panel\\Mouse",
-        valueName: "SmoothMouseYCurve",
-        valueType: "REG_BINARY",
-        fallbackValue: null,
+        valueName: "MouseThreshold2",
+        valueType: "REG_SZ",
+        fallbackValue: "10",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\Keyboard Response",
+        valueName: "Flags",
+        valueType: "REG_SZ",
+        fallbackValue: "126",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\Keyboard Response",
+        valueName: "AutoRepeatDelay",
+        valueType: "REG_SZ",
+        fallbackValue: "1000",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\Keyboard Response",
+        valueName: "AutoRepeatRate",
+        valueType: "REG_SZ",
+        fallbackValue: "500",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\Keyboard Response",
+        valueName: "DelayBeforeAcceptance",
+        valueType: "REG_SZ",
+        fallbackValue: "1000",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\Keyboard Response",
+        valueName: "BounceTime",
+        valueType: "REG_SZ",
+        fallbackValue: "0",
       },
     ],
   },
@@ -98,11 +120,11 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "debloat",
     title: "Limpieza del Sistema (Debloat)",
     description:
-      "Elimina aplicaciones preinstaladas (Bloatware) y aprovisionamientos de fábrica que consumen recursos en segundo plano.",
+      "Elimina aplicaciones preinstaladas (Bloatware) y desactiva servicios innecesarios que consumen ciclos de CPU y RAM.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
-      "Reinstalación manual desde la Microsoft Store o restauración de servicios nativos deshabilitados mediante el módulo de reversión.",
+      "Intento de re-registro de paquetes AppX provisionados locales y habilitación de servicios deshabilitados.",
     hardwareRecomendado: "General.",
     windowsVersion: "Windows 10 / Windows 11 (Home y Pro)",
     fuenteOficial:
@@ -111,12 +133,15 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Liberación de memoria RAM física y reducción del recuento total de procesos activos en segundo plano.",
     warning:
-      "Este process preserva la Microsoft Store y la App de Xbox para mantener intacto tu entorno gaming y de desarrollo.",
+      "Este proceso preserva la Microsoft Store y la App de Xbox para mantener intacto tu entorno gaming y de desarrollo. La desinstalación de aplicaciones AppX es semi-permanente.",
     details: [
       "Remoción de software preinstalado innecesario (Cortana, Bing, Weather, Maps, etc.).",
       "Eliminación de telemetría GPO básica y sugerencias web invasivas de Bing en el menú de inicio.",
       "Remoción estructural de las barras laterales y servicios de Windows Copilot.",
-      "Detención de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc).",
+      "Desactivación de los servicios de Diagnóstico del Sistema en segundo plano (WdiServiceHost y WdiSystemHost).",
+      "Desactivación estructural de Edge en segundo plano y Startup Boost para ahorrar memoria RAM.",
+      "Deshabilitación de permisos UWP en segundo plano (GlobalUserDisabled = 1) para apps inactivas.",
+      "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, SensorService, TrkWks, RemoteRegistry).",
     ],
     registryMapping: [
       {
@@ -140,17 +165,52 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueType: "REG_DWORD",
         fallbackValue: 1,
       },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications",
+        valueName: "GlobalUserDisabled",
+        valueType: "REG_DWORD",
+        fallbackValue: 0,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Edge",
+        valueName: "StartupBoostEnabled",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Edge",
+        valueName: "BackgroundModeEnabled",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Software\\Policies\\Microsoft\\Windows\\WindowsCopilot",
+        valueName: "TurnOffWindowsCopilot",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot",
+        valueName: "TurnOffWindowsCopilot",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
     ],
   },
   networkOptimized: {
     id: "networkOptimized",
     title: "Optimización de Internet",
     description:
-      "Configura el TTL de la caché DNS, mitiga el throttling de red del sistema operativo y optimiza los tiempos de espera de la pila TCP/IP.",
+      "Desactiva el algoritmo de Nagle (TcpNoDelay) y elimina el estrangulamiento de red multimedia del sistema operativo para bajar el jitter de red.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
-      "Restauración de los valores originales de ThrottlingIndex, TcpTimedWaitDelay y desocupación de la caché DNS.",
+      "Restauración de los valores originales de ThrottlingIndex, SystemResponsiveness y reactivación de Nagle.",
     hardwareRecomendado:
       "Conexiones por cable Ethernet o adaptadores Wi-Fi modernos.",
     windowsVersion: "Windows 10 / Windows 11",
@@ -158,29 +218,17 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://learn.microsoft.com/en-us/windows-server/networking/technologies/tcp-ip/tcp-ip-performance-tuning",
     scriptName: "03_red.ps1",
     impactoRendimiento:
-      "Erradicación del jitter de red, elimination de picos de lag por estrangulamiento y consistencia extrema en el registro de disparos (hitreg).",
+      "Reducción y estabilización del ping de juegos, erradicación de micro-cortes por estrangulamiento de paquetes.",
     details: [
-      "Erradicación total del estrangulamiento de ancho de banda (NetworkThrottlingIndex deshabilitado).",
-      "Reducción agresiva del tiempo de espera de reutilización de puertos de red (TcpTimedWaitDelay a 30s).",
-      "Estabilización de persistencia de resolución DNS (TTL 86400) y apagado de túneles fantasma IPv6.",
-      "Prioridad de CPU dedicada (SystemResponsiveness = 10) para evitar que procesos secundarios estrangulen el hilo del juego.",
-      "Autosintonización TCP forzada a normal para desatar el ancho de banda y desactivación de ECN para prevenir pérdidas de paquetes.",
+      "Desactivación total del estrangulamiento de ancho de banda (NetworkThrottlingIndex deshabilitado).",
+      "Prioridad de CPU dedicada (SystemResponsiveness = 10) para evitar que hilos del kernel estrangulen el hilo del juego.",
+      "Optimización del tiempo de retransmisión TCP (InitialRto = 2000ms) para recuperación ultrarrápida de pérdidas de paquetes.",
+      "Desactivación del algoritmo de Nagle (TcpNoDelay = 1 y TcpAckFrequency = 1) en las interfaces de red activas.",
+      "Desactivación de Large Send Offload (LSO) y Receive Segment Coalescing (RSC) en adaptadores de red para eliminar jitter.",
+      "Configuración del perfil RSS a Closest para minimizar fallos de caché L3 de la CPU al procesar interrupciones.",
+      "Desactivación de modos de ahorro Ethernet (EEE, Green Energy) y coalescencia de paquetes, control de flujo y moderación de interrupciones (adaptativo en escritorio con >8 hilos lógicos).",
     ],
     registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters",
-        valueName: "MaxCacheTtl",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
-        valueName: "TcpTimedWaitDelay",
-        valueType: "REG_DWORD",
-        fallbackValue: 30,
-      },
       {
         hive: "HKEY_LOCAL_MACHINE",
         path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
@@ -195,56 +243,81 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueType: "REG_DWORD",
         fallbackValue: 20,
       },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+        valueName: "InitialRto",
+        valueType: "REG_DWORD",
+        fallbackValue: 3000,
+      },
     ],
   },
   generalPerformance: {
     id: "generalPerformance",
     title: "Potencia Bruta y Procesador",
     description:
-      "Optimiza la paginación de la memoria del Kernel, gestiona la compresión de RAM y mitiga el impacto de las transiciones de estados energéticos.",
-    riesgo: "Balanceado",
+      "Configura la compresión adaptativa de RAM y desactiva el servicio de captura automática de juegos (GameDVR) para liberar recursos de CPU.",
+    riesgo: "Seguro",
     reversible: true,
     metodoReversion:
-      "Restauración de las llaves del planificador de memoria y conmutación adaptativa de la compresión de sistema.",
+      "Reactivación de la compresión de RAM y re-habilitación de GameDVR.",
     hardwareRecomendado:
       "Equipos con procesadores multinúcleo y configuraciones de memoria DDR4 / DDR5.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
-      "https://learn.microsoft.com/en-us/windows-hardware/commercialize/performance/rules/paging-executive",
+      "https://learn.microsoft.com/en-us/windows-hardware/commercialize/performance/rules/page-combining",
     scriptName: "04_rendimiento.ps1",
     impactoRendimiento:
-      "Aumento de la estabilidad de los relojes de CPU, menor latencia en el intercambio de memoria y FPS mínimos más altos.",
-    warning:
-      "Desactivar mitigaciones Spectre/Meltdown en CPUs legacy recupera ciclos de reloj pero expone al procesador a vulnerabilidades teóricas de canal lateral (Speculative Execution).",
+      "Disminución de stutters provocados por procesos de reorganización de memoria y codificación de vídeo en segundo plano.",
     details: [
-      "Inyección de Kernel residente en RAM (DisablePagingExecutive) para suprimir accesos lentos a disco.",
-      "Desactivación del limpiador del archivo de paginación para agilizar los ciclos de arranque y apagado.",
       "Gestión adaptativa de MMAgent (Memory Compression) optimizada según la cantidad total de RAM detectada.",
+      "Apagado de la compresión de RAM en sistemas de >=32GB para ahorrar procesamiento en favor de latencia pura.",
+      "Desactivación de Page Combining en MMAgent para mitigar micro-stutters generados por el de-duplicador de páginas.",
+      "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
-      "Desactivación de Page Combining en MMAgent para ahorrar ciclos de CPU y mitigar micro-stutters.",
-      "Ajuste lógico de temporización de reloj (BCDedit) para desactivar HPET y priorizar TSC.",
     ],
     registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
-        valueName: "DisablePagingExecutive",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
-        valueName: "ClearPageFileAtShutdown",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
       {
         hive: "HKEY_CURRENT_USER",
         path: "System\\GameConfigStore",
         valueName: "GameDVR_Enabled",
         valueType: "REG_DWORD",
         fallbackValue: 1,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
+        valueName: "Scheduling Category",
+        valueType: "REG_SZ",
+        fallbackValue: "Medium",
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
+        valueName: "SFIO Priority",
+        valueType: "REG_SZ",
+        fallbackValue: "Normal",
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
+        valueName: "Priority",
+        valueType: "REG_DWORD",
+        fallbackValue: 2,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
+        valueName: "GPU Priority",
+        valueType: "REG_DWORD",
+        fallbackValue: 8,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
+        valueName: "Clock Rate",
+        valueType: "REG_DWORD",
+        fallbackValue: 10,
       },
     ],
   },
@@ -256,7 +329,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     riesgo: "Experimental",
     reversible: true,
     metodoReversion:
-      "Restauración de las llaves del planificador de memoria y reactivación de las directivas de seguridad nativas.",
+      "Reactivación de las directivas de mitigación nativas restableciendo FeatureSettingsOverride.",
     hardwareRecomendado:
       "Procesadores legacy (Intel Core 9th Gen o anterior, AMD Ryzen 3000 o anterior) que sufren sobrecarga por los parches de seguridad.",
     windowsVersion: "Windows 10 / Windows 11",
@@ -264,13 +337,12 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://support.microsoft.com/en-us/topic/kb4073119-guidance-to-protect-against-speculative-execution-side-channel-vulnerabilities-in-windows-devices-419d691e-3652-32b0-951b-cb6104f7b494",
     scriptName: "disable_mitigations.ps1",
     impactoRendimiento:
-      "Incremento de hasta un 10-15% en throughput y rendimiento de CPU de un solo núcleo en procesadores vulnerables.",
+      "Incremento de hasta un 10-15% en throughput de CPU en procesadores antiguos vulnerables.",
     warning:
-      "Desactivar mitigaciones Spectre/Meltdown en CPUs legacy recupera ciclos de reloj pero expone al procesador a vulnerabilidades teóricas de canal lateral (Speculative Execution).",
+      "Desactivar mitigaciones expone al procesador a vulnerabilidades de ejecución especulativa de canal lateral.",
     details: [
       "Inhabilitación de mitigaciones de speculative execution (Spectre/Meltdown).",
       "Restauración del rendimiento perdido por parches de seguridad de kernel.",
-      "Optimización enfocada a procesadores antiguos sin mitigaciones en silicio.",
     ],
     registryMapping: [
       {
@@ -293,11 +365,11 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "gpuDisplay",
     title: "Fluidez de Pantalla y Gráficos",
     description:
-      "Ajusta la prioridad del planificador gráfico oficial (HAGS) y optimiza el Frame Pacing eliminando superposiciones conflictivas.",
-    riesgo: "Balanceado",
+      "Ajusta la prioridad del planificador gráfico oficial (HAGS) y desactiva la captura en segundo plano de GameBar para evitar caídas de FPS.",
+    riesgo: "Seguro",
     reversible: true,
     metodoReversion:
-      "Remoción de la subclave PerfOptions de dwm.exe e inversión de la directiva global de HAGS al valor por defecto.",
+      "Reactivación de GameBar y restauración del modo de programación predeterminado de GPU.",
     hardwareRecomendado:
       "Tarjetas gráficas dedicadas modernas (NVIDIA GeForce / AMD Radeon / Intel Arc).",
     windowsVersion: "Windows 10 / Windows 11",
@@ -305,12 +377,11 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://learn.microsoft.com/en-us/windows/win32/desktopmgmt/desktop-window-manager-overview",
     scriptName: "05_gpu_display.ps1",
     impactoRendimiento:
-      "Eliminación absoluta de stuttering de escritorio, optimización de latencia gráfica y estabilidad de framerate.",
+      "Eliminación de stutters por superposiciones de GameBar y optimización de latencia en la cola gráfica.",
     details: [
-      "Establece HwSchMode al valor oficial documentado (2) para la programación de GPU acelerada por hardware.",
-      "Desactivación de GameBarPresenceWriter a nivel de usuario para prevenir micro-stutters y frametime spikes al iniciar juegos.",
-      "Ajuste del timeout de detección y recuperación de GPU (TdrDelay = 10s) para mitigar crashes en motores UE5/DirectX 12.",
-      "Activación de la optimización del Flip Presentation Model para juegos en modo ventana o ventana sin bordes.",
+      "Establece HwSchMode a 2 para activar la programación de GPU acelerada por hardware (HAGS).",
+      "Desactivación de GameBarPresenceWriter a nivel de directivas de usuario para prevenir congelamientos temporales.",
+      "Desactivación del grabador de aplicaciones AppCaptureEnabled para liberar ciclos del codificador de vídeo.",
     ],
     registryMapping: [
       {
@@ -322,17 +393,17 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       },
       {
         hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
-        valueName: "TdrDelay",
+        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR",
+        valueName: "AllowGameDVR",
         valueType: "REG_DWORD",
         fallbackValue: null,
       },
       {
         hive: "HKEY_CURRENT_USER",
-        path: "Software\\Microsoft\\DirectX\\UserGpuPreferences",
-        valueName: "SwapEffectUpgradeDisable",
+        path: "Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+        valueName: "AppCaptureEnabled",
         valueType: "REG_DWORD",
-        fallbackValue: null,
+        fallbackValue: 1,
       },
     ],
   },
@@ -340,7 +411,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "irqAffinity",
     title: "Afinidad de Hardware (IRQ)",
     description:
-      "Aísla de forma exclusiva las cargas de interrupciones físicas de red fuera de los hilos principales del sistema operativo y núcleos de eficiencia.",
+      "Aísla de forma exclusiva las cargas de interrupciones físicas de red fuera de los hilos principales del sistema operativo.",
     riesgo: "Experimental",
     reversible: true,
     metodoReversion:
@@ -352,40 +423,25 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority",
     scriptName: "06_irq_affinity.ps1",
     impactoRendimiento:
-      "Reducción masiva de la latencia de llamadas de procedimiento diferidas (DPC Latency) y aislamiento térmico/de hilos.",
+      "Reducción masiva de la latencia de llamadas de procedimiento diferidas (DPC Latency) del bus de red.",
     warning:
-      "Este módulo desactiva la distribución multicanal RSS de red para priorizar la latencia en el CPU. Puede limitar el ancho de banda máximo en conexiones de fibra de alta velocidad (>= 500 Mbps).",
+      "Este módulo aísla las interrupciones del bus de red fuera del Core 0. En CPUs de >=8 hilos utiliza una política de afinación multi-núcleo selectiva (SpecifiedProcessors) para preservar la capacidad RSS y evitar cuellos de botella en descargas Gigabit.",
     details: [
       "Cálculo topológico dinámico en tiempo de ejecución basado en el mapa de hilos físicos del procesador.",
-      "Aislamiento de las interrupciones de red (NIC Isolation) en el penúltimo P-Core físico libre.",
-      "Ajuste de prioridades del planificador multimedia (MMCSS Tasks Games) a categoría High.",
+      "Asignación multi-núcleo selectiva en dos cores físicos independientes (SpecifiedProcessors) para conservar RSS y ancho de banda en descargas.",
+      "Selección automática de hilos P-Core optimizados (4 y 6 en CPUs >=12 hilos, o 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT).",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "Scheduling Category",
-        valueType: "REG_SZ",
-        fallbackValue: "Medium",
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "SFIO Priority",
-        valueType: "REG_SZ",
-        fallbackValue: "Normal",
-      },
-    ],
+    registryMapping: [],
   },
   smartStorage: {
     id: "smartStorage",
     title: "Almacenamiento Inteligente",
     description:
-      "Optimiza la asignación de memoria caché NTFS, deshabilita herencias restrictivas y consolida el espacio rígido de almacenamiento.",
+      "Optimiza el sistema de archivos NTFS desactivando LastAccessUpdate y deshabilita el Inicio Rápido para evitar fugas de memoria.",
     riesgo: "Seguro",
     reversible: true,
     metodoReversion:
-      "Restauración de los flags de comportamiento NTFS mediante comandos fsutil y reactivación de hibernación.",
+      "Re-habilitación del registro del último acceso y activación del Inicio Rápido de Windows.",
     hardwareRecomendado:
       "Unidades de estado sólido sólidas (SSD SATA / NVMe M.2).",
     windowsVersion: "Windows 10 / Windows 11",
@@ -393,14 +449,16 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://learn.microsoft.com/en-us/windows-government/administration/windows-commands/fsutil-behavior",
     scriptName: "07_almacenamiento.ps1",
     impactoRendimiento:
-      "Optimiza los tiempos de carga de texturas in-game (streaming de assets) y mitiga escrituras redundantes en el SSD.",
+      "Evita escrituras redundantes en discos SSD, aumentando su vida útil, y previene la degradación de memoria provocada por apagados sucios.",
     warning:
       "La consolidación profunda del almacén de componentes de Windows mediante DISM cuenta con un tiempo extendido para completarse.",
     details: [
       "Desactivación de la actualización de marcas de tiempo (Last Access Update) para mitigar ciclos de degradación en SSD.",
-      "Aumento de la asignación de memoria caché NTFS y remoción de nombres cortos de archivos de estructura legacy 8dot3.",
-      "Desactivación completa de la hibernación y remoción del archivo fantasma persistente Hiberfil.sys.",
-      "Ejecución y consolidación del almacén de componentes WinSxS mediante comandos DISM con protección extendida.",
+      "Desactivación universal de la creación de nombres de archivo cortos en formato MS-DOS 8.3 para acelerar el sistema de archivos.",
+      "Optimización adaptativa de la caché de metadatos NTFS (NtfsMemoryUsage = 2) en sistemas con >= 16 GB de RAM.",
+      "Desactivación completa de la hibernación y remoción del archivo fantasma persistente Hiberfil.sys (en desktops).",
+      "Desactivación de Inicio Rápido (HiberbootEnabled = 0) para forzar un apagado limpio del kernel de Windows.",
+      "Ejecución y consolidación del almacén de componentes WinSxS mediante comandos DISM.",
     ],
     registryMapping: [
       {
@@ -412,10 +470,17 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       },
       {
         hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
-        valueName: "EnablePrefetcher",
+        path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+        valueName: "NtfsDisable8dot3NameCreation",
         valueType: "REG_DWORD",
-        fallbackValue: 3,
+        fallbackValue: 2,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+        valueName: "NtfsMemoryUsage",
+        valueType: "REG_DWORD",
+        fallbackValue: 0,
       },
       {
         hive: "HKEY_LOCAL_MACHINE",
@@ -472,11 +537,11 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "powerProfiles",
     title: "Perfiles de Energía",
     description:
-      "Inyecta un esquema energético de ultra-baja latencia optimizado, gestiona de forma centralizada la suspensión USB y suprime el Core Parking.",
+      "Inyecta el esquema energético de Máximo Rendimiento y deshabilita el Core Parking en PCs de escritorio.",
     riesgo: "Balanceado",
     reversible: true,
     metodoReversion:
-      "Eliminación del GUID del esquema Overlord y conmutación automática al plan equilibrado por defecto de Windows.",
+      "Inversión de los estados de estacionamiento de núcleos y restauración del plan de energía original.",
     hardwareRecomendado:
       "Computadoras de escritorio y laptops conectadas a la corriente eléctrica.",
     windowsVersion: "Windows 10 / Windows 11",
@@ -487,10 +552,19 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Consistencia total en las frecuencias máximas del reloj de la CPU y respuesta eléctrica inmediata de los buses PCIe.",
     details: [
       "Importación e inyección del esquema de energía personalizado Overlord Performance.",
-      "Desactivación de la suspensión selectiva USB de forma centralizada y segura con soporte de backup.",
       "Ajuste del estacionamiento de núcleos (Core Parking) al 100% para evitar caídas y fluctuaciones de frecuencias.",
+      "Optimización de la preferencia de rendimiento energético (EPP = 0) y CPU Boost (Agresivo) en desktops.",
+      "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación global de Power Throttling en desktops.",
     ],
-    registryMapping: [],
+    registryMapping: [
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling",
+        valueName: "PowerThrottlingOff",
+        valueType: "REG_DWORD",
+        fallbackValue: 0,
+      },
+    ],
   },
   gameHooks: {
     id: "gameHooks",

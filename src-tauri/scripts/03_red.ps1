@@ -3,40 +3,27 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Iniciando optimizacion cientifica de la pila de red TCP/IP..."
 
-    $DnsPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
     $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
     $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
 
-    if (!(Test-Path $DnsPath)) { New-Item -Path $DnsPath -Force | Out-Null }
     if (!(Test-Path $TcpPath)) { New-Item -Path $TcpPath -Force | Out-Null }
     if (!(Test-Path $ProfilePath)) { New-Item -Path $ProfilePath -Force | Out-Null }
     
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $DnsPath -ValueName "MaxCacheTtl" -BackupSubFolder "Network"
-        Backup-OverlordRegistryValue -TargetKey $DnsPath -ValueName "MaxNegativeCacheTtl" -BackupSubFolder "Network"
-        Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "TcpTimedWaitDelay" -BackupSubFolder "Network"
         Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network"
         Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "SystemResponsiveness" -BackupSubFolder "Network"
+        Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "InitialRto" -BackupSubFolder "Network"
     }
 
-    Set-ItemProperty -Path $DnsPath -Name "MaxCacheTtl" -Type DWord -Value 86400 -Force | Out-Null
-    Set-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl" -Type DWord -Value 0 -Force | Out-Null
-    Set-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay" -Type DWord -Value 30 -Force | Out-Null
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force | Out-Null
     Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 10 -Force | Out-Null
+    Set-ItemProperty -Path $TcpPath -Name "InitialRto" -Type DWord -Value 2000 -Force | Out-Null
  
-    if ((Get-ItemProperty -Path $DnsPath -Name "MaxCacheTtl").MaxCacheTtl -ne 86400) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $DnsPath -Name "MaxNegativeCacheTtl").MaxNegativeCacheTtl -ne 0) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $TcpPath -Name "TcpTimedWaitDelay").TcpTimedWaitDelay -ne 30) { throw "Verification failed" }
     if ((Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness").SystemResponsiveness -ne 10) { throw "Verification failed" }
+    if ((Get-ItemProperty -Path $TcpPath -Name "InitialRto").InitialRto -ne 2000) { throw "Verification failed" }
     
     $throttingVal = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
     if ($throttingVal -ne 4294967295 -and $throttingVal -ne -1) { throw "Verification failed" }
-
-    
-    netsh int tcp set global rss=enabled | Out-Null
-    netsh int tcp set global autotuninglevel=normal | Out-Null
-    netsh int tcp set global ecncapability=disabled | Out-Null
 
     
     $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
@@ -64,7 +51,14 @@ Try {
             if ($Adapter.PSChildName -match "^\d{4}$") {
                 $NetInstanceId = (Get-ItemProperty -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue).NetCfgInstanceId
                 if ($null -ne $NetInstanceId -and ($EthernetGuids -contains $NetInstanceId)) {
-                    $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing")
+                    $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
+                    
+                    # Desactivar Coalescencia, Moderación de Interrupción y Control de Flujo únicamente en PCs de Escritorio con >8 hilos lógicos
+                    $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
+                    if ($TotalThreads -gt 8 -and -not $IsLaptop) {
+                        $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
+                    }
+
                     foreach ($PKey in $PowerKeys) {
                         $Prop = Get-ItemProperty -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
                         if ($null -ne $Prop) {
@@ -83,6 +77,9 @@ Try {
     foreach ($Adapter in $Adapters) {
         if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
             Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
+            Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
+            Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
+            Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
             Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
         }
     }

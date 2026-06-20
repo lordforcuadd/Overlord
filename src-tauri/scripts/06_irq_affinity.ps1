@@ -10,38 +10,30 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
-    $TasksPath = "$ProfilePath\Tasks\Games"
-    if (!(Test-Path $TasksPath)) { New-Item -Path $TasksPath -Force | Out-Null }
-
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "Scheduling Category" -BackupSubFolder "CPU"
-        Backup-OverlordRegistryValue -TargetKey $TasksPath -ValueName "SFIO Priority" -BackupSubFolder "CPU"
-    }
-
-    Set-ItemProperty -Path $TasksPath -Name "Scheduling Category" -Type String -Value "High" -Force | Out-Null
-    Set-ItemProperty -Path $TasksPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
-
-    if ((Get-ItemProperty -Path $TasksPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { Write-Warning "No se pudo asegurar Scheduling Category" }
-    if ((Get-ItemProperty -Path $TasksPath -Name "SFIO Priority")."SFIO Priority" -ne "High") { Write-Warning "No se pudo asegurar SFIO Priority" }
-
     if ($IsLaptop) {
         Write-Host "[+] Laptop detectada. Saltando remapeo fisico de afinidades IRQ para proteger la estabilidad de buses dinamicos de energia." -ForegroundColor Green
         exit 0
     }
 
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
-    # Mapeo inteligente de afinidad para evitar E-Cores (que ocupan los hilos finales en arquitecturas híbridas Intel)
-    $NetCoreIndex = 2 # Fallback seguro (hilo 2, tercer core si no hay HT, o segundo core con HT)
-    if ($TotalCores -ge 16) {
-        $NetCoreIndex = 4 # Hilo 4 (P-Core seguro en CPUs de 16+ hilos)
-    } elseif ($TotalCores -ge 8) {
-        $NetCoreIndex = 2 # Hilo 2 (P-Core seguro en CPUs de 8+ hilos)
-    } else {
-        $NetCoreIndex = 1 # Para CPUs muy antiguas de 2 o 4 hilos
-    }
+    # Mapeo inteligente multi-núcleo compatible con RSS (evita Core 0, evita hilos HT hermanos y evita E-cores al final)
+    # Establece DevicePolicy = 2 (SpecifiedProcessors) para que Windows use RSS en el conjunto de cores asignados.
+    $DevicePolicyValue = 2 # SpecifiedProcessors
+    [uint64]$NetBitmask = 0
 
-    [uint64]$NetBitmask = [uint64]1 -shl $NetCoreIndex
+    if ($TotalCores -ge 12) {
+        # CPUs de gama media-alta (>=12 hilos): Afinar a dos cores físicos separados (hilos lógicos 4 y 6)
+        # Esto permite a RSS balancear el procesamiento de paquetes sin saturar un solo hilo.
+        $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
+    } elseif ($TotalCores -ge 8) {
+        # CPUs estándar (8 a 11 hilos): Afinar a hilos lógicos 2 y 4 (dos cores físicos independientes)
+        $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 4)
+    } else {
+        # CPUs muy antiguas (<=6 hilos): Mapear a un solo core alternativo (hilo lógico 2)
+        # DevicePolicy = 4 (OneCloseProcessor)
+        $DevicePolicyValue = 4
+        $NetBitmask = [uint64]1 -shl 2
+    }
 
     $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)
 
@@ -76,7 +68,7 @@ Try {
                                             Set-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Override" -Value $bckOverride -Force | Out-Null
                                         }
                                         
-                                        $affinityKey.SetValue("DevicePolicy", 4, [Microsoft.Win32.RegistryValueKind]::DWord)
+                                        $affinityKey.SetValue("DevicePolicy", $DevicePolicyValue, [Microsoft.Win32.RegistryValueKind]::DWord)
                                         $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
                                         $affinityKey.Close()
                                     }

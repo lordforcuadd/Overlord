@@ -139,7 +139,9 @@ pub fn get_system_hardware() -> HardwareResponse {
         }
 
         let mut drive_is_ssd = true;
-        let path_drive: Vec<u16> = "\\\\.\\C:".encode_utf16().chain(std::iter::once(0)).collect();
+        let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
+        let path_drive_str = format!("\\\\.\\{}", system_drive);
+        let path_drive: Vec<u16> = path_drive_str.encode_utf16().chain(std::iter::once(0)).collect();
         unsafe {
             let handle = CreateFileW(path_drive.as_ptr(), 0x80000000, 0x00000001 | 0x00000002, std::ptr::null_mut(), 3, 0x00000080, std::ptr::null_mut());
             if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
@@ -211,9 +213,11 @@ pub fn get_system_hardware() -> HardwareResponse {
 }
 
 fn get_steam_library_paths() -> Vec<String> {
+    let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+    let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
     let mut paths = vec![
-        "C:\\Program Files\\Steam\\steamapps\\common".to_string(),
-        "C:\\Program Files (x86)\\Steam\\steamapps\\common".to_string(),
+        format!("{}\\Steam\\steamapps\\common", program_files),
+        format!("{}\\Steam\\steamapps\\common", program_files_x86),
     ];
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     if let Ok(steam_key) = hkcu.open_subkey("Software\\Valve\\Steam") {
@@ -245,7 +249,8 @@ fn get_steam_library_paths() -> Vec<String> {
 
 fn get_epic_installed_games() -> Vec<(String, String)> {
     let mut games = Vec::new();
-    let manifests_path = Path::new("C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests");
+    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let manifests_path = Path::new(&program_data).join("Epic\\EpicGamesLauncher\\Data\\Manifests");
     if manifests_path.exists() {
         if let Ok(entries) = std::fs::read_dir(manifests_path) {
             for entry in entries.flatten() {
@@ -368,14 +373,19 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     }
 
     
-    let common_epic_paths = ["C:\\Program Files\\Epic Games", "D:\\Epic Games"];
+    let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+    let common_epic_paths = [format!("{}\\Epic Games", program_files), "D:\\Epic Games".to_string()];
     for path in &common_epic_paths {
         for game in catalog.iter_mut() {
             if Path::new(path).join(&game.name).exists() { game.detected = true; }
         }
     }
 
-    let xbox_default_paths = ["C:\\XboxGames", "D:\\XboxGames"];
+    let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
+    let xbox_default_paths = [
+        format!("{}\\XboxGames", system_drive),
+        "D:\\XboxGames".to_string(),
+    ];
     for path in &xbox_default_paths {
         if Path::new(path).exists() {
             for game in catalog.iter_mut() {
@@ -385,10 +395,10 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     }
 
     let static_checks = [
-        ("VALORANT", "C:\\Riot Games\\VALORANT"),
-        ("VALORANT", "D:\\Riot Games\\VALORANT"),
-        ("League of Legends", "C:\\Riot Games\\League of Legends"),
-        ("League of Legends", "D:\\Riot Games\\League of Legends"),
+        ("VALORANT", format!("{}\\Riot Games\\VALORANT", system_drive)),
+        ("VALORANT", "D:\\Riot Games\\VALORANT".to_string()),
+        ("League of Legends", format!("{}\\Riot Games\\League of Legends", system_drive)),
+        ("League of Legends", "D:\\Riot Games\\League of Legends".to_string()),
     ];
     for (name, path) in &static_checks {
         if Path::new(path).exists() {

@@ -261,10 +261,9 @@ export const useOverlordStore = defineStore("overlord", {
           "gameHooks",
           "disableMitigations",
         ],
-        Programador: ["debloat", "networkOptimized", "smartStorage"],
+        Programador: ["debloat", "smartStorage"],
         "Home Office / Laptops": [
           "debloat",
-          "networkOptimized",
           "smartStorage",
         ],
         "Usuario Casual": ["debloat", "smartStorage"],

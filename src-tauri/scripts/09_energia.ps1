@@ -74,11 +74,25 @@ Try {
         Write-Host "    -> Aplicando deshabilitacion de Core Parking y ahorros PCIe sobre el plan activo..."
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null } catch {}
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bea128a440 d4e00550-747f-4ddb-bf3e-9b6c97a522a4 0 2>$null } catch {}
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a8713cd-255e-4fc5-a639-12b87a5b3e8a d874b2c9-943b-47dd-9190-25e0e3c95a12 0 2>$null } catch {}
 
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null } catch {}
         try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null } catch {}
         
+        # Inyectar apagado de disco a Nunca (Timeout = 0)
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6733a230-cd1a-4929-94d4-540b4ddecbeb 0 2>$null } catch {}
+        # Inyectar EPP a 0 (Máximo rendimiento)
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3668a66e-6856-4221-b530-747f2d53e4c6 0 2>$null } catch {}
+        # Inyectar Boost Mode a 2 (Agresivo)
+        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 be337238-0d82-4146-a960-4f3749d470c7 2 2>$null } catch {}
+
+        # Inyectar desactivación global de Power Throttling
+        $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
+        if (!(Test-Path $ThrottlePath)) { New-Item -Path $ThrottlePath -Force | Out-Null }
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey $ThrottlePath -ValueName "PowerThrottlingOff" -BackupSubFolder "Power"
+        }
+        Set-ItemProperty -Path $ThrottlePath -Name "PowerThrottlingOff" -Type DWord -Value 1 -Force | Out-Null
+
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $CurrentGuid = $Matches[1]

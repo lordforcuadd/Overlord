@@ -233,8 +233,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
           "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
           "gpuDisplay", "smartStorage", "powerProfiles", "gameHooks", "disableMitigations"
         ],
-        Programador: ["debloat", "networkOptimized", "smartStorage"],
-        "Home Office / Laptops": ["debloat", "networkOptimized", "smartStorage"],
+        Programador: ["debloat", "smartStorage"],
+        "Home Office / Laptops": ["debloat", "smartStorage"],
         "Usuario Casual": ["debloat", "smartStorage"]
       };
 

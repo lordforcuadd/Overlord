@@ -8,49 +8,11 @@ Try {
     Write-Host "[*] Aplicando optimizaciones de rendimiento general y Kernel..."
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-    
-    $ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "DisablePagingExecutive" -BackupSubFolder "Performance"
-        Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "ClearPageFileAtShutdown" -BackupSubFolder "Performance"
-        
         $StorePath = "HKCU:\System\GameConfigStore"
         if (Test-Path $StorePath) {
             Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
-        }
-
-    }
-
-    $targetPaging = 0
-    if ($RamGB -ge 16 -and -not $IsLaptop) {
-        $targetPaging = 1
-    }
-    Set-ItemProperty -Path $MemPath -Name "DisablePagingExecutive" -Type DWord -Value $targetPaging -Force | Out-Null
-    if ((Get-ItemProperty -Path $MemPath -Name "DisablePagingExecutive").DisablePagingExecutive -ne $targetPaging) { 
-        throw "Fallo al verificar DisablePagingExecutive en el Kernel"
-    }
-
-    # Configurar temporizadores BCD (Desactivar HPET platform clock) con respaldo
-    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
-    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
-    
-    $BcdEnum = bcdedit /enum
-    $OrigClock = if ($BcdEnum -match "useplatformclock\s+Yes") { "Yes" } elseif ($BcdEnum -match "useplatformclock\s+No") { "No" } else { "_ABSENT_" }
-    
-    if ((Get-ItemProperty -Path $BackupPath -Name "useplatformclock" -ErrorAction SilentlyContinue) -eq $null) {
-        Set-ItemProperty -Path $BackupPath -Name "useplatformclock" -Value $OrigClock -Force | Out-Null
-    }
-    
-    try {
-        bcdedit /set useplatformclock no 2>$null | Out-Null
-    } catch {}
-
-    $ClearPage = (Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -ErrorAction SilentlyContinue).ClearPageFileAtShutdown
-    if ($ClearPage -eq 1) {
-        Set-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown" -Type DWord -Value 0 -Force | Out-Null
-        if ((Get-ItemProperty -Path $MemPath -Name "ClearPageFileAtShutdown").ClearPageFileAtShutdown -ne 0) { 
-            throw "Fallo al asegurar el flag ClearPageFileAtShutdown en 0"
         }
     }
 
@@ -62,6 +24,26 @@ Try {
     Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
 
     # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a través del módulo independiente disableMitigations por seguridad.
+
+    $GamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
+    if (Test-Path $GamesPath) {
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Scheduling Category" -BackupSubFolder "Performance"
+            Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "SFIO Priority" -BackupSubFolder "Performance"
+            Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Priority" -BackupSubFolder "Performance"
+            Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "GPU Priority" -BackupSubFolder "Performance"
+            Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Clock Rate" -BackupSubFolder "Performance"
+        }
+        Set-ItemProperty -Path $GamesPath -Name "Scheduling Category" -Type String -Value "High" -Force | Out-Null
+        Set-ItemProperty -Path $GamesPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
+        Set-ItemProperty -Path $GamesPath -Name "Priority" -Type DWord -Value 6 -Force | Out-Null
+        Set-ItemProperty -Path $GamesPath -Name "GPU Priority" -Type DWord -Value 8 -Force | Out-Null
+        Set-ItemProperty -Path $GamesPath -Name "Clock Rate" -Type DWord -Value 10 -Force | Out-Null
+
+        # Verificación de MMCSS
+        if ((Get-ItemProperty -Path $GamesPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { throw "Fallo de verificacion en MMCSS Scheduling Category" }
+        if ((Get-ItemProperty -Path $GamesPath -Name "Priority").Priority -ne 6) { throw "Fallo de verificacion en MMCSS Priority" }
+    }
 
     $StorePath = "HKCU:\System\GameConfigStore"
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }

@@ -29,6 +29,8 @@ Try {
                             $AllowMsi = $true
                         } elseif ($class -eq "USB" -and -not $IsLaptop) {
                             $AllowMsi = $true
+                        } elseif ($class -eq "MEDIA" -or $class -eq "AudioEndpoint") {
+                            $AllowMsi = $true
                         }
 
                         if ($AllowMsi) {
@@ -89,50 +91,41 @@ Try {
         $pciKey.Close()
     }
 
-    
-    $QueueSize = 128
-
-    $MouPath = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
-    if (Test-Path $MouPath) {
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $MouPath -ValueName "MouseDataQueueSize" -BackupSubFolder "mouclass"
-        }
-        Set-ItemProperty -Path $MouPath -Name "MouseDataQueueSize" -Type DWord -Value $QueueSize -Force | Out-Null
-        if ((Get-ItemProperty -Path $MouPath -Name "MouseDataQueueSize").MouseDataQueueSize -ne $QueueSize) { 
-            Write-Warning "No se pudo asegurar MouseDataQueueSize" 
-        }
-    }
-
-    $KbdPath = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
-    if (Test-Path $KbdPath) {
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $KbdPath -ValueName "KeyboardDataQueueSize" -BackupSubFolder "kbdclass"
-        }
-        Set-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize" -Type DWord -Value $QueueSize -Force | Out-Null
-        if ((Get-ItemProperty -Path $KbdPath -Name "KeyboardDataQueueSize").KeyboardDataQueueSize -ne $QueueSize) { 
-            Write-Warning "No se pudo asegurar KeyboardDataQueueSize" 
-        }
-    }
-
+       # Configurar prioridad del planificador (Win32PrioritySeparation = 26)
+    # 26 decimal = 0x1A (Quanta Corta, Fija, Foreground Boost 3:1). Evita stutters ante procesos en segundo plano.
     $PriorityControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
     if (Test-Path $PriorityControlPath) {
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $PriorityControlPath -ValueName "Win32PrioritySeparation" -BackupSubFolder "Performance"
         }
-        Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 22 -Force | Out-Null
-        if ((Get-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation").Win32PrioritySeparation -ne 22) { 
+        Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 26 -Force | Out-Null
+        if ((Get-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation").Win32PrioritySeparation -ne 26) { 
             Write-Warning "No se pudo asegurar Win32PrioritySeparation" 
         }
     }
 
+    # Desactivar Suspension Selectiva de USB (Optimizacion de energia de perifericos)
+    try {
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a8713cd-255e-4fc5-a639-12b87a5b3e8a d874b2c9-943b-47dd-9190-25e0e3c95a12 0 2>$null | Out-Null
+        $ActivePlan = powercfg /getactivescheme 2>$null
+        if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
+            $CurrentGuid = $Matches[1]
+            & powercfg /setactive $CurrentGuid 2>$null | Out-Null
+        }
+    } catch {
+        Write-Warning "No se pudo desactivar USB Selective Suspend"
+    }
+
+    # Desactivar Aceleracion del Raton (Precision del Puntero)
     $MousePath = "HKCU:\Control Panel\Mouse"
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseSpeed" -BackupSubFolder "Mouse"
+        Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseThreshold1" -BackupSubFolder "Mouse"
+        Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseThreshold2" -BackupSubFolder "Mouse"
+    }
     Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -Force | Out-Null
-    
-    $zeroBytes = [byte[]]::new(40)
-    Set-ItemProperty -Path $MousePath -Name "SmoothMouseXCurve" -Type Binary -Value $zeroBytes -Force | Out-Null
-    Set-ItemProperty -Path $MousePath -Name "SmoothMouseYCurve" -Type Binary -Value $zeroBytes -Force | Out-Null
 
     if ((Get-ItemProperty -Path $MousePath -Name "MouseSpeed").MouseSpeed -ne "0") { 
         Write-Warning "No se pudo asegurar MouseSpeed lineal" 
@@ -142,11 +135,21 @@ Try {
         Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "Accessibility"
         Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\ToggleKeys" -ValueName "Flags" -BackupSubFolder "Accessibility"
         Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "BounceTime" -BackupSubFolder "Accessibility"
     }
 
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Type String -Value "506" -Force | Out-Null
     Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "58" -Force | Out-Null
-    Set-ItemProperty -Path "HKCU:\Control Panel\Accessibility\Keyboard Response" -Name "Flags" -Type String -Value "122" -Force | Out-Null
+    
+    $KeyRespPath = "HKCU:\Control Panel\Accessibility\Keyboard Response"
+    Set-ItemProperty -Path $KeyRespPath -Name "Flags" -Type String -Value "59" -Force | Out-Null
+    Set-ItemProperty -Path $KeyRespPath -Name "AutoRepeatDelay" -Type String -Value "200" -Force | Out-Null
+    Set-ItemProperty -Path $KeyRespPath -Name "AutoRepeatRate" -Type String -Value "15" -Force | Out-Null
+    Set-ItemProperty -Path $KeyRespPath -Name "DelayBeforeAcceptance" -Type String -Value "0" -Force | Out-Null
+    Set-ItemProperty -Path $KeyRespPath -Name "BounceTime" -Type String -Value "0" -Force | Out-Null
 
     if ((Get-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name "Flags").Flags -ne "506") { 
         Write-Warning "No se pudo asegurar los Flags de StickyKeys stock" 

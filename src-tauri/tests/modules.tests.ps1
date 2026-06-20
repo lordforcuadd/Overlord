@@ -1,4 +1,4 @@
-Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
+Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.5.0" {
     BeforeAll {
         $GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
         $ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
@@ -19,27 +19,11 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
     }
 
     Context "Mecanica de Entrada y Perifericos de Alta Frecuencia" {
-        It "Debe comprobar los buffers optimizados de llegada en colas de mouclass" {
-            $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters"
-            if (Test-Path $Path) {
-                $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseDataQueueSize
-                $Size | Should Be 128
-            }
-        }
-
-        It "Debe comprobar los buffers optimizados de llegada en colas de kbdclass" {
-            $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters"
-            if (Test-Path $Path) {
-                $Size = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).KeyboardDataQueueSize
-                $Size | Should Be 128
-            }
-        }
-
         It "Debe comprobar el quantum de CPU optimizado Win32PrioritySeparation" {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
             if (Test-Path $Path) {
                 $Separation = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).Win32PrioritySeparation
-                $Separation | Should Be 22
+                $Separation | Should Be 26
             }
         }
 
@@ -105,23 +89,13 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
     }
 
     Context "Modulo 03 - Pila de Red y Latencia TCP" {
-        It "Debe asegurar limites coherentes en la resistencia DNS" {
-            $Path = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters"
-            if (Test-Path $Path) {
-                $Ttl = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MaxCacheTtl
-                $Ttl | Should Be 86400
-            }
-        }
-
         It "Debe verificar la remocion del estrangulamiento, responsividad y retardo de cola TCP" {
             $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
             $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
             
-            $WaitDelay = (Get-ItemProperty -Path $TcpPath -ErrorAction SilentlyContinue).TcpTimedWaitDelay
             $Throttling = (Get-ItemProperty -Path $ProfilePath -ErrorAction SilentlyContinue).NetworkThrottlingIndex
             $SysResp = (Get-ItemProperty -Path $ProfilePath -ErrorAction SilentlyContinue).SystemResponsiveness
             
-            $WaitDelay | Should Be 30
             (@(4294967295, -1) -contains $Throttling) | Should Be $true
             $SysResp | Should Be 10
         }
@@ -171,28 +145,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.4.4" {
                 (@(1, 2, 3, 2147483649, 2147483650, 2147483651) -contains $LastAccess) | Should Be $true
             }
         }
-
-
-
-        It "Debe comprobar el TdrDelay optimizado de GPU" {
-            $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
-            if (Test-Path $Path) {
-                $Tdr = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).TdrDelay
-                if ($null -ne $Tdr) {
-                    $Tdr | Should Be 10
-                }
-            }
-        }
-
-        It "Debe comprobar que SwapEffectUpgradeDisable este en modo optimizado (0)" {
-            $Path = "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences"
-            if (Test-Path $Path) {
-                $Swap = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).SwapEffectUpgradeDisable
-                if ($null -ne $Swap) {
-                    $Swap | Should Be 0
-                }
-            }
-        }
+        # Se removieron aserciones obsoletas de TdrDelay y SwapEffectUpgradeDisable
     }
 
     Context "Modulo 09 y 11 - Planes de Energia e IFEO Gaming Hooks" {

@@ -16,6 +16,9 @@ Try {
     }
 
     try {
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services"
+        }
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
     } catch {}

@@ -1,7 +1,7 @@
 <div align="center">
   <img src="overlord_icon.png" alt="Overlord Logo" width="120">
 
-# OVERLORD (v4.4.4)
+# OVERLORD (v4.5.0)
 
 **Suite Avanzada de Optimización, Privacidad y Reducción de Latencia de Bajo Nivel para Windows 10 y 11.**
 
@@ -25,11 +25,11 @@ Una suite de ingeniería orientada al rendimiento competitivo, depuración profu
 
 ## 🧠 Filosofía de Ingeniería y Arquitectura del Sistema
 
-A diferencia de las utilidades de optimización tradicionales, **Overlord v4.4.4** opera bajo auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Elimina por completo modificaciones destructivas, tweaks placebo y cambios que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel. Cada módulo verifica el resultado de cada escritura en registro mediante comprobaciones explícitas que lanzan excepciones ante cualquier fallo.
+A diferencia de las utilidades de optimización tradicionales, **Overlord v4.5.0** opera bajo auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Elimina por completo modificaciones destructivas, tweaks placebo y cambios que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel. Cada módulo verifica el resultado de cada escritura en registro mediante comprobaciones explícitas que lanzan excepciones ante cualquier fallo.
 
 ### Pilares Fundamentales de la Arquitectura
 
-- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** En v4.4.4, los scripts nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`. Al terminar, no queda ningún artefacto en el sistema de archivos del usuario, eliminando vectores de secuestro de archivos (_File Hijacking_).
+- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** En v4.5.0, los scripts nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`. Al terminar, no queda ningún artefacto en el sistema de archivos del usuario, eliminando vectores de secuestro de archivos (_File Hijacking_).
 
 - **Codificador Base64 Nativo en Rust:** El executor implementa su propio codificador Base64 personalizado (`custom_base64_encode`) sin dependencias externas, operando directamente sobre los bytes UTF-16 del script unificado. Esto garantiza compatibilidad exacta con el decodificador `[System.Convert]::FromBase64String` de PowerShell sin depender de crates de terceros.
 
@@ -59,8 +59,6 @@ El backup utiliza el marcador especial `_ABSENT_` para registrar claves que no e
 
 Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `crear_respaldo.ps1`, que levanta una instantánea VSS nativa del volumen del sistema (`Checkpoint-Computer`) tras verificar permisos de administrador, activar el servicio VSS y forzar `SystemRestorePointCreationFrequency = 0` para saltarse la limitación de un punto cada 24 horas.
 
-### Reversión de Fábrica Centralizada (`10_revertir.ps1`)
-
 En caso de inestabilidad, el revert lee la colmena aislada `HKLM:\SOFTWARE\Overlord\Backup` y realiza un rollback simétrico completo: restaura cada valor de registro a su estado exacto previo, restablece los tipos de dato originales via `_Kind`, devuelve el plan de energía activo guardado en backup, reactiva servicios según sus `StartupType` de fábrica, y notifica al usuario antes de reiniciar el shell del explorador.
 
 ### Suite de Pruebas Unitarias (`modules.tests.ps1`)
@@ -69,76 +67,68 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ---
 
-## 🛠️ Desglose Técnico de Módulos de Optimización
+## 🛠️ Desglose Técnico de Módulos de Optimización (v4.5.0)
 
 ### 1. Respuesta de Periféricos (`01_perifericos.ps1`)
 
-- Activa **MSI Mode** (Message Signaled Interrupts) en GPU y controladores USB recorriendo el árbol PCI completo mediante la API nativa `Microsoft.Win32.Registry` y configura la prioridad de interrupción a Alta (`DevicePriority = 3`) bajo la directiva de política de afinidad, eliminando interrupciones de línea compartida (IRQ sharing) y fluctuaciones de latencia.
-- Reconfigura el búfer de intercambio de los drivers de clase nativos `mouclass` y `kbdclass` fijando `MouseDataQueueSize` y `KeyboardDataQueueSize` en **128**, valor balanceado para polling rates de hasta 8KHz para evitar microcongelamientos.
-- Establece `Win32PrioritySeparation = 22` (0x16): quantum de CPU interactivo corto y variable con boost de 3:1 para garantizar la máxima respuesta del juego en primer plano.
-- Desactiva la aceleración del puntero (`MouseSpeed = 0`, `MouseThreshold1/2 = 0`) y neutraliza las curvas de suavizado `SmoothMouseXCurve` y `SmoothMouseYCurve` con 40 bytes a cero, garantizando traducción 1:1 de movimiento físico a digital.
-- Desactiva StickyKeys, ToggleKeys y FilterKeys para evitar interrupciones de accesibilidad involuntarias durante el juego.
-- En desktop: deshabilita USB Selective Suspend via `powercfg` para eliminar los micro-stutters causados por la suspensión automática de puertos USB del ratón y teclado.
+- Activa **MSI Mode** (Message Signaled Interrupts) en GPU, controladores USB y controladores de audio (Class MEDIA/AudioEndpoint) recorriendo el árbol PCI completo mediante la API nativa `Microsoft.Win32.Registry` y configura la prioridad de interrupción a Alta (`DevicePriority = 3`) bajo la directiva de política de afinidad, eliminando interrupciones de línea compartida (IRQ sharing) y pops/stutters de sonido bajo carga.
+- Establece `Win32PrioritySeparation = 26` (0x1A): quantum de CPU interactivo corto y fijo con boost de 3:1 para garantizar la máxima respuesta del juego en primer plano y evitar micro-stutters generados por procesos en segundo plano.
+- Desactiva la aceleración del puntero (`MouseSpeed = 0`, `MouseThreshold1/2 = 0`), garantizando traducción 1:1 de movimiento físico a digital.
+- Desactiva StickyKeys y ToggleKeys para evitar interrupciones de accesibilidad involuntarias durante el juego, y optimiza la latencia mecánica y velocidad de repetición del teclado a nivel de FilterKeys (AutoRepeatDelay a 200ms, AutoRepeatRate a 15ms y DelayBeforeAcceptance a 0ms).
+- Deshabilita USB Selective Suspend via `powercfg` para eliminar los micro-stutters causados por la suspensión automática de puertos USB del ratón y teclado.
 
 ### 2. Limpieza del Sistema - Debloat (`02_debloat.ps1`)
 
-- Desinstala aplicaciones UWP redundantes preinstaladas tanto del perfil activo como del aprovisionamiento del sistema (`Remove-AppxProvisionedPackage`), para que no reaparezcan con nuevas cuentas de usuario.
+- Desinstala aplicaciones UWP redundantes preinstaladas tanto del perfil activo como del aprovisionamiento del sistema (`Remove-AppxProvisionedPackage`).
 - **Conserva intactos** `Microsoft.GamingApp` y `Microsoft.XboxApp`, blindando Xbox Game Pass, Auto HDR y Xbox Game Bar.
 - Deshabilita búsqueda Bing integrada en el menú inicio y Cortana Consent.
 - Desactiva Copilot tanto a nivel de usuario como de sistema via políticas de grupo.
-- Deshabilita y detiene servicios de telemetría y diagnóstico innecesarios: `DiagTrack`, `dmwappushservice`, `Fax`, `RetailDemo`, `MapsBroker`, `PhoneSvc`.
-- Deshabilita 16 tareas programadas de telemetría, diagnóstico, CEIP, informes de errores, mapas y monitoreo familiar, guardando el estado original de cada una para el revert.
+- Deshabilita y detiene servicios de telemetría, diagnóstico y red innecesarios: `DiagTrack`, `dmwappushservice`, `Fax`, `RetailDemo`, `MapsBroker`, `PhoneSvc`, `AJRouter` (enrutador IoT), `WpcMonSvc` (control parental), `TrkWks` (Distributed Link Tracking Client), `RemoteRegistry` (registro remoto), `WdiServiceHost` y `WdiSystemHost` (servicios de diagnóstico) y `SensorService` (en computadoras de escritorio).
+- Deshabilita de forma estructural los servicios y procesos en segundo plano de Microsoft Edge (`StartupBoostEnabled = 0` y `BackgroundModeEnabled = 0`) para erradicar procesos huérfanos y liberar de 150 a 250 MB de memoria RAM física.
+- Desactiva de forma global los permisos de ejecución de aplicaciones UWP en segundo plano (`GlobalUserDisabled = 1`) para evitar el consumo fantasma de CPU y RAM de la tienda Store.
+- Deshabilita 16 tareas programadas de telemetría, diagnóstico, CEIP, informes de errores, mapas y de monitoreo familiar.
+- **Advertencia de reversión:** La desinstalación de aplicaciones AppX es semi-permanente; la reversión intenta volver a registrarlas localmente desde el almacén de WindowsApps, pero no garantiza su descarga de la nube.
 
 ### 3. Optimización de Red TCP/IP (`03_red.ps1`)
 
-- Fija `MaxCacheTtl = 86400` segundos y `MaxNegativeCacheTtl = 0` en la caché DNS, eliminando resoluciones repetitivas durante el matchmaking y anulando reintentos inmediatos ante fallos de DNS.
-- Establece `TcpTimedWaitDelay = 30` (default 240), liberando puertos TCP en estado TIME_WAIT cinco veces más rápido, crítico en reconexiones frecuentes a servidores de juego.
 - Elimina el límite de throttling del planificador de red con `NetworkThrottlingIndex = 0xFFFFFFFF`, permitiendo que la pila TCP/IP procese todos los paquetes disponibles en cada intervalo sin restricción artificial.
-- Mantiene activas las marcas de tiempo TCP (TCP Timestamps) para asegurar un correcto control de congestión, cálculo de RTT y escalamiento de ventana TCP en conexiones modernas de alta velocidad (>500 Mbps).
-- Activa RSS (Receive Side Scaling) para distribuir la carga de red entre múltiples cores.
+- Mantiene activas las marcas de tiempo TCP (TCP Timestamps) para asegurar un correcto control de congestión, cálculo de RTT y escalamiento de ventana TCP en conexiones modernas de alta velocidad.
 - Establece la prioridad de reserva del programador de Windows a un balance óptimo (`SystemResponsiveness = 10`), reservando el 90% para juegos en primer plano y dejando el 10% para procesos de fondo, lo cual previene micro-cortes y stutters en Discord, Spotify y navegadores mientras se juega.
-- Fuerza la autosintonización TCP a `normal` (netsh) para evitar límites arbitrarios de velocidad (común tras usar otros optimizadores) y deshabilita `ecncapability` para prevenir pérdidas de paquetes in-game en routers de consumo antiguos.
-- Preserva intactos los túneles nativos de IPv6 como Teredo e ISATAP para garantizar el correcto funcionamiento de los chats de voz de Xbox Live y los servicios de Microsoft Store.
-- Activa RSC y Checksum Offload en adaptadores Intel; deshabilita RSC en adaptadores no-Intel donde puede causar latencia adicional.
-- Deshabilita **Energy Efficient Ethernet (EEE)**, **Green Energy** y la **Coalescencia de Paquetes** (`*PacketCoalescing = 0`, `PacketCoalescing = 0`) en todos los adaptadores de red físicos descubiertos (interfaces cableadas Ethernet físicas con `Virtual -eq $false` y `NdisPhysicalMedium -eq 14`), previniendo micro-cortes de conexión y asegurando que el sistema operativo procese los paquetes inmediatamente al recibirse para eliminar jitter.
+- Desactiva el algoritmo de Nagle (`TcpAckFrequency = 1` y `TcpNoDelay = 1`) en interfaces de red activas para bajar el ping drásticamente en juegos competitivos.
+- Deshabilita **Energy Efficient Ethernet (EEE)** y **Green Energy** para evitar micro-cortes de conexión. Desactiva la **Coalescencia de Paquetes** (`*PacketCoalescing = 0`, `PacketCoalescing = 0`) de forma **adaptativa** (solo en computadoras de escritorio con más de 8 hilos lógicos, omitiéndose en portátiles y procesadores modestos para prevenir stutters por sobrecarga de interrupciones en la CPU).
+- Desactiva Large Send Offload (**LSO**) y Receive Segment Coalescing (**RSC**) para evitar ráfagas de paquetes que inducen jitter y micro-cortes de red.
+- Establece el perfil RSS en adaptadores de red a **Closest** para direccionar las interrupciones al núcleo de CPU más cercano al hardware, reduciendo la latencia DPC y fallos de caché L3.
+- Reduce el tiempo de retransmisión TCP a **InitialRto = 2000** (default 3000ms) para una recuperación instantánea ante pérdida de paquetes.
+- Apaga la moderación de interrupciones (`InterruptModeration = 0`) y el control de flujo (`FlowControl = 0`) de forma adaptativa en PCs de escritorio con más de 8 hilos lógicos para habilitar respuestas de hardware instantáneas.
 
 ### 4. Rendimiento de Kernel y Procesador (`04_rendimiento.ps1`)
 
-- Activa `DisablePagingExecutive = 1` exclusivamente en desktop con 16 GB de RAM o más, manteniendo los drivers y el núcleo ejecutivo paginados en RAM física y eliminando tirones por lecturas al archivo de paginación.
-- Deshabilita `ClearPageFileAtShutdown` si está activo (valor 1), convirtiendo apagados de varios minutos en apagados de segundos en sistemas donde esta política estaba habilitada.
 - Gestiona `MMAgent MemoryCompression`: la deshabilita en sistemas con 32 GB o más donde el overhead de compresión supera el beneficio; la mantiene activa en sistemas con menos RAM.
 - Deshabilita de forma universal el Page Combining en `MMAgent` para evitar que Windows gaste ciclos de reloj en segundo plano deduplicando páginas de memoria RAM, eliminando micro-stutters esporádicos en partidas de alta intensidad.
-- Deshabilita `GameDVR_Enabled` en el `GameConfigStore` del usuario, eliminando el overhead del sistema de captura de Xbox.
-- Configura la temporización por hardware mediante comandos **BCDedit** desactivando el temporizador HPET (`useplatformclock no`) para forzar la sincronización del Kernel con el reloj TSC del procesador.
+- Deshabilita `GameDVR_Enabled` en the `GameConfigStore` del usuario, eliminando el overhead del sistema de captura de Xbox.
+- Optimiza las directivas del Programador Multimedia (**MMCSS Games Task**): asigna prioridad de CPU `High` (Scheduling Category), prioridad SFIO `High`, `Priority = 6`, `GPU Priority = 8` y `Clock Rate = 10` para garantizar cuadros estables (1% Low FPS) sin interferencia de procesos en segundo plano.
 
 ### 5. GPU, Pantalla y Compositor (`05_gpu_display.ps1`)
 
 - Activa **HAGS** (Hardware Accelerated GPU Scheduling) con `HwSchMode = 2`, habilitando compatibilidad con DLSS 3 Frame Generation y mejorando frametimes en GPUs modernas.
 - Preserva **MPO** (Multiplane Overlay) activo por defecto para beneficiar la latencia de entrada y aceleración gráfica por hardware en aplicaciones y juegos en ventana sin bordes.
 - Deshabilita `GameBarPresenceWriter` a nivel de usuario (`AppCaptureEnabled = 0` en HKCU) para neutralizar procesos de grabación intrusivos en segundo plano de Xbox, previniendo frametime spikes y micro-stutters al iniciar cualquier videojuego.
-- Configura FSO (Fullscreen Optimizations): `GameDVR_FSEBehaviorMode = 2`, `GameDVR_HonorUserFSEBehaviorMode = 1`, `GameDVR_FSEBehavior = 2` para correcto manejo del modo pantalla completa exclusiva.
 - Deshabilita `AllowGameDVR` via política de grupo, bloqueando el sistema de captura a nivel de políticas.
-- Desactiva el color de acento en el compositor (`ColorPrevalence = 0`).
 - En sistemas con 6 GB de RAM o menos: deshabilita transparencias del compositor (`EnableTransparency = 0`) para liberar ancho de banda de GPU.
-- Ajusta el tiempo de recuperación del controlador gráfico (**TdrDelay = 10**) para evitar bloqueos del sistema o cuelgues repentinos (TDR) en motores modernos como Unreal Engine 5 o DirectX 12.
-- Modifica la directiva de actualización del Compositor (**SwapEffectUpgradeDisable = 0**) para forzar el uso de la cola de presentación Flip de baja latencia en juegos ejecutados en modo ventana o ventana sin bordes.
 
-### 6. Afinidad IRQ y Prioridades Multimedia (`06_irq_affinity.ps1`)
+### 6. Afinidad IRQ (`06_irq_affinity.ps1`)
 
-- Configura prioridades MMCSS para procesos de juego: `Scheduling Category = High`, `SFIO Priority = High`.
-- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) asignándolos de forma estática en un P-Core físico libre (por ejemplo, Core 4, 8 o 12 según la topología de la CPU) mediante `DevicePolicy = 4` y la máscara de bits correspondiente, desahogando el Core 0 del Kernel para optimizar el ping y el jitter.
+- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) fuera del Core 0. Implementa una **política multi-núcleo selectiva compatible con RSS** (`DevicePolicy = 2` - *SpecifiedProcessors*) direccionando las interrupciones a dos cores físicos independientes (hilos lógicos 4 y 6 en CPUs >=12 hilos, o hilos lógicos 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT/HT). Esto previene stutters en aplicaciones secundarias y cuellos de botella de ancho de banda en descargas de alta velocidad (Gigabit+).
 - Preserva la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
-- Guarda backup completo de las máscaras binarias originales con su tipo `REG_BINARY` preservado para revert exacto.
 
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
 
-- Activa `NtfsDisableLastAccessUpdate = 1` via registro y `fsutil behavior set disablelastaccess 1`, eliminando escrituras innecesarias en cada lectura de archivo.
-- Activa `disable8dot3` via `fsutil behavior set disable8dot3 1`, eliminando la generación de nombres de archivo cortos en formato DOS 8.3.
-- Ajusta `NtfsMemoryUsage`: valor `2` (máximo) en sistemas con más de 8 GB de RAM; valor `0` en sistemas con menos.
-- Activa el Prefetcher y Superfetch (`= 3`) de forma universal para garantizar la estabilidad y rendimiento del cargador de Windows.
+- Activa `NtfsDisableLastAccessUpdate = 1` via registro, eliminando escrituras innecesarias en cada lectura de archivo.
+- Desactiva la creación de nombres de archivo cortos en formato MS-DOS 8.3 (`NtfsDisable8dot3NameCreation = 1`) a nivel global, aumentando la velocidad de operaciones en disco NTFS.
+- Configura la asignación de memoria de caché de metadatos NTFS a modo de alto rendimiento (`NtfsMemoryUsage = 2`) de forma adaptativa en sistemas que cuenten con un mínimo de **16 GB de RAM** para optimizar el acceso a directorios grandes.
 - Desactiva **Fast Startup** (`HiberbootEnabled = 0`), evitando el estado inconsistente de drivers entre sesiones que puede impedir que los tweaks de registro surtan efecto correctamente tras el reinicio.
 - En desktop: desactiva hibernación completa para liberar el espacio del `hiberfil.sys`.
-- Ejecuta `DISM /Cleanup-Image /StartComponentCleanup` con timeout de 180 segundos para compactar el store de componentes de Windows.
+- Ejecuta `DISM /Cleanup-Image /StartComponentCleanup` con protección de procesos para compactar el store de componentes de Windows.
 - Limpia descargas de Windows Update verificando primero que no haya una instalación activa via `Microsoft.Update.Installer.IsBusy`.
 - Limpia caché de Delivery Optimization y carpetas temporales del sistema.
 
@@ -153,7 +143,8 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 ### 9. Gestión de Energía (`09_energia.ps1`)
 
 - Guarda backup del GUID del plan de energía activo en `HKLM:\SOFTWARE\Overlord\Backup\Power\ActivePowerPlan` antes de cualquier cambio, garantizando que el revert devuelva el plan original exacto.
-- **En desktop:** Desbloquea e inyecta el esquema oculto _Ultimate Performance_ (`e9a42b02-d5df-448d-aa00-03f14749eb61`). Si no existe en el sistema, clona dinámicamente el plan de Alto Rendimiento (o el plan Equilibrado como fallback garantizado si el primero fue eliminado de la ISO) y guarda el GUID del duplicado para el revert. Desactiva Core Parking, deshabilita USB Selective Suspend aplicando la directiva AC de `powercfg` (`SETACVALUEINDEX` a `0` para `d874b2c9-943b-47dd-9190-25e0e3c95a12`) sobre el plan de energía activo, y fuerza los límites de Core Parking a cero.
+- **En desktop:** Desbloquea e inyecta el esquema de _Ultimate Performance_ (`e9a42b02-d5df-448d-aa00-03f14749eb61`). Si no existe en el sistema, clona dinámicamente el plan de Alto Rendimiento (o el plan Equilibrado como fallback garantizado si el primero fue eliminado de la ISO) y guarda el GUID del duplicado para el revert. Desactiva Core Parking y fuerza los límites de Core Parking a cero.
+- **Optimización Energética de Escritorio (Fase 6):** Configura la preferencia de energía de CPU (EPP) a rendimiento máximo (`0`), activa el Processor Boost Mode a agresivo (`2`), apaga la suspensión o timeout de discos duros (`0` - Nunca) y deshabilita la directiva global de estrangulamiento de energía (**Power Throttling**) del Kernel para evitar la estrangulación eléctrica de herramientas activas en segundo plano como OBS Studio o Discord.
 - **En laptop:** Optimiza el control térmico configurando el índice de gestión del procesador via `powercfg` sin deshabilitar las protecciones de ahorro de energía, preservando la integridad térmica.
 
 ### 10. Prioridad Absoluta para Juegos (`11_game_hooks.ps1`)
@@ -161,9 +152,8 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Recibe la lista de ejecutables de juegos detectados desde el frontend y aplica directivas IFEO (`Image File Execution Options`) personalizadas a cada uno.
 - Ajusta `CpuPriorityClass` de forma adaptativa según la topología del sistema: prioridad **Alta (3)** en sistemas con más de 6 cores; prioridad **AboveNormal (6)** en laptops o sistemas con 5-6 cores; prioridad **Normal (2)** en sistemas con 4 cores o menos, evitando penalizar el sistema en hardware limitado.
 - Asigna `IoPriority = 3` (Alta) para lecturas de disco preferentes.
-- Inyecta la invalidación de escalamiento de PPP (High DPI) para eliminar la latencia por reescalado de pantalla y conserva las optimizaciones modernas de DirectX en modo ventana maximizada (modelo Flip nativo de Windows 10/11).
-- **Servicio de Prioridades Dinámico en Segundo Plano (De Arranque Automático):** Dado que el monitor de prioridad de Tauri en Rust finaliza al cerrar la ventana principal de Overlord, la aplicación ofrece la opción de instalar un servicio de fondo ligero. Esto crea una Tarea Programada de Windows elevada a nivel de `SYSTEM` que ejecuta un daemon de PowerShell (`priority_monitor_daemon.ps1`) en un bucle discreto cada 15 segundos. Este daemon continúa monitoreando y aplicando prioridad de CPU alta a los juegos configurados de forma automática, incluso sin tener la interfaz gráfica de la aplicación de Overlord abierta, e iniciando de manera autónoma al arrancar el ordenador (`AtStartup`).
-- Guarda backup completo de todos los valores originales por ejecutable para revert limpio.
+- Inyecta la invalidación de escalado de PPP (High DPI) para eliminar la latencia por reescalado de pantalla y conserva las optimizaciones modernas de DirectX en modo ventana maximizada.
+- **Servicio de Prioridades Dinámico en Segundo Plano:** Crea una Tarea Programada de Windows elevada a nivel de `SYSTEM` que ejecuta un daemon de PowerShell (`priority_monitor_daemon.ps1`) en un bucle discreto cada 15 segundos para aplicar prioridad de CPU alta a los juegos configurados de forma automática, incluso sin tener la interfaz de Overlord abierta.
 
 ### 11. Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`)
 
@@ -173,18 +163,39 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ---
 
-## 🎛️ Panel QoL — 21 Interruptores Instantáneos
-
 El script `set_qol.ps1` orquesta 21 modificaciones inmediatas de experiencia de usuario y privacidad, cada una bajo bloques `Try/Catch` independientes. Resuelve el SID del usuario interactivo real mediante la cadena de resiliencia de 4 niveles antes de aplicar cambios en `HKCU:`, garantizando que los cambios lleguen al perfil correcto.
 
 **Interfaz y apariencia:**
-Modo Oscuro Global, Rendimiento Visual Barebones (elimina animaciones de ventanas), Mostrar Extensiones de Archivo, Mostrar Archivos Ocultos, Menú Contextual Clásico de Windows 11, Barra de Tareas Alineada a la Izquierda, Inicio Directo en "Este Equipo", Alt+Tab Limpio (solo ventanas de aplicaciones).
+* **Modo Oscuro Global**: Fuerza el tema oscuro nativo en aplicaciones y el shell de Windows.
+* **Rendimiento Visual (Barebones)**: Desactiva animaciones de ventanas y menús, sombras y transparencias para máximo rendimiento visual, **preservando el suavizado de fuentes ClearType** para mantener el texto legible.
+* **Mostrar Extensiones de Archivo** y **Mostrar Archivos Ocultos**: Hace visibles formatos ocultos y extensiones en File Explorer.
+* **Menú Contextual Clásico de Windows 11**: Recupera el menú del clic derecho clásico. En compilaciones de Windows 11 >= 26000, emite una advertencia informando sobre la necesidad de ExplorerPatcher o StartAllBack.
+* **Barra de Tareas Alineada a la Izquierda** y **Inicio Directo en "Este Equipo"** (evitando historial de carga y red).
+* **Alt+Tab Limpio**: Oculta pestañas abiertas del navegador Edge.
 
 **Privacidad y sistema:**
-Deshabilitar Búsqueda Bing en el Inicio, Deshabilitar Pantalla de Bloqueo, Deshabilitar StickyKeys, Deshabilitar FilterKeys, Bloquear Copilot, Bloquear y purgar Recall, Desactivar anuncios del Explorador, Desactivar pantallas de bienvenida OOBE (Scoobe), Deshabilitar OneDrive, Deshabilitar Widgets (libera procesos persistentes de WebView2), Pantallazos Azules con Parámetros de Depuración Detallados.
+* **Deshabilitar Búsqueda Bing y Cortana**: Escribe políticas globales e inyecta `BingSearchEnabled = 0` y `CortanaConsent = 0` bajo `HKCU:\Software\Microsoft\Windows\CurrentVersion\Search` para desactivar búsquedas de Bing en el Inicio en cualquier edición de Windows.
+* **Ocultar Pantalla de Bloqueo** y **Desactivar Anuncios del Explorador**.
+* **Ocultar "Terminemos de Configurar" (Scoobe)**: Bloquea las pantallas de bienvenida intrusivas e inyecta políticas de bloqueo de sugerencias de Microsoft en `ContentDeliveryManager`.
+* **Erradicar MS Copilot** y **Bloquear Windows Recall** (capturas constantes de pantalla e IA).
+* **Erradicar OneDrive**: Desinstala y bloquea la sincronización automática I/O.
+* **Erradicar Widgets**: Remueve el panel de noticias de la barra de tareas, liberando entre 150-300MB de RAM por procesos WebView2 en segundo plano.
+* **Pantallazo Azul Detallado**: Muestra códigos de error reales en BSODs.
 
-**Gaming:**
-Activar Modo Juego de Windows, Reducir a Cero el Retraso de Inicio de Aplicaciones en SSD.
+**Gaming y Atajos:**
+* **Modo Juego**: Activa la prioridad de hilos de procesos de juegos y **desactiva la grabación en segundo plano de GameDVR** (captura de pantalla y de audio) para evitar stutters y overhead de CPU/GPU.
+* **Desactivar Sticky Keys** y **Teclas Filtro**: Evita la minimización accidental de partidas competitivas por alertas repetidas de la tecla Shift.
+* **Cero Retraso de Arranque**: Reduce el retardo de inicio para aplicaciones del sistema.
+
+---
+
+## ⚡ Acciones Rápidas (Quick Actions)
+
+La interfaz gráfica permite ejecutar acciones correctivas e integradas:
+* **Purgar RAM**: Libera la memoria en espera de forma nativa a través de llamadas de Rust sin vaciar sets de trabajo (evitando page faults).
+* **Limpieza Profunda**: Ejecuta `cleanmgr` bajo banderas especiales, vacía directorios temporales mediante llamadas rápidas por lotes en disco, y **limpia las cachés de shaders de DirectX (D3D/Nvidia/AMD)** para mitigar tirones de FPS en juegos 3D.
+* **Reparar Sistema**: Corre DISM y SFC secuencialmente. Habilita e inicia de forma temporal el servicio de Windows Update (`wuauserv`) si este se encuentra deshabilitado para permitir la descarga de archivos limpios, regresándolo a su estado original al finalizar.
+* **Liberar Red (DNS)**: Restablece catálogos de red, Winsock y flushea el DNS.
 
 ---
 

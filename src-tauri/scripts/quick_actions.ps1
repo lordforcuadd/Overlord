@@ -36,17 +36,45 @@ switch ($ActionId) {
         }
         
         # Eliminación rápida y segura de archivos temporales sin colisiones por bloqueos profundos
-        Get-ChildItem -Path "$env:localappdata\Temp" -ErrorAction SilentlyContinue | ForEach-Object {
-            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-        Get-ChildItem -Path "$env:windir\Temp" -ErrorAction SilentlyContinue | ForEach-Object {
-            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-        Write-Output "OK: Limpieza profunda de almacenamiento completada preservando logs de caidas."
+        Remove-Item -Path "$env:localappdata\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        Remove-Item -Path "$env:windir\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+
+        # Limpiar caché de shaders de DirectX (D3D/Nvidia/AMD) para eliminar micro-stutters
+        Remove-Item -Path "$env:localappdata\D3DSCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        Remove-Item -Path "$env:localappdata\NVIDIA\DXCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        Remove-Item -Path "$env:localappdata\NVIDIA\GLCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        Remove-Item -Path "$env:localappdata\AMD\DxCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+
+        Write-Output "OK: Limpieza profunda de almacenamiento y caché de shaders completada."
     }
     "RepairOS" {
+        # DISM requiere wuauserv (Windows Update) habilitado e iniciado para descargar reparaciones
+        $wuauserv = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
+        $originalStartType = $null
+        $wasRunning = $false
+        if ($null -ne $wuauserv) {
+            $originalStartType = (Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue).StartMode
+            $wasRunning = ($wuauserv.Status -eq 'Running')
+            if ($originalStartType -eq 'Disabled') {
+                Set-Service -Name wuauserv -StartupType Manual -ErrorAction SilentlyContinue
+            }
+            if (-not $wasRunning) {
+                Start-Service -Name wuauserv -ErrorAction SilentlyContinue
+            }
+        }
+
         dism.exe /online /cleanup-image /restorehealth | Out-Null
         sfc.exe /scannow | Out-Null
+
+        # Restaurar estado original del servicio Windows Update
+        if ($null -ne $wuauserv) {
+            if (-not $wasRunning) {
+                Stop-Service -Name wuauserv -Force -ErrorAction SilentlyContinue
+            }
+            if ($originalStartType -eq 'Disabled') {
+                Set-Service -Name wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
+            }
+        }
         Write-Output "OK: Almacen de componentes e integridad de sistema reparados."
     }
     "FlushNet" {

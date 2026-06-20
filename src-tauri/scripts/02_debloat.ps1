@@ -36,12 +36,30 @@ Try {
         Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
         Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
+        
+        # Copia de seguridad para permisos de aplicaciones de segundo plano
+        Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
+        
+        # Copia de seguridad para políticas de Microsoft Edge
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry"
+
+        # Copias de seguridad de servicios
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Fax" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RetailDemo" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\MapsBroker" -ValueName "Start" -BackupSubFolder "Services"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\PhoneSvc" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\AJRouter" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WpcMonSvc" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\TrkWks" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RemoteRegistry" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -ValueName "Start" -BackupSubFolder "Services"
+        if (-not $IsLaptop) {
+            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\SensorService" -ValueName "Start" -BackupSubFolder "Services"
+        }
     }
 
     $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
@@ -64,7 +82,21 @@ Try {
     if (!(Test-Path $CopilotSystemPath)) { New-Item -Path $CopilotSystemPath -Force | Out-Null }
     Set-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
 
-    $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
+    # Desactivar permisos de apps en segundo plano (UWP)
+    $BgAppPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
+    if (!(Test-Path $BgAppPath)) { New-Item -Path $BgAppPath -Force | Out-Null }
+    Set-ItemProperty -Path $BgAppPath -Name "GlobalUserDisabled" -Type DWord -Value 1 -Force | Out-Null
+
+    # Desactivar inicio rápido y segundo plano de Microsoft Edge
+    $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
+    if (!(Test-Path $EdgePolicyPath)) { New-Item -Path $EdgePolicyPath -Force | Out-Null }
+    Set-ItemProperty -Path $EdgePolicyPath -Name "StartupBoostEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $EdgePolicyPath -Name "BackgroundModeEnabled" -Type DWord -Value 0 -Force | Out-Null
+
+    $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost")
+    if (-not $IsLaptop) {
+        $Services += "SensorService"
+    }
     foreach ($Service in $Services) {
         $SvcObj = Get-Service -Name $Service -ErrorAction SilentlyContinue
         if ($null -ne $SvcObj) {
