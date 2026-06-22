@@ -149,10 +149,9 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 10. Prioridad Absoluta para Juegos (`11_game_hooks.ps1`)
 
-- Recibe la lista de ejecutables de juegos detectados desde el frontend y aplica directivas IFEO (`Image File Execution Options`) personalizadas a cada uno.
-- Ajusta `CpuPriorityClass` de forma adaptativa según la topología del sistema: prioridad **Alta (3)** en sistemas con más de 6 cores; prioridad **AboveNormal (6)** en laptops o sistemas con 5-6 cores; prioridad **Normal (2)** en sistemas con 4 cores o menos, evitando penalizar el sistema en hardware limitado.
-- Asigna `IoPriority = 3` (Alta) para lecturas de disco preferentes.
-- Inyecta la invalidación de escalado de PPP (High DPI) para eliminar la latencia por reescalado de pantalla y conserva las optimizaciones modernas de DirectX en modo ventana maximizada.
+- Elimina claves estáticas antiguas de IFEO (`Image File Execution Options`) en el registro de Windows para erradicar por completo falsos positivos o bloqueos de anti-cheats modernos (Vanguard, EAC, BattlEye).
+- Fuerza el modo de pantalla completa exclusivo en archivos de configuración de juegos compatibles (como `GameUserSettings.ini` de Unreal Engine) para eliminar el retraso del compositor de Windows.
+- Inyecta la invalidación de escalado de PPP (High DPI) en la clave de compatibilidad de usuario de Windows (`AppCompatFlags\Layers`) para eliminar la latencia por reescalado de pantalla.
 - **Servicio de Prioridades Dinámico en Segundo Plano:** Crea una Tarea Programada de Windows elevada a nivel de `SYSTEM` que ejecuta un daemon de PowerShell (`priority_monitor_daemon.ps1`) en un bucle discreto cada 15 segundos para aplicar prioridad de CPU alta a los juegos configurados de forma automática, incluso sin tener la interfaz de Overlord abierta.
 
 ### 11. Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`)

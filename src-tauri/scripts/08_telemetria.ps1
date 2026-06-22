@@ -16,20 +16,34 @@ Try {
     }
 
     try {
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services"
+        $SvcObj = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
+        if ($null -ne $SvcObj) {
+            $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\DiagTrack"
+            if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
+            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
         }
-        Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
-        Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
+        }
+        Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
+        Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 
     try {
-        Stop-Service "WerSvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+        $SvcObj = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
+        if ($null -ne $SvcObj) {
+            $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\WerSvc"
+            if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
+            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+        }
         $WerSvcPath = "HKLM:\SYSTEM\CurrentControlSet\Services\WerSvc"
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Telemetry"
+            Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Services\WerSvc"
         }
-        Set-Service "WerSvc" -StartupType Disabled -ErrorAction SilentlyContinue
+        # Asegurar inicio Manual para no romper Windows Update
+        Set-Service "WerSvc" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 
     $WerPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
@@ -38,12 +52,12 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $WerPath -ValueName "Disabled" -BackupSubFolder "Telemetry"
     }
     Set-ItemProperty -Path $WerPath -Name "Disabled" -Type DWord -Value 1 -Force | Out-Null
-    if ((Get-ItemProperty -Path $WerPath -Name "Disabled").Disabled -ne 1) { 
+    if ((Get-ItemPropertyValue -Path $WerPath -Name "Disabled" -ErrorAction SilentlyContinue) -ne 1) { 
         throw "Fallo al asegurar la desactivacion de Windows Error Reporting"
     }
 
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $ActivityPath -Name "PublishUserActivities").PublishUserActivities -ne 0) { 
+    if ((Get-ItemPropertyValue -Path $ActivityPath -Name "PublishUserActivities" -ErrorAction SilentlyContinue) -ne 0) { 
         throw "Fallo al asegurar la directiva PublishUserActivities en 0"
     }
 
@@ -73,11 +87,11 @@ Try {
         $LoggerKey = "$LoggersPath\$Logger"
         if (Test-Path $LoggerKey) {
             if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry"
+                Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry\Loggers\$Logger"
             }
             Set-ItemProperty -Path $LoggerKey -Name "Start" -Type DWord -Value 0 -Force | Out-Null
             
-            if ((Get-ItemProperty -Path $LoggerKey -Name "Start").Start -ne 0) { 
+            if ((Get-ItemPropertyValue -Path $LoggerKey -Name "Start" -ErrorAction SilentlyContinue) -ne 0) { 
                 throw "Fallo al asegurar el estado detenido para el logger: $Logger" 
             }
         }

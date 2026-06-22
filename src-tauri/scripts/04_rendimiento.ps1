@@ -5,23 +5,48 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
+    $HKCU_Path = $global:HKCU_Path
     Write-Host "[*] Aplicando optimizaciones de rendimiento general y Kernel..."
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        $StorePath = "HKCU:\System\GameConfigStore"
-        if (Test-Path $StorePath) {
-            Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
-        }
+        $StorePath = "$HKCU_Path\System\GameConfigStore"
+        Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
     }
 
-    if ($RamGB -ge 32) {
-        Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
-    } else {
-        Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
+    # Guardar backup de MMAgent de forma dinámica y configurar adaptativamente
+    try {
+        if (Get-Command Get-MMAgent -ErrorAction SilentlyContinue) {
+            $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
+            if (!(Test-Path $PerfBackupPath)) { 
+                try { New-Item -Path $PerfBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {} 
+            }
+            
+            if (Test-Path $PerfBackupPath) {
+                $Agent = Get-MMAgent -ErrorAction SilentlyContinue
+                if ($null -ne $Agent) {
+                    $perfProps = Get-ItemProperty -Path $PerfBackupPath -ErrorAction SilentlyContinue
+                    if ($null -eq $perfProps -or $null -eq $perfProps.PSObject.Properties["MemoryCompression"]) {
+                        Set-ItemProperty -Path $PerfBackupPath -Name "MemoryCompression" -Value (if ($Agent.MemoryCompression) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    if ($null -eq $perfProps -or $null -eq $perfProps.PSObject.Properties["PageCombining"]) {
+                        Set-ItemProperty -Path $PerfBackupPath -Name "PageCombining" -Value (if ($Agent.PageCombining) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                }
+            }
+
+            if ($RamGB -ge 32) {
+                Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
+                Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+            } else {
+                Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
+                Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+    } catch {
+        Write-Warning "No se pudo consultar o configurar MMAgent: $_"
     }
-    Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
 
     # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a través del módulo independiente disableMitigations por seguridad.
 
@@ -41,14 +66,14 @@ Try {
         Set-ItemProperty -Path $GamesPath -Name "Clock Rate" -Type DWord -Value 10 -Force | Out-Null
 
         # Verificación de MMCSS
-        if ((Get-ItemProperty -Path $GamesPath -Name "Scheduling Category")."Scheduling Category" -ne "High") { throw "Fallo de verificacion en MMCSS Scheduling Category" }
-        if ((Get-ItemProperty -Path $GamesPath -Name "Priority").Priority -ne 6) { throw "Fallo de verificacion en MMCSS Priority" }
+        if ((Get-ItemPropertyValue -Path $GamesPath -Name "Scheduling Category" -ErrorAction SilentlyContinue) -ne "High") { throw "Fallo de verificacion en MMCSS Scheduling Category" }
+        if ((Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue) -ne 6) { throw "Fallo de verificacion en MMCSS Priority" }
     }
 
-    $StorePath = "HKCU:\System\GameConfigStore"
+    $StorePath = "$HKCU_Path\System\GameConfigStore"
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }
     Set-ItemProperty -Path $StorePath -Name "GameDVR_Enabled" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $StorePath -Name "GameDVR_Enabled").GameDVR_Enabled -ne 0) { 
+    if ((Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue) -ne 0) { 
         throw "Fallo de verificacion al intentar desactivar GameDVR_Enabled"
     }
 

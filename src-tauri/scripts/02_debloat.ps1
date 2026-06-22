@@ -1,6 +1,10 @@
+param(
+    [bool]$IsLaptop = $false
+)
 $ErrorActionPreference = "Stop"
 
 Try {
+    $HKCU_Path = $global:HKCU_Path
     Write-Host "[*] Iniciando purga de Bloatware y aplicaciones residuales..."
 
     $Apps = @(
@@ -32,49 +36,52 @@ Try {
 
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
         
         # Copia de seguridad para permisos de aplicaciones de segundo plano
-        Backup-OverlordRegistryValue -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
+        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
         
         # Copia de seguridad para políticas de Microsoft Edge
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry"
 
         # Copias de seguridad de servicios
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Fax" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RetailDemo" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\MapsBroker" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\PhoneSvc" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\AJRouter" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WpcMonSvc" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\TrkWks" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RemoteRegistry" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -ValueName "Start" -BackupSubFolder "Services"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -ValueName "Start" -BackupSubFolder "Services"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -ValueName "Start" -BackupSubFolder "Services\dmwappushservice"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Fax" -ValueName "Start" -BackupSubFolder "Services\Fax"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RetailDemo" -ValueName "Start" -BackupSubFolder "Services\RetailDemo"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\MapsBroker" -ValueName "Start" -BackupSubFolder "Services\MapsBroker"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\PhoneSvc" -ValueName "Start" -BackupSubFolder "Services\PhoneSvc"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\AJRouter" -ValueName "Start" -BackupSubFolder "Services\AJRouter"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WpcMonSvc" -ValueName "Start" -BackupSubFolder "Services\WpcMonSvc"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\TrkWks" -ValueName "Start" -BackupSubFolder "Services\TrkWks"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RemoteRegistry" -ValueName "Start" -BackupSubFolder "Services\RemoteRegistry"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -ValueName "Start" -BackupSubFolder "Services\WdiServiceHost"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -ValueName "Start" -BackupSubFolder "Services\WdiSystemHost"
         if (-not $IsLaptop) {
-            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\SensorService" -ValueName "Start" -BackupSubFolder "Services"
+            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\SensorService" -ValueName "Start" -BackupSubFolder "Services\SensorService"
         }
     }
 
     $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
     if (!(Test-Path $DataPath)) { New-Item -Path $DataPath -Force | Out-Null }
     Set-ItemProperty -Path $DataPath -Name "AllowTelemetry" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $DataPath -Name "AllowTelemetry").AllowTelemetry -ne 0) { Write-Warning "No se pudo asegurar AllowTelemetry" }
+    $AllowTelemetry = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
+    if ($null -eq $AllowTelemetry -or $AllowTelemetry -ne 0) { Write-Warning "No se pudo asegurar AllowTelemetry" }
 
-    $SearchPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"
+    $SearchPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search"
     if (!(Test-Path $SearchPath)) { New-Item -Path $SearchPath -Force | Out-Null }
     Set-ItemProperty -Path $SearchPath -Name "BingSearchEnabled" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $SearchPath -Name "CortanaConsent" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $SearchPath -Name "BingSearchEnabled").BingSearchEnabled -ne 0) { Write-Warning "No se pudo asegurar BingSearchEnabled" }
-    if ((Get-ItemProperty -Path $SearchPath -Name "CortanaConsent").CortanaConsent -ne 0) { Write-Warning "No se pudo asegurar CortanaConsent" }
+    $BingSearchEnabled = Get-ItemPropertyValue -Path $SearchPath -Name "BingSearchEnabled" -ErrorAction SilentlyContinue
+    $CortanaConsent = Get-ItemPropertyValue -Path $SearchPath -Name "CortanaConsent" -ErrorAction SilentlyContinue
+    if ($null -eq $BingSearchEnabled -or $BingSearchEnabled -ne 0) { Write-Warning "No se pudo asegurar BingSearchEnabled" }
+    if ($null -eq $CortanaConsent -or $CortanaConsent -ne 0) { Write-Warning "No se pudo asegurar CortanaConsent" }
 
-    $CopilotUserPath = "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot"
+    $CopilotUserPath = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot"
     if (!(Test-Path $CopilotUserPath)) { New-Item -Path $CopilotUserPath -Force | Out-Null }
     Set-ItemProperty -Path $CopilotUserPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
 
@@ -83,7 +90,7 @@ Try {
     Set-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
 
     # Desactivar permisos de apps en segundo plano (UWP)
-    $BgAppPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
+    $BgAppPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
     if (!(Test-Path $BgAppPath)) { New-Item -Path $BgAppPath -Force | Out-Null }
     Set-ItemProperty -Path $BgAppPath -Name "GlobalUserDisabled" -Type DWord -Value 1 -Force | Out-Null
 
@@ -93,17 +100,38 @@ Try {
     Set-ItemProperty -Path $EdgePolicyPath -Name "StartupBoostEnabled" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $EdgePolicyPath -Name "BackgroundModeEnabled" -Type DWord -Value 0 -Force | Out-Null
 
-    $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost")
+    # DiagTrack y servicios generales se deshabilitan. WdiServiceHost, WdiSystemHost y dmwappushservice se configuran como Manual para no romper Windows Update.
+    $ServicesToDisable = @("DiagTrack", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry")
     if (-not $IsLaptop) {
-        $Services += "SensorService"
+        $ServicesToDisable += "SensorService"
     }
-    foreach ($Service in $Services) {
+    foreach ($Service in $ServicesToDisable) {
         $SvcObj = Get-Service -Name $Service -ErrorAction SilentlyContinue
         if ($null -ne $SvcObj) {
+            # Respaldar WasRunning
+            $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\$Service"
+            if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
+            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+
             if ($SvcObj.Status -ne "Stopped") {
-                Stop-Service -Name $Service -Force -ErrorAction SilentlyContinue
+                Stop-Service -Name $Service -Force -ErrorAction SilentlyContinue | Out-Null
             }
-            Set-Service -Name $Service -StartupType Disabled -ErrorAction SilentlyContinue
+            Set-Service -Name $Service -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
+        }
+    }
+
+    $ServicesToManual = @("WdiServiceHost", "WdiSystemHost", "dmwappushservice")
+    foreach ($Service in $ServicesToManual) {
+        $SvcObj = Get-Service -Name $Service -ErrorAction SilentlyContinue
+        if ($null -ne $SvcObj) {
+            # Respaldar WasRunning
+            $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\$Service"
+            if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
+            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+
+            Set-Service -Name $Service -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
         }
     }
 
@@ -128,10 +156,31 @@ Try {
         "Microsoft\Windows\Shell\FamilySafetyRefreshTask"
     )
 
+    $TasksBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Tasks"
+    if (!(Test-Path $TasksBackupPath)) {
+        try { New-Item -Path $TasksBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+    }
+
     foreach ($Task in $Tasks) {
         $TPath = "\" + (Split-Path $Task -Parent)
         $TName = Split-Path $Task -Leaf
-        Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue
+        
+        $TaskObj = Get-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue
+        if ($null -ne $TaskObj) {
+            # 1 = Habilitada (Ready, Running, etc.), 0 = Deshabilitada
+            $IsEnabled = if ($TaskObj.State -ne "Disabled") { 1 } else { 0 }
+            $TaskKeyName = $Task -replace '\\', '_'
+            
+            if (Test-Path $TasksBackupPath) {
+                $props = Get-ItemProperty -Path $TasksBackupPath -ErrorAction SilentlyContinue
+                $existing = if ($null -ne $props -and $null -ne $props.PSObject.Properties[$TaskKeyName]) { $props.PSObject.Properties[$TaskKeyName].Value } else { $null }
+                if ($null -eq $existing) {
+                    Set-ItemProperty -Path $TasksBackupPath -Name $TaskKeyName -Value $IsEnabled -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+        }
+        
+        Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
     }
 
     exit 0

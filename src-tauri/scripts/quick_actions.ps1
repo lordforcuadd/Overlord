@@ -39,13 +39,7 @@ switch ($ActionId) {
         Remove-Item -Path "$env:localappdata\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         Remove-Item -Path "$env:windir\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
 
-        # Limpiar caché de shaders de DirectX (D3D/Nvidia/AMD) para eliminar micro-stutters
-        Remove-Item -Path "$env:localappdata\D3DSCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        Remove-Item -Path "$env:localappdata\NVIDIA\DXCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        Remove-Item -Path "$env:localappdata\NVIDIA\GLCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        Remove-Item -Path "$env:localappdata\AMD\DxCache\*" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-
-        Write-Output "OK: Limpieza profunda de almacenamiento y caché de shaders completada."
+        Write-Output "OK: Limpieza profunda de almacenamiento completada."
     }
     "RepairOS" {
         # DISM requiere wuauserv (Windows Update) habilitado e iniciado para descargar reparaciones
@@ -53,9 +47,15 @@ switch ($ActionId) {
         $originalStartType = $null
         $wasRunning = $false
         if ($null -ne $wuauserv) {
-            $originalStartType = (Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue).StartMode
+            $CimSvc = Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
+            if ($null -ne $CimSvc) {
+                $originalStartType = $CimSvc.StartMode
+            } else {
+                $WmiSvc = Get-WmiObject -Class Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
+                if ($null -ne $WmiSvc) { $originalStartType = $WmiSvc.StartMode }
+            }
             $wasRunning = ($wuauserv.Status -eq 'Running')
-            if ($originalStartType -eq 'Disabled') {
+            if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {
                 Set-Service -Name wuauserv -StartupType Manual -ErrorAction SilentlyContinue
             }
             if (-not $wasRunning) {
@@ -71,7 +71,7 @@ switch ($ActionId) {
             if (-not $wasRunning) {
                 Stop-Service -Name wuauserv -Force -ErrorAction SilentlyContinue
             }
-            if ($originalStartType -eq 'Disabled') {
+            if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {
                 Set-Service -Name wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
             }
         }

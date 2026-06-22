@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
+    $HKCU_Path = $global:HKCU_Path
     Write-Host "[*] Aplicando optimizaciones visuales y calibración de GPU de Grado de Producción..."
 
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
@@ -16,7 +17,7 @@ Try {
     }
 
     Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
-    if ((Get-ItemProperty -Path $HagsPath -Name "HwSchMode").HwSchMode -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
+    if ((Get-ItemPropertyValue -Path $HagsPath -Name "HwSchMode" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
 
     $GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
     if (!(Test-Path $GameBarPath)) { New-Item -Path $GameBarPath -Force | Out-Null }
@@ -25,24 +26,24 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $GameBarPath -ValueName "AllowGameDVR" -BackupSubFolder "GPU"
     }
     Set-ItemProperty -Path $GameBarPath -Name "AllowGameDVR" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $GameBarPath -Name "AllowGameDVR").AllowGameDVR -ne 0) { throw "Fallo al asegurar la desactivacion de la directiva AllowGameDVR" }
+    if ((Get-ItemPropertyValue -Path $GameBarPath -Name "AllowGameDVR" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo al asegurar la desactivacion de la directiva AllowGameDVR" }
 
-    $UserGameDVRPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR"
+    $UserGameDVRPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\GameDVR"
     if (!(Test-Path $UserGameDVRPath)) { New-Item -Path $UserGameDVRPath -Force | Out-Null }
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
         Backup-OverlordRegistryValue -TargetKey $UserGameDVRPath -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU"
     }
     Set-ItemProperty -Path $UserGameDVRPath -Name "AppCaptureEnabled" -Type DWord -Value 0 -Force | Out-Null
-    if ((Get-ItemProperty -Path $UserGameDVRPath -Name "AppCaptureEnabled").AppCaptureEnabled -ne 0) { throw "Fallo al asegurar la desactivacion de AppCaptureEnabled a nivel de usuario" }
+    if ((Get-ItemPropertyValue -Path $UserGameDVRPath -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo al asegurar la desactivacion de AppCaptureEnabled a nivel de usuario" }
 
     if ($RamGB -le 6) {
-        $ColorPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+        $ColorPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
         if (!(Test-Path $ColorPath)) { New-Item -Path $ColorPath -Force | Out-Null }
         if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $ColorPath -ValueName "EnableTransparency" -BackupSubFolder "GPU"
         }
         Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0 -Force | Out-Null
-        if ((Get-ItemProperty -Path $ColorPath -Name "EnableTransparency").EnableTransparency -ne 0) { throw "Fallo de verificacion en EnableTransparency" }
+        if ((Get-ItemPropertyValue -Path $ColorPath -Name "EnableTransparency" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo de verificacion en EnableTransparency" }
     }
 
     exit 0

@@ -23,6 +23,37 @@ export interface TweakMetadata {
   registryMapping: RegistryValueMapping[];
 }
 
+export const PROFILE_CONFIGS: Record<string, string[]> = {
+  Competitivo: [
+    "peripheralLatency",
+    "debloat",
+    "networkOptimized",
+    "generalPerformance",
+    "gpuDisplay",
+    "irqAffinity",
+    "smartStorage",
+    "deepTelemetry",
+    "powerProfiles",
+    "gameHooks",
+  ],
+  "Programador & Competitivo": [
+    "peripheralLatency",
+    "debloat",
+    "networkOptimized",
+    "generalPerformance",
+    "gpuDisplay",
+    "smartStorage",
+    "powerProfiles",
+    "gameHooks",
+  ],
+  Programador: ["debloat", "smartStorage"],
+  "Home Office / Laptops": [
+    "debloat",
+    "smartStorage",
+  ],
+  "Usuario Casual": ["debloat", "smartStorage"],
+};
+
 export const tweaksMetadata: Record<string, TweakMetadata> = {
   peripheralLatency: {
     id: "peripheralLatency",
@@ -113,6 +144,20 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueName: "BounceTime",
         valueType: "REG_SZ",
         fallbackValue: "0",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\StickyKeys",
+        valueName: "Flags",
+        valueType: "REG_SZ",
+        fallbackValue: "510",
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Control Panel\\Accessibility\\ToggleKeys",
+        valueName: "Flags",
+        valueType: "REG_SZ",
+        fallbackValue: "62",
       },
     ],
   },

@@ -9,7 +9,7 @@ Try {
     }
 
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
-    $Description = "Overlord v4.5.0 - Punto Seguro"
+    $Description = "Overlord v$Version - Punto Seguro"
 
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
@@ -27,11 +27,14 @@ Try {
     }
     Set-ItemProperty -Path $SysRestorePath -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0 -Force | Out-Null
 
-    Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
-
-    Write-Host "[+] Punto de restauración creado con exito. El sistema se encuentra asegurado."
+    try {
+        Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
+        Write-Host "[+] Punto de restauración creado con exito. El sistema se encuentra asegurado."
+    } catch {
+        Write-Warning "No se pudo crear el Punto de Restauracion de Windows (servicio VSS inactivo o SO modificado): $_"
+    }
     exit 0
 } Catch {
-    Write-Error "[-] Fallo critico al intentar orquestar el Punto de Restauracion VSS: $_"
+    Write-Error "[-] Fallo critico en el script de respaldo: $_"
     exit 1
 }

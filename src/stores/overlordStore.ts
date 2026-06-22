@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
+import { PROFILE_CONFIGS } from "../data/tweaksMetadata";
 
 interface HardwarePayload {
   cpu: string;
@@ -234,50 +235,14 @@ export const useOverlordStore = defineStore("overlord", {
         this.modules[key as keyof typeof this.modules] = false;
       });
 
-      const { isLaptop } = this.hardwareInfo;
-
-      const profileConfigs: Record<string, string[]> = {
-        Competitivo: [
-          "peripheralLatency",
-          "debloat",
-          "networkOptimized",
-          "generalPerformance",
-          "gpuDisplay",
-          "irqAffinity",
-          "smartStorage",
-          "deepTelemetry",
-          "powerProfiles",
-          "gameHooks",
-          "disableMitigations",
-        ],
-        "Programador & Competitivo": [
-          "peripheralLatency",
-          "debloat",
-          "networkOptimized",
-          "generalPerformance",
-          "gpuDisplay",
-          "smartStorage",
-          "powerProfiles",
-          "gameHooks",
-          "disableMitigations",
-        ],
-        Programador: ["debloat", "smartStorage"],
-        "Home Office / Laptops": [
-          "debloat",
-          "smartStorage",
-        ],
-        "Usuario Casual": ["debloat", "smartStorage"],
-      };
-
-      const activeModules = profileConfigs[profile] || [];
-      const { tier } = this.hardwareInfo;
+      const activeModules = PROFILE_CONFIGS[profile] || [];
+      const { tier, isLaptop } = this.hardwareInfo;
 
       let hasGameHooks = false;
       activeModules.forEach((mod) => {
         // 1. Filtros por Laptop
         if (mod === "irqAffinity" && isLaptop) return;
         if (mod === "powerProfiles" && isLaptop) return;
-        if (mod === "networkOptimized" && isLaptop) return;
 
         // 2. Filtros inteligentes por Gama (Tier) de Hardware
         // La afinidad de interrupciones (IRQ) requiere procesadores multinúcleo modernos.
@@ -297,7 +262,7 @@ export const useOverlordStore = defineStore("overlord", {
       this.priorityServiceSelected = hasGameHooks;
       invoke("log_from_js", {
         msg: `applyProfile done: profile=${profile}, isLaptop=${isLaptop}, tier=${tier}, activeModules=${JSON.stringify(activeModules)}, modulesState=${JSON.stringify(this.modules)}`
-      });
+      }).catch(() => {});
     },
     async ejecutarNetworkBenchmark(fase: "before" | "after") {
       if (this.isBenchmarkTesting) return;

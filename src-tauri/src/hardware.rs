@@ -93,45 +93,45 @@ pub fn get_system_hardware() -> HardwareResponse {
             })
             .unwrap_or(false);
 
-        // Consultar velocidad de RAM de forma síncrona mediante wmic.exe dentro del OnceLock
+        // Consultar velocidad de RAM de forma síncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let mut ram_speed_val = None;
-        let output = Command::new("wmic.exe")
+        let output = Command::new("powershell.exe")
             .creation_flags(0x08000000)
-            .args(&["path", "Win32_PhysicalMemory", "get", "ConfiguredClockSpeed"])
+            .args(&[
+                "-NoProfile",
+                "-Command",
+                "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
+            ])
             .output();
         if let Ok(out) = output {
             if out.status.success() {
-                let text = String::from_utf8_lossy(&out.stdout);
-                let lines: Vec<&str> = text.lines()
-                    .map(|l| l.trim())
-                    .filter(|l| !l.is_empty() && !l.starts_with("ConfiguredClockSpeed"))
-                    .collect();
-                if let Some(first_line) = lines.first() {
-                    if let Ok(speed) = first_line.parse::<u32>() {
-                        if speed > 0 {
-                            ram_speed_val = Some(speed);
-                        }
+                let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if let Ok(speed) = text.parse::<u32>() {
+                    if speed > 0 {
+                        ram_speed_val = Some(speed);
                     }
                 }
             }
         }
 
-        // Fallback a PowerShell si wmic.exe no está disponible en Windows 11 modernos (24H2)
+        // Fallback a wmic.exe si PowerShell falla o no retorna velocidad en sistemas legacy
         if ram_speed_val.is_none() {
-            let output = Command::new("powershell.exe")
+            let output = Command::new("wmic.exe")
                 .creation_flags(0x08000000)
-                .args(&[
-                    "-NoProfile",
-                    "-Command",
-                    "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
-                ])
+                .args(&["path", "Win32_PhysicalMemory", "get", "ConfiguredClockSpeed"])
                 .output();
             if let Ok(out) = output {
                 if out.status.success() {
-                    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                    if let Ok(speed) = text.parse::<u32>() {
-                        if speed > 0 {
-                            ram_speed_val = Some(speed);
+                    let text = String::from_utf8_lossy(&out.stdout);
+                    let lines: Vec<&str> = text.lines()
+                        .map(|l| l.trim())
+                        .filter(|l| !l.is_empty() && !l.starts_with("ConfiguredClockSpeed"))
+                        .collect();
+                    if let Some(first_line) = lines.first() {
+                        if let Ok(speed) = first_line.parse::<u32>() {
+                            if speed > 0 {
+                                ram_speed_val = Some(speed);
+                            }
                         }
                     }
                 }

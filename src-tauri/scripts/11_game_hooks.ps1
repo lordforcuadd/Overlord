@@ -6,6 +6,32 @@ param(
 $ErrorActionPreference = "Stop"
 
 try {
+    $HKCU_Path = $global:HKCU_Path
+
+    function Find-FileFaster {
+        param(
+            [string]$Path,
+            [string]$Filter,
+            [int]$MaxDepth = 3
+        )
+        if (!(Test-Path $Path)) { return $null }
+        try {
+            $files = [System.IO.Directory]::GetFiles($Path, $Filter)
+            if ($files.Count -gt 0) {
+                return [System.IO.FileInfo]::new($files[0])
+            }
+        } catch {}
+        if ($MaxDepth -le 0) { return $null }
+        try {
+            $subdirs = [System.IO.Directory]::GetDirectories($Path)
+            foreach ($dir in $subdirs) {
+                $found = Find-FileFaster -Path $dir -Filter $Filter -MaxDepth ($MaxDepth - 1)
+                if ($found) { return $found }
+            }
+        } catch {}
+        return $null
+    }
+
     $SysDrive = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
     $ProgramFiles = $env:ProgramFiles
@@ -60,13 +86,16 @@ try {
     } catch {}
 
     # Buscar rutas de Steam en el Registro dinámicamente
-    $SteamPathReg = (Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -Name "SteamPath" -ErrorAction SilentlyContinue).SteamPath
+    $steamProps = Get-ItemProperty -Path "$HKCU_Path\Software\Valve\Steam" -ErrorAction SilentlyContinue
+    $SteamPathReg = if ($null -ne $steamProps) { $steamProps.SteamPath } else { $null }
     if ($SteamPathReg) { $LauncherRoots += Join-Path $SteamPathReg "steamapps\common" }
-    $SteamPathReg2 = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Valve\Steam" -Name "InstallPath" -ErrorAction SilentlyContinue).InstallPath
+    $steamProps2 = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Valve\Steam" -ErrorAction SilentlyContinue
+    $SteamPathReg2 = if ($null -ne $steamProps2) { $steamProps2.InstallPath } else { $null }
     if ($SteamPathReg2) { $LauncherRoots += Join-Path $SteamPathReg2 "steamapps\common" }
 
     # Buscar rutas de Epic Games en el Registro dinámicamente
-    $EpicPathReg = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\EpicGames\Unreal Engine" -Name "INSTALLDIR" -ErrorAction SilentlyContinue).INSTALLDIR
+    $epicProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\EpicGames\Unreal Engine" -ErrorAction SilentlyContinue
+    $EpicPathReg = if ($null -ne $epicProps) { $epicProps.INSTALLDIR } else { $null }
     if ($EpicPathReg) { $LauncherRoots += $EpicPathReg }
 
     # Agregar rutas por defecto comunes de fallback
@@ -104,6 +133,9 @@ try {
 
             Write-Host "[*] Procesando: $ExeName"
 
+            $GameBackupPath = Join-Path $BackupPath $ExeName
+            if (!(Test-Path $GameBackupPath)) { New-Item -Path $GameBackupPath -Force | Out-Null }
+
             $ConfigFolder = $null
             $TranslatedName = if ($FolderTranslationTable.ContainsKey($shortName)) { $FolderTranslationTable[$shortName] } else { $null }
 
@@ -140,15 +172,59 @@ try {
                             }
                         }
                         if ($null -eq $ini) {
-                            $ini = Get-ChildItem -Path $ConfigFolder -Filter $engine.FileName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                            $ini = Find-FileFaster -Path $ConfigFolder -Filter $engine.FileName -MaxDepth 3
                         }
                     } else {
-                        $ini = Get-ChildItem -Path $ConfigFolder -Filter $engine.FileName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                        $ini = Find-FileFaster -Path $ConfigFolder -Filter $engine.FileName -MaxDepth 3
                     }
                     if ($ini -and ($engine.Name -eq "Unreal")) {
-                        if ($ini.IsReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $false }
+                        # Comprobar si el proceso del juego está activo
+                        $RunningProc = Get-Process -Name $GameBaseName -ErrorAction SilentlyContinue
+                        if ($null -ne $RunningProc) {
+                            Write-Warning "El juego $GameBaseName esta en ejecucion. Se omitira la modificacion de GameUserSettings.ini para evitar conflictos de escritura."
+                            continue
+                        }
+
+                        $content = Get-Content $ini.FullName -ErrorAction SilentlyContinue
+                        if ($null -eq $content) { $content = @() }
+
+                        # Validar formato INI básico (debe tener al menos una sección con corchetes)
+                        $hasSections = $false
+                        foreach ($line in $content) {
+                            if ($line -match "^\s*\[.+\]") {
+                                $hasSections = $true
+                                break
+                            }
+                        }
+                        if (-not $hasSections) {
+                            Write-Warning "El archivo $($ini.FullName) no parece ser un archivo INI valido de Unreal Engine. Se omitira su modificacion."
+                            continue
+                        }
+                        $origReadOnly = $ini.IsReadOnly
+                        if ($origReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $false }
+
+                        # Guardar ruta del archivo ini para reversion simetrica
+                        Set-ItemProperty -Path $GameBackupPath -Name "IniPath" -Value $ini.FullName -Force | Out-Null
+                        $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
+                        if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_IsReadOnly"]) {
+                            Set-ItemProperty -Path $GameBackupPath -Name "Original_IsReadOnly" -Value $(if ($origReadOnly) { 1 } else { 0 }) -Force | Out-Null
+                        }
 
                         $content = Get-Content $ini.FullName
+
+                        # Resguardar los valores originales antes de la modificacion
+                        foreach ($line in $content) {
+                            foreach ($key in $engine.FullscreenKey) {
+                                if ($line -match "^\s*$key\s*=\s*(\d+)") {
+                                    $origVal = $Matches[1]
+                                    $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
+                                    if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_$key"]) {
+                                        Set-ItemProperty -Path $GameBackupPath -Name "Original_$key" -Value $origVal -Force | Out-Null
+                                    }
+                                }
+                            }
+                        }
+
                         $newContent = [System.Collections.Generic.List[string]]::new()
                         $changed = $false
                         foreach ($line in $content) {
@@ -173,6 +249,7 @@ try {
                             Write-Host "    -> El archivo de configuracion ya se encontraba optimizado de forma idempotente."
                             $FullscreenForced = $true
                         }
+                        if ($origReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $true }
                         break;
                     }
                 }
@@ -230,7 +307,7 @@ try {
                             foreach ($cand in $candidates) {
                                 $targetFolder = Join-Path $Root $cand
                                 if (Test-Path $targetFolder) {
-                                    $FoundFile = Get-ChildItem -Path $targetFolder -Filter $ExeName -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                                    $FoundFile = Find-FileFaster -Path $targetFolder -Filter $ExeName -MaxDepth 3
                                     if ($FoundFile) {
                                         $RealExePath = $FoundFile.FullName
                                         break
@@ -245,7 +322,7 @@ try {
                     if ([string]::IsNullOrWhiteSpace($RealExePath)) {
                         foreach ($Root in $LauncherRoots) {
                             if (Test-Path $Root) {
-                                $FoundFile = Get-ChildItem -Path $Root -Filter $ExeName -Recurse -Depth 2 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                                $FoundFile = Find-FileFaster -Path $Root -Filter $ExeName -MaxDepth 2
                                 if ($FoundFile) {
                                     $RealExePath = $FoundFile.FullName
                                     break
@@ -257,19 +334,19 @@ try {
             }
 
             if (![string]::IsNullOrWhiteSpace($RealExePath) -and (Test-Path $RealExePath -PathType Leaf)) {
-                $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+                $LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
                 if (!(Test-Path $LayersPath)) { New-Item -Path $LayersPath -Force | Out-Null }
 
-                $GameBackupPath = Join-Path $BackupPath $ExeName
-                if (!(Test-Path $GameBackupPath)) { New-Item -Path $GameBackupPath -Force | Out-Null }
 
-                $ExistingLayers = (Get-ItemProperty -Path $LayersPath -Name $RealExePath -ErrorAction SilentlyContinue).$RealExePath
+
+                $layersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
+                $ExistingLayers = if ($null -ne $layersProps -and $null -ne $layersProps.PSObject.Properties[$RealExePath]) { $layersProps.$RealExePath } else { $null }
                 $BackupRegistryCheck = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
                 
-                if ($ExistingLayers -and !$BackupRegistryCheck.PreviousLayers) {
+                if ($ExistingLayers -and ($null -eq $BackupRegistryCheck -or $null -eq $BackupRegistryCheck.PSObject.Properties["PreviousLayers"])) {
                     Set-ItemProperty -Path $GameBackupPath -Name "PreviousLayers" -Value $ExistingLayers -Force | Out-Null
                 }
-                if (!$BackupRegistryCheck.Path) {
+                if ($null -eq $BackupRegistryCheck -or $null -eq $BackupRegistryCheck.PSObject.Properties["Path"]) {
                     Set-ItemProperty -Path $GameBackupPath -Name "Path" -Value $RealExePath -Force | Out-Null
                 }
 

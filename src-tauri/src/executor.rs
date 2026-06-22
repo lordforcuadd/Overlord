@@ -27,13 +27,15 @@ fn build_script_header(is_laptop: bool, ram_gb: u32, game_list: &str, toggle_nam
          $ActionId = '{}'\n\
          $ToggleName = '{}'\n\
          $IsEnabledStr = '{}'\n\
+         $Version = '{}'\n\
          $ErrorActionPreference = 'Stop'\n",
         if is_laptop { "true" } else { "false" },
         ram_gb,
         game_list.replace("'", "''"),
         game_list.replace("'", "''"),
         toggle_name.replace("'", "''"),
-        is_enabled_str.replace("'", "''")
+        is_enabled_str.replace("'", "''"),
+        env!("CARGO_PKG_VERSION")
     )
 }
 

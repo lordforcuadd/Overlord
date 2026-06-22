@@ -83,7 +83,7 @@ function Get-RegistryValue($basePath, $subPath, $name, $expectedValue) {
 }
 
 function Test-ClassicMenuEnabled {
-    $buildVer = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+    $buildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
     if ($buildVer -lt 26000) {
         foreach ($base in $Targets) {
             $path = Join-Path $base "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32"
@@ -100,7 +100,7 @@ function Test-ClassicMenuEnabled {
     return $false
 }
 
-$buildVer = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+$buildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
 
 $Qol = @{
     darkMode           = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" 0

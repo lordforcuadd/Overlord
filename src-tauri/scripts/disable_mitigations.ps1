@@ -13,10 +13,10 @@ try {
     Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force | Out-Null
     Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force | Out-Null
 
-    if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride").FeatureSettingsOverride -ne 3) { 
+    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue) -ne 3) { 
         throw "Fallo al escribir FeatureSettingsOverride" 
     }
-    if ((Get-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask").FeatureSettingsOverrideMask -ne 3) { 
+    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue) -ne 3) { 
         throw "Fallo al escribir FeatureSettingsOverrideMask" 
     }
 

@@ -36,12 +36,12 @@ Try {
     # Desactivar Inicio Rapido de Windows (previene fugas de memoria y bloqueos de drivers)
     Set-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled" -Type DWord -Value 0 -Force | Out-Null
     
-    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate").NtfsDisableLastAccessUpdate -ne 1) { throw "Fallo al verificar NtfsDisableLastAccessUpdate" }
-    if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation").NtfsDisable8dot3NameCreation -ne 1) { throw "Fallo al verificar NtfsDisable8dot3NameCreation" }
+    if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue) -ne 1) { throw "Fallo al verificar NtfsDisableLastAccessUpdate" }
+    if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -ErrorAction SilentlyContinue) -ne 1) { throw "Fallo al verificar NtfsDisable8dot3NameCreation" }
     if ($RamGB -ge 16) {
-        if ((Get-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage").NtfsMemoryUsage -ne 2) { throw "Fallo al verificar NtfsMemoryUsage" }
+        if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar NtfsMemoryUsage" }
     }
-    if ((Get-ItemProperty -Path $FastStartPath -Name "HiberbootEnabled").HiberbootEnabled -ne 0) { throw "Fallo al verificar HiberbootEnabled (Inicio Rapido)" }
+    if ((Get-ItemPropertyValue -Path $FastStartPath -Name "HiberbootEnabled" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo al verificar HiberbootEnabled (Inicio Rapido)" }
 
     if (-not $IsLaptop) {
         $HibernateRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
@@ -51,15 +51,8 @@ Try {
         powercfg.exe /hibernate off | Out-Null
     }
 
-    $DismProcess = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -PassThru -NoNewWindow
-    # Esperamos hasta 20 minutos sin lanzar excepciones si se agota el tiempo
-    $Timeout = 1200
-    $Interval = 5
-    $Waited = 0
-    while (-not $DismProcess.HasExited -and $Waited -lt $Timeout) {
-        Start-Sleep -Seconds $Interval
-        $Waited += $Interval
-    }
+    # Lanzar la compactacion de componentes de forma asincrona en segundo plano para no bloquear al optimizador
+    Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
 
     try {
         $UpdateSession = New-Object -ComObject "Microsoft.Update.Session"

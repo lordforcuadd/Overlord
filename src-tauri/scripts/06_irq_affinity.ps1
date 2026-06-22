@@ -7,13 +7,13 @@ $ErrorActionPreference = "Stop"
 Try {
     Write-Host "[*] Reconfigurando perfiles multimedia y afinidad de Hardware (IRQ)..."
 
-    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
-    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
-
     if ($IsLaptop) {
         Write-Host "[+] Laptop detectada. Saltando remapeo fisico de afinidades IRQ para proteger la estabilidad de buses dinamicos de energia." -ForegroundColor Green
         exit 0
     }
+
+    $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
+    if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
     # Mapeo inteligente multi-núcleo compatible con RSS (evita Core 0, evita hilos HT hermanos y evita E-cores al final)
@@ -60,7 +60,8 @@ Try {
                                         $origPolicy = $affinityKey.GetValue("DevicePolicy")
                                         $origOverride = $affinityKey.GetValue("AssignmentSetOverride")
                                         
-                                        if ((Get-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Policy" -ErrorAction SilentlyContinue) -eq $null) {
+                                        $netProps = Get-ItemProperty -Path $NetBackupKey -ErrorAction SilentlyContinue
+                                        if ($null -eq $netProps -or $null -eq $netProps.PSObject.Properties["${deviceRegID}_Policy"]) {
                                             $bckPolicy = if ($null -eq $origPolicy) { '_ABSENT_' } else { $origPolicy }
                                             Set-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Policy" -Value $bckPolicy -Force | Out-Null
                                             

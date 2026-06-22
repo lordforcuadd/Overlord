@@ -35,30 +35,64 @@ if ($Action -eq "install") {
     $GameList | Out-File -FilePath $ConfigFile -Encoding utf8 -Force
 
     $DaemonCode = @'
-$ErrorActionPreference = "SilentlyContinue"
-$ConfigPath = Join-Path $env:ProgramData "Overlord\games_to_optimize.txt"
+$ErrorActionPreference = "Stop"
+$InstallDir = Join-Path $env:ProgramData "Overlord"
+$ConfigPath = Join-Path $InstallDir "games_to_optimize.txt"
+$LogPath = Join-Path $InstallDir "daemon.log"
 if (!(Test-Path $ConfigPath)) { exit 0 }
+
+function Write-DaemonLog {
+    param([string]$Message)
+    try {
+        if (Test-Path $LogPath) {
+            $File = Get-Item $LogPath -ErrorAction SilentlyContinue
+            if ($null -ne $File -and $File.Length -gt 500KB) {
+                Clear-Content -Path $LogPath -ErrorAction SilentlyContinue
+            }
+        }
+        $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        "[$Timestamp] $Message" | Out-File -FilePath $LogPath -Append -Encoding utf8 -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+Write-DaemonLog "Iniciando daemon de prioridad de juegos..."
+
 while ($true) {
-    $Games = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
-    if ($Games) {
-        $GamesList = $Games -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
-        if ($GamesList) {
-            $ActiveProcs = Get-Process -ErrorAction SilentlyContinue | Group-Object -Property Name -AsHashTable -AsString
-            foreach ($Game in $GamesList) {
-                $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
-                $Procs = $ActiveProcs[$ProcName]
-                if ($null -ne $Procs) {
-                    foreach ($Proc in $Procs) {
-                        try {
-                            if ($Proc.PriorityClass -ne 'High') {
-                                $Proc.PriorityClass = 'High'
+    try {
+        $Games = Get-Content -Path $ConfigPath -ErrorAction Stop
+        if ($Games) {
+            $GamesList = $Games -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
+            if ($GamesList) {
+                $ActiveProcs = Get-Process -ErrorAction Stop
+                $ActiveProcsHash = $ActiveProcs | Group-Object -Property Name -AsHashTable -AsString
+                foreach ($Game in $GamesList) {
+                    $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
+                    $Procs = $ActiveProcsHash[$ProcName]
+                    if ($null -ne $Procs) {
+                        foreach ($Proc in $Procs) {
+                            try {
+                                if ($Proc.PriorityClass -ne 'High') {
+                                    $Proc.PriorityClass = 'High'
+                                    Write-DaemonLog "Establecida prioridad ALTA para el proceso: $($Proc.Name) (PID: $($Proc.Id))"
+                                }
+                            } catch {
+                                Write-DaemonLog "No se pudo cambiar la prioridad del proceso $($Proc.Name): $_"
                             }
-                        } catch {}
+                        }
+                    }
+                }
+                if ($ActiveProcs) {
+                    foreach ($P in $ActiveProcs) {
+                        try { $P.Close(); $P.Dispose() } catch {}
                     }
                 }
             }
         }
+    } catch {
+        Write-DaemonLog "Error general en el ciclo del daemon: $_"
     }
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
     Start-Sleep -Seconds 15
 }
 '@
@@ -84,12 +118,38 @@ while ($true) {
 elseif ($Action -eq "uninstall") {
     $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($null -ne $ExistingTask) {
-        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
     }
 
+    # Matar de forma explicita procesos PowerShell huérfanos del daemon (WMI/CIM compatible con PS 5.1)
+    try {
+        $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
+        if ($null -eq $DaemonProcs -or @($DaemonProcs).Count -eq 0) {
+            $DaemonProcs = Get-WmiObject -Class Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
+        }
+        if ($null -ne $DaemonProcs) {
+            foreach ($P in $DaemonProcs) {
+                $pidToKill = $null
+                if ($null -ne $P.ProcessId) { $pidToKill = $P.ProcessId }
+                elseif ($null -ne $P.ProcessID) { $pidToKill = $P.ProcessID }
+                if ($null -ne $pidToKill) {
+                    Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+        }
+    } catch {}
+
     if (Test-Path $ConfigFile) { Remove-Item $ConfigFile -Force | Out-Null }
     if (Test-Path $DaemonScript) { Remove-Item $DaemonScript -Force | Out-Null }
+    
+    # Limpieza de la carpeta raíz del daemon en ProgramData si está vacía
+    if (Test-Path $InstallDir) {
+        $files = Get-ChildItem -Path $InstallDir -ErrorAction SilentlyContinue
+        if ($null -eq $files -or @($files).Count -eq 0) {
+            Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+    }
 
     Write-Output "uninstalled"
 }

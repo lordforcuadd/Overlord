@@ -1,4 +1,9 @@
+param(
+    [bool]$IsLaptop = $false,
+    [int]$RamGB = 8
+)
 $ErrorActionPreference = "SilentlyContinue"
+$HKCU_Path = $global:HKCU_Path
 
 $Status = @{
     peripheralLatency  = $false
@@ -14,8 +19,8 @@ $Status = @{
     disableMitigations = $false
 }
 
-$MousePath = "HKCU:\Control Panel\Mouse"
-$KeyRespPath = "HKCU:\Control Panel\Accessibility\Keyboard Response"
+$MousePath = "$HKCU_Path\Control Panel\Mouse"
+$KeyRespPath = "$HKCU_Path\Control Panel\Accessibility\Keyboard Response"
 $PriorityPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
 if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
     $Speed = Get-ItemPropertyValue -Path $MousePath -Name "MouseSpeed" -ErrorAction SilentlyContinue
@@ -27,7 +32,7 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
     }
 }
 
-$ServicesToCheck = @("AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost")
+$ServicesToCheck = @("AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry")
 $ServicesOk = $true
 foreach ($SvcName in $ServicesToCheck) {
     $Svc = Get-Service -Name $SvcName -ErrorAction SilentlyContinue
@@ -35,7 +40,7 @@ foreach ($SvcName in $ServicesToCheck) {
         $ServicesOk = $false
     }
 }
-$BgAppPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
+$BgAppPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
 $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
 $BgAppDisabled = $true
 if (Test-Path $BgAppPath) {
@@ -87,7 +92,7 @@ if (Test-Path $ProfilePath) {
     }
 }
 
-$StorePath = "HKCU:\System\GameConfigStore"
+$StorePath = "$HKCU_Path\System\GameConfigStore"
 if (Test-Path $StorePath) {
     $GameDVR = Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue
     $GamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
@@ -100,7 +105,7 @@ if (Test-Path $StorePath) {
 
 $GpuPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
 $GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
-$UserGameDVRPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR"
+$UserGameDVRPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\GameDVR"
 if (Test-Path $GpuPath) {
     $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
     $AllowDVR = Get-ItemPropertyValue -Path $GameBarPath -Name "AllowGameDVR" -ErrorAction SilentlyContinue
@@ -110,33 +115,41 @@ if (Test-Path $GpuPath) {
     }
 }
 
-$pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI")
-if ($pciKey) {
-    foreach ($venId in $pciKey.GetSubKeyNames()) {
-        $venKey = $pciKey.OpenSubKey($venId)
-        if ($venKey) {
-            foreach ($devId in $venKey.GetSubKeyNames()) {
-                $devParamKey = $venKey.OpenSubKey("$devId\Device Parameters\Interrupt Management\Affinity Policy")
-                if ($devParamKey) {
-                    $policy = $devParamKey.GetValue("DevicePolicy")
-                    if ($null -ne $policy -and ($policy -eq 2 -or $policy -eq 3 -or $policy -eq 4)) {
-                        $Status['irqAffinity'] = $true
-                        break
+if (-not $IsLaptop) {
+    $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
+    if ($pciKey) {
+        foreach ($venId in $pciKey.GetSubKeyNames()) {
+            $venKey = $pciKey.OpenSubKey($venId, $false)
+            if ($venKey) {
+                foreach ($devId in $venKey.GetSubKeyNames()) {
+                    $devKey = $venKey.OpenSubKey($devId, $false)
+                    if ($devKey) {
+                        $class = $devKey.GetValue("Class")
+                        if ($class -eq "Net") {
+                            $devParamKey = $devKey.OpenSubKey("Device Parameters\Interrupt Management\Affinity Policy", $false)
+                            if ($devParamKey) {
+                                $policy = $devParamKey.GetValue("DevicePolicy")
+                                if ($null -ne $policy -and ($policy -eq 2 -or $policy -eq 3 -or $policy -eq 4)) {
+                                    $Status['irqAffinity'] = $true
+                                }
+                                $devParamKey.Close()
+                            }
+                        }
+                        $devKey.Close()
                     }
+                    if ($Status['irqAffinity']) { break }
                 }
+                $venKey.Close()
             }
+            if ($Status['irqAffinity']) { break }
         }
-        if ($Status['irqAffinity']) { break }
+        $pciKey.Close()
     }
-    $pciKey.Close()
+} else {
+    $Status['irqAffinity'] = $false
 }
 
-$CpuBackup = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
-$IsSystemLaptop = $IsLaptop
 
-if ($IsSystemLaptop -and (Test-Path $CpuBackup)) {
-    $Status['irqAffinity'] = $true
-}
 
 $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
 $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
@@ -162,7 +175,8 @@ if (Test-Path $NtfsPath) {
 
 $DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
 $WerSvc = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
-if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and $WerSvc.StartType -eq "Disabled")) {
+$WerPolicy = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -ErrorAction SilentlyContinue
+if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and ($WerSvc.StartType -eq "Manual" -or $WerSvc.StartType -eq "Disabled")) -and $WerPolicy -eq 1) {
     $Status['deepTelemetry'] = $true
 }
 
@@ -170,22 +184,63 @@ $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
 $PowerSchemePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
 if (Test-Path $PowerSchemePath) {
     $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
-    $CustomPlanGuid = (Get-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -ErrorAction SilentlyContinue).CustomPowerPlan
+    $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
+    $CustomPlanGuid = if ($null -ne $powerProps -and $null -ne $powerProps.PSObject.Properties["CustomPowerPlan"]) { $powerProps.CustomPowerPlan } else { $null }
     
-    if ($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or $ActivePlan -match "77777777" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) {
+    if ($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) {
         $Status['powerProfiles'] = $true
-    } elseif ($IsSystemLaptop -and (Test-Path $PowerBackup)) {
-        $Status['powerProfiles'] = $true
+    } elseif ($IsLaptop) {
+        $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
+        $SettingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$ActivePlan\54533251-82be-4824-96c1-47b60b740d00\94d3a615-a899-4ac5-ae2b-e4d8f634367f"
+        if (Test-Path $SettingPath) {
+            $AcVal = Get-ItemPropertyValue -Path $SettingPath -Name "ACSettingIndex" -ErrorAction SilentlyContinue
+            if ($AcVal -eq 1) {
+                $Status['powerProfiles'] = $true
+            }
+        }
     }
 }
 
 $GameHooksBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
-if (Test-Path $GameHooksBackup) {
+$LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+
+# 1. Comprobar juegos configurados en games.txt si existe
+$ProgData = $env:ProgramData
+if ([string]::IsNullOrWhiteSpace($ProgData)) { 
+    $SysDrive = $env:SystemDrive
+    if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
+    $ProgData = Join-Path $SysDrive "ProgramData"
+}
+$ConfigPath = Join-Path $ProgData "Overlord\games.txt"
+
+if (Test-Path $ConfigPath) {
+    $GamesContent = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
+    if ($GamesContent) {
+        $GamesList = $GamesContent -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
+        if ($GamesList -and (Test-Path $LayersPath)) {
+            $Layers = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
+            if ($null -ne $Layers) {
+                foreach ($Prop in $Layers.PSObject.Properties) {
+                    if ($Prop.Name -match "\.exe$" -and $Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
+                        $ExeName = Split-Path $Prop.Name -Leaf
+                        $CleanExe = $ExeName.ToLower() -replace '\.exe$', ''
+                        if ($GamesList -contains $CleanExe) {
+                            $Status['gameHooks'] = $true
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+# 2. Fallback al backup si el paso anterior no dio positivo
+if ($Status['gameHooks'] -ne $true -and (Test-Path $GameHooksBackup)) {
     $SubKeys = Get-ChildItem -Path $GameHooksBackup -ErrorAction SilentlyContinue
     foreach ($Key in $SubKeys) {
         $PathVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "Path" -ErrorAction SilentlyContinue
         if (![string]::IsNullOrWhiteSpace($PathVal)) {
-            $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
             $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
             if ($CurrentFlags -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
                 $Status['gameHooks'] = $true

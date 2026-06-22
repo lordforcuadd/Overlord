@@ -7,8 +7,14 @@ $ErrorActionPreference = "Continue"
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    Write-Error "ERROR: Se requieren permisos de administrador."
+
+$AdminToggles = @(
+    "disableLockScreen", "disableCopilot", "disableRecall", 
+    "detailedBSoD", "disableOneDrive", "disableWidgets", "enableGameMode"
+)
+
+if ($AdminToggles -contains $ToggleName -and -not $isAdmin) {
+    Write-Error "ERROR: El ajuste '$ToggleName' requiere permisos de administrador para modificar politicas globales de HKLM."
     exit 1
 }
 
@@ -91,7 +97,7 @@ function Remove-RegistryKey($subPath) {
 }
 
 $RequiresExplorerRestart = $false
-$buildVer = [int](Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+$buildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
 
 switch ($ToggleName) {
     "darkMode" {
@@ -152,8 +158,17 @@ switch ($ToggleName) {
     }
     "disableLockScreen" {
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization"
-        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-        Set-ItemProperty -Path $Path -Name "NoLockScreen" -Type DWord -Value $Value -Force | Out-Null
+        try {
+            $OldEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Stop"
+            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+            Set-ItemProperty -Path $Path -Name "NoLockScreen" -Type DWord -Value $Value -Force | Out-Null
+        } catch {
+            Write-Error "[-] Error al escribir la directiva NoLockScreen en HKLM: $_"
+            exit 1
+        } finally {
+            $ErrorActionPreference = $OldEAP
+        }
     }
     "disableStickyKeys" {
         $stickyVal = if ($Value -eq 1) { "506" } else { "510" }
@@ -198,19 +213,46 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" $(if ($Value -eq 1) {0} else {1})
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-        Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
+        try {
+            $OldEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Stop"
+            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+            Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
+        } catch {
+            Write-Error "[-] Error al desactivar Copilot en HKLM: $_"
+            exit 1
+        } finally {
+            $ErrorActionPreference = $OldEAP
+        }
         $RequiresExplorerRestart = $true
     }
     "disableRecall" {
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
-        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-        Set-ItemProperty -Path $Path -Name "TurnOffUserCameraCapture" -Type DWord -Value $Value -Force | Out-Null
+        try {
+            $OldEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Stop"
+            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+            Set-ItemProperty -Path $Path -Name "TurnOffUserCameraCapture" -Type DWord -Value $Value -Force | Out-Null
+        } catch {
+            Write-Error "[-] Error al desactivar Recall en HKLM: $_"
+            exit 1
+        } finally {
+            $ErrorActionPreference = $OldEAP
+        }
     }
     "detailedBSoD" {
         $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl"
-        Set-ItemProperty -Path $Path -Name "DisplayParameters" -Type DWord -Value $Value -Force | Out-Null
+        try {
+            $OldEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Stop"
+            Set-ItemProperty -Path $Path -Name "DisplayParameters" -Type DWord -Value $Value -Force | Out-Null
+        } catch {
+            Write-Error "[-] Error al configurar DisplayParameters (BSoD detallada) en HKLM: $_"
+            exit 1
+        } finally {
+            $ErrorActionPreference = $OldEAP
+        }
     }
     "disableOneDrive" {
         if ($Value -eq 1) {
@@ -229,12 +271,30 @@ switch ($ToggleName) {
             }
             Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue
             $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
-            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-            Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value 1 -Force | Out-Null
+            try {
+                $OldEAP = $ErrorActionPreference
+                $ErrorActionPreference = "Stop"
+                if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+                Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value 1 -Force | Out-Null
+            } catch {
+                Write-Error "[-] Error al desactivar OneDrive en HKLM: $_"
+                exit 1
+            } finally {
+                $ErrorActionPreference = $OldEAP
+            }
         } else {
             $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
-            if (Test-Path $Path) {
-                Remove-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue | Out-Null
+            try {
+                $OldEAP = $ErrorActionPreference
+                $ErrorActionPreference = "Stop"
+                if (Test-Path $Path) {
+                    Remove-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue | Out-Null
+                }
+            } catch {
+                Write-Error "[-] Error al habilitar OneDrive en HKLM: $_"
+                exit 1
+            } finally {
+                $ErrorActionPreference = $OldEAP
             }
             Start-Process "ms-windows-store://pdp/?productid=9wzdncrfj1p3"
         }
@@ -243,8 +303,17 @@ switch ($ToggleName) {
         $widgetsVal = if ($Value -eq 1) { 0 } else { 1 }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" "DWord" $widgetsVal
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh"
-        if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-        Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value $widgetsVal -Force | Out-Null
+        try {
+            $OldEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Stop"
+            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+            Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value $widgetsVal -Force | Out-Null
+        } catch {
+            Write-Error "[-] Error al desactivar Widgets en HKLM: $_"
+            exit 1
+        } finally {
+            $ErrorActionPreference = $OldEAP
+        }
         $RequiresExplorerRestart = $true
     } 
     "zeroStartupDelay" {
@@ -263,8 +332,16 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\GameDVR" "AudioCaptureEnabled" "DWord" $dvrVal
         
         $policyPath = "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR"
-        if (Test-Path $policyPath) {
-            Set-ItemProperty -Path $policyPath -Name "value" -Type DWord -Value $dvrVal -Force -ErrorAction SilentlyContinue | Out-Null
+        try {
+            $OldEAP = $ErrorActionPreference
+            $ErrorActionPreference = "Stop"
+            if (Test-Path $policyPath) {
+                Set-ItemProperty -Path $policyPath -Name "value" -Type DWord -Value $dvrVal -Force | Out-Null
+            }
+        } catch {
+            Write-Warning "[-] No se pudo modificar AllowGameDVR en HKLM: $_"
+        } finally {
+            $ErrorActionPreference = $OldEAP
         }
     }
     "barebonesVisual" {

@@ -35,7 +35,7 @@
             <p
               class="text-gray-400 mt-1 font-medium tracking-widest uppercase text-xs md:text-sm"
             >
-              Optimizador de Windows v4.5.0
+              Optimizador de Windows v{{ appVersion }}
             </p>
           </div>
         </div>
@@ -246,6 +246,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+import { getVersion } from "@tauri-apps/api/app";
 import BenchmarkPanel from "./components/BenchmarkPanel.vue";
 import { useOverlordStore } from "./stores/overlordStore";
 import { useOrchestrator } from "./composables/useOrchestrator";
@@ -261,6 +262,7 @@ const store = useOverlordStore();
 const warningModalOpen = ref(false);
 const warningModalMessage = ref("");
 const pendingTweakKey = ref("");
+const appVersion = ref("");
 
 const overlordSwalConfig = {
   background: "rgba(15, 15, 15, 0.75)",
@@ -314,9 +316,21 @@ const cancelDangerousTweak = () => {
 };
 
 onMounted(async () => {
-  await store.detectHardware();
-  await store.scanGames();
-  await syncModulesStatus();
+  try {
+    appVersion.value = await getVersion();
+    document.title = `Overlord v${appVersion.value}`;
+  } catch (err) {
+    console.error("No se pudo obtener la versión de Tauri:", err);
+  }
+  
+  try {
+    await store.detectHardware();
+    await store.scanGames();
+    await syncModulesStatus();
+  } catch (innerErr) {
+    console.error("Fallo durante la sincronización inicial de hardware/módulos:", innerErr);
+  }
+  
   store.startTelemetryPolling();
   store.isInitialized = true;
 });

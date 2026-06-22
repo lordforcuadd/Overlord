@@ -1,3 +1,6 @@
+param(
+    [bool]$IsLaptop = $false
+)
 $ErrorActionPreference = "Stop"
 
 Try {
@@ -15,41 +18,48 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "InitialRto" -BackupSubFolder "Network"
     }
 
-    Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value 4294967295 -Force | Out-Null
+    Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value ([uint32]4294967295) -Force | Out-Null
     Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 10 -Force | Out-Null
     Set-ItemProperty -Path $TcpPath -Name "InitialRto" -Type DWord -Value 2000 -Force | Out-Null
  
-    if ((Get-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness").SystemResponsiveness -ne 10) { throw "Verification failed" }
-    if ((Get-ItemProperty -Path $TcpPath -Name "InitialRto").InitialRto -ne 2000) { throw "Verification failed" }
+    if ((Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue) -ne 10) { throw "Verification failed" }
+    if ((Get-ItemPropertyValue -Path $TcpPath -Name "InitialRto" -ErrorAction SilentlyContinue) -ne 2000) { throw "Verification failed" }
     
-    $throttingVal = (Get-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex").NetworkThrottlingIndex
-    if ($throttingVal -ne 4294967295 -and $throttingVal -ne -1) { throw "Verification failed" }
+    $throttingVal = Get-ItemPropertyValue -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue
+    if ($null -eq $throttingVal -or [uint32]$throttingVal -ne [uint32]4294967295) { throw "Verification failed" }
 
     
     $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
     if (Test-Path $InterfacesPath) {
         $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
         foreach ($Key in $InterfaceKeys) {
-            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network"
-                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network"
+            try {
+                if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                    Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
+                    Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
+                }
+                Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
+                Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
+            } catch {
+                Write-Warning "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
             }
-            Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
-            Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
         }
     }
 
     $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
     if (Test-Path $NetClassPath) {
-        $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-            $_.Virtual -eq $false -and 
-            $_.NdisPhysicalMedium -eq 14 
-        } | ForEach-Object { "$($_.InterfaceGuid)" }
+        $EthernetGuids = @()
+        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+                $_.Virtual -eq $false -and 
+                $_.NdisPhysicalMedium -eq 14 
+            } | ForEach-Object { "$($_.InterfaceGuid)" }
+        }
 
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $NetInstanceId = (Get-ItemProperty -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue).NetCfgInstanceId
+                $NetInstanceId = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue
                 if ($null -ne $NetInstanceId -and ($EthernetGuids -contains $NetInstanceId)) {
                     $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
                     
@@ -59,11 +69,11 @@ Try {
                         $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
                     }
 
+                    $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
                     foreach ($PKey in $PowerKeys) {
-                        $Prop = Get-ItemProperty -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
-                        if ($null -ne $Prop) {
+                        if ($null -ne $adapterProps -and $null -ne $adapterProps.PSObject.Properties[$PKey]) {
                             if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                                Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network"
+                                Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
                             }
                             Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
                         }
@@ -73,14 +83,65 @@ Try {
         }
     }
 
-    $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
-    foreach ($Adapter in $Adapters) {
-        if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
-            Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
-            Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
-            Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
-            Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
-            Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
+    if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+        $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
+        foreach ($Adapter in $Adapters) {
+            if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
+                try {
+                    # Backup del estado original de LSO, RSC y RSS para este adaptador
+                    $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.Name)"
+                    if (!(Test-Path $AdapterBackupPath)) { 
+                        try { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+                    }
+
+                    if (Test-Path $AdapterBackupPath) {
+                        $backupProps = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                        $Lso = Get-NetAdapterLso -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $Lso) {
+                            if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["LsoIPv4"]) {
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "LsoIPv4" -Value (if ($Lso.IPv4Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "LsoIPv6" -Value (if ($Lso.IPv6Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                            }
+                        }
+
+                        $Rsc = Get-NetAdapterRsc -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $Rsc) {
+                            if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["RscIPv4"]) {
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RscIPv4" -Value (if ($Rsc.IPv4Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RscIPv6" -Value (if ($Rsc.IPv6Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                            }
+                        }
+
+                        $Rss = Get-NetAdapterRss -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $Rss) {
+                            if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["RssProfile"]) {
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RssProfile" -Value $Rss.Profile.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RssEnabled" -Value (if ($Rss.Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                            }
+                        }
+
+                        $Chk = Get-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $Chk) {
+                            $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                            if ($null -eq $props -or $null -eq $props.PSObject.Properties["ChecksumIpIPv4"]) {
+                                if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["IpIPv4Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumIpIPv4" -Value $Chk.IpIPv4Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
+                                if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["TcpIPv4Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumTcpIPv4" -Value $Chk.TcpIPv4Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
+                                if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["TcpIPv6Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumTcpIPv6" -Value $Chk.TcpIPv6Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
+                                if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["UdpIPv4Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumUdpIPv4" -Value $Chk.UdpIPv4Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
+                                if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["UdpIPv6Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumUdpIPv6" -Value $Chk.UdpIPv6Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
+                            }
+                        }
+                    }
+
+                    Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
+                    Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
+                    Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
+                    Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
+                    Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
+                } catch {
+                    Write-Warning "No se pudieron aplicar las optimizaciones de red para el adaptador $($Adapter.Name): $_"
+                }
+            }
         }
     }
 

@@ -1,4 +1,12 @@
-Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.5.0" {
+$ManifestPath = Join-Path $PSScriptRoot "..\Cargo.toml"
+$Version = "Unknown"
+if (Test-Path $ManifestPath) {
+    $Manifest = Get-Content -Path $ManifestPath -Raw
+    if ($Manifest -match 'version\s*=\s*"([^"]+)"') {
+        $Version = $Matches[1]
+    }
+}
+Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     BeforeAll {
         $GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
         $ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
@@ -40,11 +48,21 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.5.0" {
 
     Context "Modulo 02 y 08 - Saneamiento de Telemetria y Servicios Nucleares" {
         It "Debe verificar el estado deshabilitado de los servicios residuales bloqueados" {
-            $Services = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
+            $Services = @("DiagTrack", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
             foreach ($Service in $Services) {
                 $Svc = Get-Service -Name $Service -ErrorAction SilentlyContinue
                 if ($null -ne $Svc) {
                     $Svc.StartType | Should Be "Disabled"
+                }
+            }
+        }
+
+        It "Debe verificar el estado de coexistencia manual para servicios de Windows Update y Diagnostico" {
+            $Services = @("dmwappushservice", "WdiServiceHost", "WdiSystemHost", "WerSvc")
+            foreach ($Service in $Services) {
+                $Svc = Get-Service -Name $Service -ErrorAction SilentlyContinue
+                if ($null -ne $Svc) {
+                    $Svc.StartType | Should Be "Manual"
                 }
             }
         }
@@ -168,7 +186,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.5.0" {
                     $PathVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "Path" -ErrorAction SilentlyContinue
                     if (![string]::IsNullOrWhiteSpace($PathVal)) {
                         $LayersPath = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
-                        $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
+                        $CurrentFlags = (Get-ItemProperty -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue).$PathVal
                         $CurrentFlags -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION" | Should Be $true
                     }
                 }
@@ -197,6 +215,64 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v4.5.0" {
                 $Content = Get-Content -Path $RevertPath -ErrorAction SilentlyContinue
                 ([string]::IsNullOrEmpty($Content)) | Should Be $false
                 ([string]::IsNullOrEmpty(($Content -match 'HKLM:\\SOFTWARE\\Overlord\\Backup'))) | Should Be $false
+            }
+        }
+    }
+
+    Context "Analisis Estatico de Simetria de Backups y Reversion" {
+        BeforeAll {
+            $RevertContent = Get-Content -Path $RevertPath -Raw
+        }
+
+        It "Debe comprobar que cada Backup-OverlordRegistryValue con llave estatica tenga su correspondiente restauracion en el revert" {
+            $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1'
+            } | Where-Object { $_.Name -ne '10_revertir.ps1' }
+
+            foreach ($File in $ModuleFiles) {
+                $Content = Get-Content -Path $File.FullName -Raw
+                # Extrae todas las llamadas como: -ValueName "Win32PrioritySeparation"
+                $Matches = [regex]::Matches($Content, '-ValueName\s+["'']([^"'']+)["'']')
+                foreach ($m in $Matches) {
+                    $ValueName = $m.Groups[1].Value
+                    if ($ValueName -notmatch '\$') { # Omitir variables dinamicas en regex estatico
+                        ($RevertContent -match "\b$ValueName\b") | Should Be $true
+                    }
+                }
+            }
+        }
+
+        It "Debe verificar que todos los servicios desactivados en el debloat o la telemetria esten en la tabla de restauracion del revert" {
+            $DebloatContent = Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw
+            $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
+            
+            $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc")
+            
+            foreach ($Svc in $KnownServices) {
+                ($RevertContent -match "\b$Svc\b") | Should Be $true
+            }
+        }
+
+        It "Debe comprobar que todas las tareas programadas desactivadas en debloat o telemetria se vuelvan a habilitar en la reversion" {
+            $DebloatContent = Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw
+            $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
+            
+            # Buscar rutas tipicas de tareas de Windows
+            $TaskMatches = [regex]::Matches($DebloatContent + $TelemetryContent, '["''](Microsoft\\Windows\\[^"'']+)["'']')
+            foreach ($m in $TaskMatches) {
+                $FullPath = $m.Groups[1].Value
+                $TaskName = Split-Path $FullPath -Leaf
+                ($RevertContent -match "\b$TaskName\b") | Should Be $true
+            }
+        }
+
+        It "Debe comprobar que todos los Autologgers desactivados en telemetria tengan su revert en el desinstalador" {
+            $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
+            # Buscar nombres de loggers
+            $LoggerMatches = [regex]::Matches($TelemetryContent, '(AutoLogger-[a-zA-Z0-9-]+|SQMLogger|DiagLog|AitEventLog)')
+            foreach ($m in $LoggerMatches) {
+                $LoggerName = $m.Groups[1].Value
+                ($RevertContent -match "\b$LoggerName\b") | Should Be $true
             }
         }
     }

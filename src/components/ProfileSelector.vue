@@ -66,7 +66,7 @@
       </svg>
       <p class="text-sm text-gray-300 font-medium leading-relaxed">
         <span v-if="store.activeProfile === 'Competitivo'"
-          >Inyección máxima. Aísla el CPU y apaga seguridad virtual para 0%
+          >Optimización máxima. Aísla el CPU, reduce latencia de periféricos y prioriza hilos de juego para 0%
           input lag. Recomendado para setups de alta gama.</span
         >
         <span v-else-if="store.activeProfile === 'Programador & Competitivo'"
@@ -75,8 +75,7 @@
           juego.</span
         >
         <span v-else-if="store.activeProfile === 'Programador'"
-          >Optimiza el compilador y la RAM liberando servicios de telemetría sin
-          tocar el comportamiento del Kernel.</span
+          >Optimiza el rendimiento del compilador, aplica caché de almacenamiento inteligente y reduce servicios innecesarios en segundo plano para desarrollo.</span
         >
         <span v-else-if="store.activeProfile === 'Home Office / Laptops'"
           >Prioriza la duración de la batería en Laptops y la estabilidad de la

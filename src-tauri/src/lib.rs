@@ -26,7 +26,7 @@ mod memory;
 use executor::{execute_script_in_memory, execute_script_in_memory_readonly};
 use hardware::{get_system_hardware, collect_installed_games, HardwareResponse, ScanGamesResponse};
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
-use tauri::State;
+use tauri::{State, Manager};
 use std::time::{Instant, Duration};
 use sysinfo::System;
 use std::sync::Mutex;
@@ -180,25 +180,42 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
 fn purge_ram_native() -> Result<String, String> {
     unsafe {
         let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
-        if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &raw mut token) != 0 {
-            let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
-            let mut luid = Luid { low_part: 0, high_part: 0 };
-            if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) != 0 {
-                let tp = TokenPrivileges {
-                    privilege_count: 1,
-                    privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }],
-                };
-                AdjustTokenPrivileges(token, 0, &raw const tp, 0, std::ptr::null_mut(), std::ptr::null_mut());
-            }
-            CloseHandle(token);
+        if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &raw mut token) == 0 {
+            let err = std::io::Error::last_os_error();
+            eprintln!("[OVERLORD ERROR] OpenProcessToken failed: {}", err);
+            return Err(format!("No se pudo abrir el token del proceso: {}", err));
         }
+        
+        let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
+        let mut luid = Luid { low_part: 0, high_part: 0 };
+        if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) == 0 {
+            let err = std::io::Error::last_os_error();
+            eprintln!("[OVERLORD ERROR] LookupPrivilegeValueW failed: {}", err);
+            CloseHandle(token);
+            return Err(format!("No se pudo obtener LUID para el privilegio: {}", err));
+        }
+        
+        let tp = TokenPrivileges {
+            privilege_count: 1,
+            privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }],
+        };
+        if AdjustTokenPrivileges(token, 0, &raw const tp, 0, std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
+            let err = std::io::Error::last_os_error();
+            eprintln!("[OVERLORD ERROR] AdjustTokenPrivileges failed: {}", err);
+            CloseHandle(token);
+            return Err(format!("No se pudieron ajustar privilegios del token: {}", err));
+        }
+        CloseHandle(token);
+        
         let mut command_class = 4u32;
         let current_status = NtSetSystemInformation(80, &raw mut command_class as *mut std::ffi::c_void, 4);
 
         if current_status >= 0 {
             Ok("Lista Standby del sistema purgada correctamente sin afectar el Working Set activo.".to_string())
         } else {
-            Err(format!("Error en llamada al sistema NT: {current_status}"))
+            let err = std::io::Error::from_raw_os_error(current_status);
+            eprintln!("[OVERLORD ERROR] NtSetSystemInformation failed (status {}): {}", current_status, err);
+            Err(format!("Error en llamada al sistema NT (status {current_status}): {err}"))
         }
     }
 }
@@ -207,9 +224,23 @@ fn purge_ram_native() -> Result<String, String> {
 async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String> {
     if game_list_raw.trim().is_empty() { return Ok(()); }
 
+    // Evitar iniciar el monitor redundante si el daemon de Scheduled Task de PowerShell ya está instalado
+    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+    if hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok() {
+        println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo. Se omite el monitor redundante de Rust.");
+        return Ok(());
+    }
+
     let games: Vec<String> = game_list_raw
         .split(',')
-        .map(|s| s.trim().to_lowercase())
+        .map(|s| {
+            let clean = s.trim().to_lowercase();
+            if clean.ends_with(".exe") {
+                clean[..clean.len() - 4].to_string()
+            } else {
+                clean
+            }
+        })
         .filter(|s| !s.is_empty())
         .collect();
 
@@ -232,11 +263,21 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         break;
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
+                        // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
+                        let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+                        if hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok() {
+                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
+                            break;
+                        }
+
                         sys.refresh_processes_specifics(
                             sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
                         );
                         for (pid, process) in sys.processes() {
-                            let proc_name = process.name().to_lowercase();
+                            let mut proc_name = process.name().to_lowercase();
+                            if proc_name.ends_with(".exe") {
+                                proc_name = proc_name[..proc_name.len() - 4].to_string();
+                            }
                             if games.contains(&proc_name) {
                                 unsafe {
                                     use windows_sys::Win32::System::Threading::{
@@ -245,8 +286,9 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                                     };
                                     let handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid.as_u32());
                                     if handle != 0 {
-                                        if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS {
-                                            SetPriorityClass(handle, HIGH_PRIORITY_CLASS);
+                                        if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS && SetPriorityClass(handle, HIGH_PRIORITY_CLASS) == 0 {
+                                            let err = std::io::Error::last_os_error();
+                                            eprintln!("[OVERLORD WARNING] SetPriorityClass falló para PID {}: {}", pid.as_u32(), err);
                                         }
                                         windows_sys::Win32::Foundation::CloseHandle(handle);
                                     }
@@ -271,6 +313,13 @@ fn log_from_js(msg: String) {
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // Si el usuario abre otra instancia, la enfocamos
+            let _ = app.get_webview_window("main").map(|w| {
+                let _ = w.show();
+                let _ = w.set_focus();
+            });
+        }))
         .plugin(tauri_plugin_shell::init())
         .manage(SystemStateCache::default())
         .invoke_handler(tauri::generate_handler![

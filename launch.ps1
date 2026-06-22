@@ -1,6 +1,5 @@
 $ErrorActionPreference = "SilentlyContinue"
 $ProgressPreference = "SilentlyContinue"
-
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 Write-Host "[*] Conectando con los servidores de GitHub para buscar actualizaciones..." -ForegroundColor Gray
@@ -8,6 +7,12 @@ Write-Host "[*] Conectando con los servidores de GitHub para buscar actualizacio
 $Repo = "lordforcuadd/Overlord"
 $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
 $ReleaseData = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing
+
+$Version = if ($null -ne $ReleaseData -and $null -ne $ReleaseData.tag_name) {
+    $ReleaseData.tag_name -replace '^v', ''
+} else {
+    "4.5.0"
+}
 
 $Asset = $ReleaseData.assets | Where-Object { $_.name -eq "Overlord.exe" } | Select-Object -First 1
 $HashAsset = $ReleaseData.assets | Where-Object { $_.name -eq "Overlord.exe.sha256" } | Select-Object -First 1
@@ -31,7 +36,7 @@ $GlobalLog = Join-Path $TempDir "overlord_errors.log"
 
 if (Test-Path $GlobalLog) { Remove-Item $GlobalLog -Force }
 
-Write-Host "[*] Descargando la suite Overlord v4.5.0..." -ForegroundColor Gray
+Write-Host "[*] Descargando la suite Overlord v$Version..." -ForegroundColor Gray
 Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath -UseBasicParsing
 
 $ExecutionPermitted = $false
@@ -64,10 +69,10 @@ if (Test-Path $ExePath) {
                 Write-Host "=======================================================\n" -ForegroundColor Red
             }
         } else {
-            Write-Error "[-] Firma descargada pero ilegible. Abortando ejecucion por seguridad."
+            Write-Host "[-] Firma descargada pero ilegible. Abortando ejecucion por seguridad." -ForegroundColor Red
         }
     } else {
-        Write-Error "[-] ERROR CRÍTICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad."
+        Write-Host "[-] ERROR CRÍTICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad." -ForegroundColor Red
     }
 
     if ($ExecutionPermitted) {
@@ -76,7 +81,7 @@ if (Test-Path $ExePath) {
         
         if (Test-Path $GlobalLog) {
             Write-Host "`n=======================================================" -ForegroundColor Red
-            Write-Host "⚠️  OVERLORD V4.5.0 - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
+            Write-Host "⚠️  OVERLORD V$Version - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
             Write-Host "=======================================================" -ForegroundColor Red
             
             Get-Content $GlobalLog | ForEach-Object {

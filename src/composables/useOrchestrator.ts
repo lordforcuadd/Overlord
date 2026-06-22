@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
-import { tweaksMetadata } from "../data/tweaksMetadata";
+import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
 import Swal from "sweetalert2";
 
 export function useOrchestrator(overlordSwalConfig: any) {
@@ -149,12 +149,22 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
 
       if (result.isConfirmed) {
-        await invoke("run_optimization_script", {
-          scriptName: "shutdown",
-          isLaptop: false,
-          ramGb: 0,
-          gameList: "",
-        });
+        try {
+          await invoke("run_optimization_script", {
+            scriptName: "shutdown",
+            isLaptop: false,
+            ramGb: 0,
+            gameList: "",
+          });
+        } catch (err) {
+          console.error("Fallo al ejecutar reinicio del sistema:", err);
+          await Swal.fire({
+            title: "ERROR AL REINICIAR",
+            text: "No se pudo iniciar el proceso de reinicio. Reinicia tu PC manualmente para aplicar los cambios.",
+            icon: "error",
+            ...overlordSwalConfig,
+          });
+        }
       }
     }
   }
@@ -196,6 +206,12 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
     } catch (error) {
       console.error("[FALLO EN REVERSIÓN]:", error);
+      await Swal.fire({
+        title: "ERROR EN REVERSIÓN",
+        text: `No se pudo restaurar el estado de fábrica de Windows: ${error}`,
+        icon: "error",
+        ...overlordSwalConfig,
+      });
     } finally {
       isReverting.value = false;
     }
@@ -223,23 +239,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
 
       const { isLaptop, tier } = store.hardwareInfo;
-      const profileConfigs: Record<string, string[]> = {
-        Competitivo: [
-          "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
-          "gpuDisplay", "irqAffinity", "smartStorage", "deepTelemetry", "powerProfiles",
-          "gameHooks", "disableMitigations"
-        ],
-        "Programador & Competitivo": [
-          "peripheralLatency", "debloat", "networkOptimized", "generalPerformance",
-          "gpuDisplay", "smartStorage", "powerProfiles", "gameHooks", "disableMitigations"
-        ],
-        Programador: ["debloat", "smartStorage"],
-        "Home Office / Laptops": ["debloat", "smartStorage"],
-        "Usuario Casual": ["debloat", "smartStorage"]
-      };
-
       let matchedProfile = "Personalizado";
-      for (const [profileName, profileMods] of Object.entries(profileConfigs)) {
+      for (const [profileName, profileMods] of Object.entries(PROFILE_CONFIGS)) {
         let expected: Record<string, boolean> = {
           peripheralLatency: false,
           debloat: false,
@@ -257,7 +258,6 @@ export function useOrchestrator(overlordSwalConfig: any) {
         profileMods.forEach((mod) => {
           if (mod === "irqAffinity" && isLaptop) return;
           if (mod === "powerProfiles" && isLaptop) return;
-          if (mod === "networkOptimized" && isLaptop) return;
           if (mod === "irqAffinity" && tier === "Gama Estándar") return;
           if (mod === "disableMitigations" && tier !== "Gama Estándar") return;
           expected[mod] = true;
