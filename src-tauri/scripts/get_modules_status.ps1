@@ -124,8 +124,8 @@ if (-not $IsLaptop) {
                 foreach ($devId in $venKey.GetSubKeyNames()) {
                     $devKey = $venKey.OpenSubKey($devId, $false)
                     if ($devKey) {
-                        $class = $devKey.GetValue("Class")
-                        if ($class -eq "Net") {
+                        $classGuid = $devKey.GetValue("ClassGUID")
+                        if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
                             $devParamKey = $devKey.OpenSubKey("Device Parameters\Interrupt Management\Affinity Policy", $false)
                             if ($devParamKey) {
                                 $policy = $devParamKey.GetValue("DevicePolicy")
@@ -204,14 +204,14 @@ if (Test-Path $PowerSchemePath) {
 $GameHooksBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
 $LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
 
-# 1. Comprobar juegos configurados en games.txt si existe
+# 1. Comprobar juegos configurados en games_to_optimize.txt si existe
 $ProgData = $env:ProgramData
 if ([string]::IsNullOrWhiteSpace($ProgData)) { 
     $SysDrive = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
     $ProgData = Join-Path $SysDrive "ProgramData"
 }
-$ConfigPath = Join-Path $ProgData "Overlord\games.txt"
+$ConfigPath = Join-Path $ProgData "Overlord\games_to_optimize.txt"
 
 if (Test-Path $ConfigPath) {
     $GamesContent = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue

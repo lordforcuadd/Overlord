@@ -305,6 +305,16 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
 }
 
 #[tauri::command]
+fn stop_game_priority_monitor() -> Result<(), String> {
+    let mut guard = MONITOR_CANCELLER.lock().map_err(|e| e.to_string())?;
+    if let Some(tx) = guard.take() {
+        let _ = tx.send(());
+        println!("[RUST MONITOR]: Hilo dinámico de prioridad detenido.");
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn log_from_js(msg: String) {
     println!("[JS LOG]: {}", msg);
 }
@@ -331,6 +341,7 @@ pub fn run() {
             run_benchmark,
             purge_ram_native,
             start_game_priority_monitor,
+            stop_game_priority_monitor,
             log_from_js
         ])
         .run(tauri::generate_context!())

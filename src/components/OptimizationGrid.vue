@@ -86,9 +86,6 @@ const getModuleValue = (id: string | number | symbol) => {
 const handleModuleUpdate = (tweakId: string, newValue: boolean) => {
   store.activeProfile = "Personalizado";
   store.modules[tweakId as keyof typeof store.modules] = newValue;
-  if (tweakId === "gameHooks") {
-    store.priorityServiceSelected = newValue;
-  }
 };
 
 const handleWarningRequest = (payload: { id: string; warningText: string }) => {

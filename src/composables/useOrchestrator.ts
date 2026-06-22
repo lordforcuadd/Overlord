@@ -184,6 +184,16 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
     isReverting.value = true;
     try {
+      // 1. Detener el monitor dinámico en Rust
+      await invoke("stop_game_priority_monitor").catch((err) => {
+        console.error("[RUST MONITOR STOP FAIL]:", err);
+      });
+
+      // 2. Desinstalar el servicio/daemon de prioridad SYSTEM
+      await store.togglePriorityService(false).catch((err) => {
+        console.error("[SYSTEM DAEMON UNINSTALL FAIL]:", err);
+      });
+
       await invoke("run_optimization_script", {
         scriptName: "10_revertir",
         isLaptop: store.hardwareInfo.isLaptop,

@@ -92,11 +92,11 @@ Try {
                 foreach ($devId in $venKey.GetSubKeyNames()) {
                     $devKey = $venKey.OpenSubKey($devId, $false)
                     if ($devKey) {
-                        $class = $devKey.GetValue("Class")
+                        $classGuid = $devKey.GetValue("ClassGUID")
                         $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
                         $paramPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI\$venId\$devId\Device Parameters"
 
-                        if ($class -eq "Display" -or $class -eq "USB" -or $class -eq "MEDIA" -or $class -eq "AudioEndpoint") {
+                        if ($classGuid -eq "{4d36e968-e325-11ce-bfc1-08002be10318}" -or $classGuid -eq "{36fc9e60-c465-11cf-8056-444553540000}" -or $classGuid -eq "{4d36e97c-e325-11ce-bfc1-08002be10318}" -or $classGuid -eq "{c166523b-fe0c-4a94-a586-f1a8096b7efe}") {
                             try {
                                 if (Test-Path $MsiBackupKey) {
                                     $msiProps = Get-ItemProperty -Path $MsiBackupKey -ErrorAction SilentlyContinue
@@ -129,7 +129,7 @@ Try {
                             }
                         }
 
-                        if ($class -eq "Net") {
+                        if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
                             try {
                                 if (Test-Path $NetBackupKey) {
                                     $netProps = Get-ItemProperty -Path $NetBackupKey -ErrorAction SilentlyContinue

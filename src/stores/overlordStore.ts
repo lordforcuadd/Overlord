@@ -134,7 +134,8 @@ export const useOverlordStore = defineStore("overlord", {
         } else if (
           info.ramGb >= 16 ||
           lowerGpu.includes("rtx") ||
-          lowerGpu.includes("rx 6")
+          lowerGpu.includes("rx 6") ||
+          lowerGpu.includes("rx 7")
         ) {
           this.hardwareInfo.tier = "Gama Media-Alta";
         } else {
@@ -259,7 +260,7 @@ export const useOverlordStore = defineStore("overlord", {
           hasGameHooks = true;
         }
       });
-      this.priorityServiceSelected = hasGameHooks;
+      // Consentimiento separado: No autoseleccionar el daemon de fondo SYSTEM
       invoke("log_from_js", {
         msg: `applyProfile done: profile=${profile}, isLaptop=${isLaptop}, tier=${tier}, activeModules=${JSON.stringify(activeModules)}, modulesState=${JSON.stringify(this.modules)}`
       }).catch(() => {});

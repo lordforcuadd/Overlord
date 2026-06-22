@@ -48,9 +48,9 @@ Try {
                 foreach ($devId in $venKey.GetSubKeyNames()) {
                     $devKey = $venKey.OpenSubKey($devId, $false)
                     if ($devKey) {
-                        $class = $devKey.GetValue("Class")
+                        $classGuid = $devKey.GetValue("ClassGUID")
                         
-                        if ($class -eq "Net") {
+                        if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
                             try {
                                 $paramKey = $devKey.OpenSubKey("Device Parameters", $true)
                                 if ($paramKey) {

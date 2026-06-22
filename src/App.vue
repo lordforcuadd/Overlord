@@ -303,9 +303,6 @@ const confirmDangerousTweak = () => {
   const key = pendingTweakKey.value as keyof typeof store.modules;
   store.activeProfile = "Personalizado";
   store.modules[key] = true;
-  if (key === "gameHooks") {
-    store.priorityServiceSelected = true;
-  }
   warningModalOpen.value = false;
 };
 

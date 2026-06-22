@@ -79,15 +79,14 @@ Try {
                 foreach ($devId in $venKey.GetSubKeyNames()) {
                     $devKey = $venKey.OpenSubKey($devId, $false)
                     if ($devKey) {
-                        $class = $devKey.GetValue("Class")
-                        
+                        $classGuid = $devKey.GetValue("ClassGUID")
                         
                         $AllowMsi = $false
-                        if ($class -eq "Display") {
+                        if ($classGuid -eq "{4d36e968-e325-11ce-bfc1-08002be10318}") { # Display
                             $AllowMsi = $true
-                        } elseif ($class -eq "USB" -and -not $IsLaptop) {
+                        } elseif ($classGuid -eq "{36fc9e60-c465-11cf-8056-444553540000}" -and -not $IsLaptop) { # USB
                             $AllowMsi = $true
-                        } elseif ($class -eq "MEDIA" -or $class -eq "AudioEndpoint") {
+                        } elseif ($classGuid -eq "{4d36e97c-e325-11ce-bfc1-08002be10318}" -or $classGuid -eq "{c166523b-fe0c-4a94-a586-f1a8096b7efe}") { # MEDIA / AudioEndpoint
                             $AllowMsi = $true
                         }
 
