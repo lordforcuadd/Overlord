@@ -253,12 +253,14 @@ switch ($ToggleName) {
     }
     "disableRecall" {
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" "DWord" $Value
+        Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
         try {
             $OldEAP = $ErrorActionPreference
             $ErrorActionPreference = "Stop"
             if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
             Set-ItemProperty -Path $Path -Name "TurnOffUserCameraCapture" -Type DWord -Value $Value -Force | Out-Null
+            Set-ItemProperty -Path $Path -Name "DisableAIDataAnalysis" -Type DWord -Value $Value -Force | Out-Null
         } catch {
             Write-Error "[-] Error al desactivar Recall en HKLM: $_"
             exit 1

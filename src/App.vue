@@ -301,14 +301,13 @@ const openWarningModal = (payload: { key: string; message: string }) => {
 
 const confirmDangerousTweak = () => {
   const key = pendingTweakKey.value as keyof typeof store.modules;
-  store.activeProfile = "Personalizado";
-  store.modules[key] = true;
+  store.updateModule(key, true);
   warningModalOpen.value = false;
 };
 
 const cancelDangerousTweak = () => {
   const key = pendingTweakKey.value as keyof typeof store.modules;
-  store.modules[key] = false;
+  store.updateModule(key, false);
   warningModalOpen.value = false;
 };
 

@@ -27,11 +27,23 @@ pub struct ScanGamesResponse {
     pub detected: bool,
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct SYSTEM_POWER_STATUS {
+    ac_line_status: u8,
+    battery_flag: u8,
+    battery_life_percent: u8,
+    system_status_flag: u8,
+    battery_life_time: u32,
+    battery_full_life_time: u32,
+}
+
 extern "system" {
     fn GetLogicalProcessorInformationEx(relationship_type: u32, buffer: *mut u8, returned_length: *mut u32) -> i32;
     fn CreateFileW(lpFileName: *const u16, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *mut std::ffi::c_void, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
     fn DeviceIoControl(hDevice: *mut std::ffi::c_void, dwIoControlCode: u32, lpInBuffer: *mut std::ffi::c_void, nInBufferSize: u32, lpOutBuffer: *mut std::ffi::c_void, nOutBufferSize: u32, lpBytesReturned: *mut u32, lpOverlapped: *mut std::ffi::c_void) -> i32;
     fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
+    fn GetSystemPowerStatus(lpSystemPowerStatus: *mut SYSTEM_POWER_STATUS) -> i32;
 }
 
 static HARDWARE_CACHE: OnceCell<HardwareResponse> = OnceCell::const_new();
@@ -91,9 +103,29 @@ pub async fn get_system_hardware() -> HardwareResponse {
             })
             .unwrap_or(false);
 
+        let has_battery = unsafe {
+            let mut status = SYSTEM_POWER_STATUS {
+                ac_line_status: 255,
+                battery_flag: 255,
+                battery_life_percent: 255,
+                system_status_flag: 0,
+                battery_life_time: 0xFFFFFFFF,
+                battery_full_life_time: 0xFFFFFFFF,
+            };
+            if GetSystemPowerStatus(&mut status) != 0 {
+                status.battery_flag != 128 && status.battery_flag != 255
+            } else {
+                false
+            }
+        };
+
+        let is_laptop = is_laptop_chassis || has_battery;
+
         // Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let mut ram_speed_val = None;
-        let output = Command::new("powershell.exe")
+        let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+        let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+        let output = Command::new(&powershell_path)
             .creation_flags(0x08000000)
             .args(&[
                 "-NoProfile",
@@ -138,7 +170,7 @@ pub async fn get_system_hardware() -> HardwareResponse {
             }
         }
 
-        let mut drive_is_ssd = true;
+        let mut drive_is_ssd = false;
         let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
         let path_drive_str = format!("\\\\.\\{}", system_drive);
         let path_drive: Vec<u16> = path_drive_str.encode_utf16().chain(std::iter::once(0)).collect();
@@ -156,8 +188,8 @@ pub async fn get_system_hardware() -> HardwareResponse {
                 
                 let res = DeviceIoControl(handle, 0x002D1400, &mut query as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32, &mut descriptor as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32, &mut bytes_returned, std::ptr::null_mut());
                 if res != 0 {
-                    if descriptor.is_seek_penalty == 1 {
-                        drive_is_ssd = false;
+                    if descriptor.is_seek_penalty == 0 {
+                        drive_is_ssd = true;
                     }
                 } else {
                     let err = std::io::Error::last_os_error();
@@ -204,7 +236,7 @@ pub async fn get_system_hardware() -> HardwareResponse {
             motherboard: motherboard_name,
             ram_gb: ram_calc,
             ram_speed_mhz: ram_speed_val,
-            is_laptop: is_laptop_chassis,
+            is_laptop,
             is_hybrid,
             is_x3d,
             is_ssd: drive_is_ssd,

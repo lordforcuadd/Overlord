@@ -155,6 +155,10 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
 
     $StartTypeMap = @{ 2 = "Automatic"; 3 = "Manual"; 4 = "Disabled" }
     $ServicesFallback = @{

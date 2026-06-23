@@ -289,5 +289,14 @@ export const useOverlordStore = defineStore("overlord", {
         this.isBenchmarkTesting = false;
       }
     },
+    updateModule(tweakId: string, value: boolean) {
+      this.activeProfile = "Personalizado";
+      this.modules[tweakId as keyof typeof this.modules] = value;
+    },
+    toggleGameOptimization(index: number, optimize: boolean) {
+      if (index >= 0 && index < this.gameList.length) {
+        this.gameList[index].optimize = optimize;
+      }
+    },
   },
 });

@@ -118,7 +118,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 6. Afinidad IRQ (`06_irq_affinity.ps1`)
 
-- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) fuera del Core 0. Implementa una **política multi-núcleo selectiva compatible con RSS** (`DevicePolicy = 2` - *SpecifiedProcessors*) direccionando las interrupciones a dos cores físicos independientes (hilos lógicos 4 y 6 en CPUs >=12 hilos, o hilos lógicos 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT/HT). Esto previene stutters en aplicaciones secundarias y cuellos de botella de ancho de banda en descargas de alta velocidad (Gigabit+).
+- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) fuera del Core 0. Implementa una **política multi-núcleo selectiva compatible con RSS** (`DevicePolicy = 5` - *SpecifiedProcessors* para procesadores con 8 o más hilos lógicos, o `DevicePolicy = 3` - *OneCloseProcessor* para menos de 8 hilos lógicos) direccionando las interrupciones a dos cores físicos independientes (hilos lógicos 4 y 6 en CPUs >=12 hilos, o hilos lógicos 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT/HT). Esto previene stutters en aplicaciones secundarias y cuellos de botella de ancho de banda en descargas de alta velocidad (Gigabit+).
 - Preserva la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
 
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
@@ -139,6 +139,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Desactiva los loggers WMI de telemetría: `AutoLogger-Diagtrack-Listener`, `SQMLogger`, `DiagLog`, `AitEventLog`.
 - Desactiva `PublishUserActivities` (historial de actividad y Timeline de Windows).
 - Inyecta la directiva global de deshabilitación de Windows Error Reporting (`Disabled = 1`) en el registro de políticas de Windows para evitar que el spawn secundario del proceso `WerFault.exe` consuma CPU o interrumpa el juego al ocurrir fallos inesperados.
+- Desactiva Windows Recall e inteligencia artificial de captura local (`TurnOffUserCameraCapture = 1` y `DisableAIDataAnalysis = 1`) en las políticas de Windows AI a nivel global y de usuario (HKLM y HKCU), impidiendo que el sistema registre capturas de pantalla de la actividad del usuario.
 
 ### 9. Gestión de Energía (`09_energia.ps1`)
 

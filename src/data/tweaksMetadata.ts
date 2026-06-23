@@ -560,6 +560,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Erradicación definitiva del servicio de recolección de experiencias DiagTrack y del historial de actividades de usuario.",
       "Bloqueo perimetral en el Firewall de Windows para los ejecutables de recolección nativos (CompatTelRunner, etc.).",
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
+      "Bloqueo total de Windows Recall y captura de actividad local de Inteligencia Artificial (Windows AI).",
     ],
     registryMapping: [
       {
@@ -573,6 +574,34 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         hive: "HKEY_LOCAL_MACHINE",
         path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting",
         valueName: "Disabled",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+        valueName: "TurnOffUserCameraCapture",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+        valueName: "DisableAIDataAnalysis",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+        valueName: "TurnOffUserCameraCapture",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_CURRENT_USER",
+        path: "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+        valueName: "DisableAIDataAnalysis",
         valueType: "REG_DWORD",
         fallbackValue: null,
       },

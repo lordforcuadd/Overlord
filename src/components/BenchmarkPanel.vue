@@ -14,7 +14,10 @@ const improvementNetwork = computed(() => {
   const diff =
     store.benchmarks.before.networkLatency -
     store.benchmarks.after.networkLatency;
-  const pct = (diff / store.benchmarks.before.networkLatency) * 100;
+  const pct =
+    store.benchmarks.before.networkLatency > 0
+      ? (diff / store.benchmarks.before.networkLatency) * 100
+      : 0;
   return {
     ms: diff,
     percent: Math.max(0, Math.round(pct)),
@@ -28,7 +31,10 @@ const improvementDns = computed(() => {
   const diff =
     store.benchmarks.before.dnsResolution -
     store.benchmarks.after.dnsResolution;
-  const pct = (diff / store.benchmarks.before.dnsResolution) * 100;
+  const pct =
+    store.benchmarks.before.dnsResolution > 0
+      ? (diff / store.benchmarks.before.dnsResolution) * 100
+      : 0;
   return {
     ms: diff,
     percent: Math.max(0, Math.round(pct)),

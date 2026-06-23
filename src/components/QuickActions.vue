@@ -163,10 +163,29 @@
 <script setup>
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import Swal from "sweetalert2";
 import { useOverlordStore } from "../stores/overlordStore";
 
 const store = useOverlordStore();
 const isExecutingGlobal = ref(false);
+
+const overlordSwalConfig = {
+  background: "rgba(15, 15, 15, 0.75)",
+  color: "#e5e5e5",
+  iconColor: "#eab308",
+  confirmButtonColor: "#eab308",
+  cancelButtonColor: "#27272a",
+  customClass: {
+    popup:
+      "backdrop-blur-md border border-yellow-500/30 shadow-[0_0_25px_rgba(234,179,8,0.15)] rounded-2xl",
+    title: "text-yellow-500 font-extrabold tracking-wider",
+    htmlContainer: "text-gray-300",
+    confirmButton:
+      "text-black font-bold tracking-wide hover:scale-105 transition-transform duration-200",
+    cancelButton:
+      "text-gray-300 border border-zinc-600 hover:bg-zinc-700 transition-colors duration-200",
+  },
+};
 
 const status = ref({
   PurgeRAM: "idle",
@@ -204,6 +223,35 @@ const quickActions = [
 
 const runAction = async (actionId) => {
   if (isExecutingGlobal.value || status.value[actionId] === "loading") return;
+
+  // Diálogos de advertencia y confirmación antes de la ejecución de acciones críticas
+  if (actionId !== "PurgeRAM") {
+    let title = "";
+    let text = "";
+    if (actionId === "DeepClean") {
+      title = "¿Iniciar Limpieza Profunda?";
+      text = "Se vaciarán archivos temporales y la caché de shaders de la GPU (DirectX/Nvidia/AMD). Se recomienda cerrar juegos antes de continuar.";
+    } else if (actionId === "RepairOS") {
+      title = "¿Reparar Sistema (SFC / DISM)?";
+      text = "Este es un proceso de bajo nivel que verifica y restaura archivos corruptos de Windows. Puede tardar entre 15 y 20 minutos. No apagues la PC durante la ejecución.";
+    } else if (actionId === "FlushNet") {
+      title = "¿Liberar Red y Caché DNS?";
+      text = "Se restablecerá el catálogo de red (Winsock) y la caché DNS. Si estás conectado de forma remota (RDP/TeamViewer), se perderá la conexión. Requiere reiniciar el equipo.";
+    }
+
+    const confirm = await Swal.fire({
+      title,
+      text,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, ejecutar",
+      cancelButtonText: "Cancelar",
+      ...overlordSwalConfig,
+    });
+
+    if (!confirm.isConfirmed) return;
+  }
+
   isExecutingGlobal.value = true;
   status.value[actionId] = "loading";
 

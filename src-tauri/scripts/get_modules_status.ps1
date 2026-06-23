@@ -129,7 +129,7 @@ if (-not $IsLaptop) {
                             $devParamKey = $devKey.OpenSubKey("Device Parameters\Interrupt Management\Affinity Policy", $false)
                             if ($devParamKey) {
                                 $policy = $devParamKey.GetValue("DevicePolicy")
-                                if ($null -ne $policy -and ($policy -eq 2 -or $policy -eq 3 -or $policy -eq 4)) {
+                                if ($null -ne $policy -and ($policy -eq 5 -or $policy -eq 3)) {
                                     $Status['irqAffinity'] = $true
                                 }
                                 $devParamKey.Close()

@@ -64,8 +64,11 @@ async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb
     let b64_encoded = encode_utf16_base64(&unified_script);
 
     let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script }";
-    let mut child = Command::new("powershell.exe")
+    let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+    let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+    let mut child = Command::new(&powershell_path)
         .creation_flags(0x08000000)
+        .kill_on_drop(true)
         .args(&[
             "-NoProfile",
             "-NonInteractive",
@@ -84,7 +87,18 @@ async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb
         stdin.write_all(b64_encoded.as_bytes()).await.map_err(|e| format!("Error al escribir en stdin: {}", e))?;
     } 
 
-    let output = child.wait_with_output().await.map_err(|e| format!("Error esperando la salida del proceso: {}", e))?;
+    let output_res = tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        child.wait_with_output()
+    ).await;
+
+    let output = match output_res {
+        Ok(Ok(out)) => out,
+        Ok(Err(e)) => return Err(format!("Error esperando la salida del proceso: {}", e)),
+        Err(_) => {
+            return Err("El script de optimizacion excedio el tiempo limite de ejecucion de 300 segundos.".to_string());
+        }
+    };
 
     if !output.status.success() {
         let error_str = String::from_utf8_lossy(&output.stderr).trim().to_string();

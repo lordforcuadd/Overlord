@@ -51,3 +51,18 @@ pub fn get_live_metrics(cache: &SystemStateCache) -> LiveMetricsResponse {
         ram_percentage,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_live_metrics_does_not_panic() {
+        let cache = SystemStateCache::default();
+        let metrics = get_live_metrics(&cache);
+        assert!(metrics.cpu_usage >= 0.0);
+        assert!(metrics.ram_total >= 0.0);
+        assert!(metrics.ram_used >= 0.0);
+        assert!(metrics.ram_percentage >= 0.0 && metrics.ram_percentage <= 100.0);
+    }
+}

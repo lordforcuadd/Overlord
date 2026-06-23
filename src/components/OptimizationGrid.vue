@@ -29,7 +29,8 @@
             <label class="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                v-model="game.optimize"
+                :checked="game.optimize"
+                @change="store.toggleGameOptimization(index, ($event.target as HTMLInputElement).checked)"
                 :disabled="!game.detected"
                 class="sr-only peer"
               />
@@ -51,6 +52,7 @@
                 type="checkbox"
                 v-model="store.priorityServiceSelected"
                 @change="handleServiceToggle"
+                :disabled="isServiceLoading"
                 class="sr-only peer"
               />
               <div
@@ -65,6 +67,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata } from "../data/tweaksMetadata";
 import ModuleCard from "./ModuleCard.vue";
@@ -78,19 +81,17 @@ const emit = defineEmits<{
 }>();
 
 const store = useOverlordStore();
+const isServiceLoading = ref(false);
 
 const getModuleValue = (id: string | number | symbol) => {
   return store.modules[id as keyof typeof store.modules];
 };
 
 const handleModuleUpdate = (tweakId: string, newValue: boolean) => {
-  store.activeProfile = "Personalizado";
-  store.modules[tweakId as keyof typeof store.modules] = newValue;
+  store.updateModule(tweakId, newValue);
 };
 
 const handleWarningRequest = (payload: { id: string; warningText: string }) => {
-  store.activeProfile = "Personalizado";
-
   emit("trigger-warning", {
     key: payload.id,
     message: payload.warningText,
@@ -98,9 +99,18 @@ const handleWarningRequest = (payload: { id: string; warningText: string }) => {
 };
 
 const handleServiceToggle = async () => {
-  const checked = store.priorityServiceSelected;
-  if (props.cardStatus['gameHooks'] === 'success') {
-    await store.togglePriorityService(checked);
+  if (isServiceLoading.value) return;
+  isServiceLoading.value = true;
+  
+  try {
+    const checked = store.priorityServiceSelected;
+    if (props.cardStatus['gameHooks'] === 'success') {
+      await store.togglePriorityService(checked);
+    }
+  } catch (err) {
+    console.error("Fallo al alternar el servicio de prioridades:", err);
+  } finally {
+    isServiceLoading.value = false;
   }
 };
 </script>
