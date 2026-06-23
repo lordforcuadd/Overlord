@@ -1,32 +1,38 @@
 $ErrorActionPreference = "Continue"
 
 
-$Username = $null
+$FullUsername = $null
 try {
-    $Username = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
-    if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+    $FullUsername = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
 } catch {}
 
-if ([string]::IsNullOrWhiteSpace($Username)) {
+if ([string]::IsNullOrWhiteSpace($FullUsername)) {
     try {
-        $Username = (Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UserName -First 1)
-        if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+        $FullUsername = (Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UserName -First 1)
     } catch {}
 }
 
-if ([string]::IsNullOrWhiteSpace($Username)) {
-    $Username = $env:USERNAME
+if ([string]::IsNullOrWhiteSpace($FullUsername)) {
+    $FullUsername = "$env:USERDOMAIN\$env:USERNAME"
 }
 
+$LeafUsername = $FullUsername
+if ($FullUsername -match '\\(.+)$') { $LeafUsername = $Matches[1] }
+
 $UserSID = ""
-if (-not [string]::IsNullOrWhiteSpace($Username)) {
+if (-not [string]::IsNullOrWhiteSpace($FullUsername)) {
     try {
-        $NtAccount = New-Object System.Security.Principal.NTAccount($Username)
+        $NtAccount = New-Object System.Security.Principal.NTAccount($FullUsername)
         $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
     } catch {
         try {
-            $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $Username }).SID
-        } catch {}
+            $NtAccount = New-Object System.Security.Principal.NTAccount($LeafUsername)
+            $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
+        } catch {
+            try {
+                $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $LeafUsername }).SID
+            } catch {}
+        }
     }
 }
 
@@ -35,7 +41,11 @@ if ([string]::IsNullOrWhiteSpace($UserSID)) {
         $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($Explorer) {
             $Owner = Invoke-CimMethod -InputObject $Explorer -MethodName GetOwner -ErrorAction SilentlyContinue
-            $NtAccount = New-Object System.Security.Principal.NTAccount($Owner.User)
+            $NtAccount = if (-not [string]::IsNullOrWhiteSpace($Owner.Domain)) {
+                New-Object System.Security.Principal.NTAccount($Owner.Domain, $Owner.User)
+            } else {
+                New-Object System.Security.Principal.NTAccount($Owner.User)
+            }
             $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
         }
     } catch {}
@@ -115,7 +125,7 @@ $Qol = @{
     launchToThisPC     = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" 1
     disableExplorerAds = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" 0
     disableScoobe      = ((Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" 0) -and (Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-310093Enabled" 0))
-    disableFilterKeys  = Get-RegistryValue $null "Control Panel\Accessibility\Keyboard Response" "Flags" "122"
+    disableFilterKeys  = ((Get-RegistryValue $null "Control Panel\Accessibility\Keyboard Response" "Flags" "122") -or (Get-RegistryValue $null "Control Panel\Accessibility\Keyboard Response" "Flags" "59"))
     disableWidgets     = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" 0
     zeroStartupDelay   = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" 0
     enableGameMode     = ((Get-RegistryValue $null "Software\Microsoft\GameBar" "AllowAutoGameMode" 1) -and (Get-RegistryValue $null "Software\Microsoft\GameBar" "AutoGameModeEnabled" 1))

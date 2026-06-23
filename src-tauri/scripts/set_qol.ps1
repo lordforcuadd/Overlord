@@ -18,32 +18,38 @@ if ($AdminToggles -contains $ToggleName -and -not $isAdmin) {
     exit 1
 }
 
-$Username = $null
+$FullUsername = $null
 try {
-    $Username = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
-    if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+    $FullUsername = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
 } catch {}
 
-if ([string]::IsNullOrWhiteSpace($Username)) {
+if ([string]::IsNullOrWhiteSpace($FullUsername)) {
     try {
-        $Username = (Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UserName -First 1)
-        if ($Username -match '\\(.+)$') { $Username = $Matches[1] }
+        $FullUsername = (Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UserName -First 1)
     } catch {}
 }
 
-if ([string]::IsNullOrWhiteSpace($Username)) {
-    $Username = $env:USERNAME
+if ([string]::IsNullOrWhiteSpace($FullUsername)) {
+    $FullUsername = "$env:USERDOMAIN\$env:USERNAME"
 }
 
+$LeafUsername = $FullUsername
+if ($FullUsername -match '\\(.+)$') { $LeafUsername = $Matches[1] }
+
 $UserSID = ""
-if (-not [string]::IsNullOrWhiteSpace($Username)) {
+if (-not [string]::IsNullOrWhiteSpace($FullUsername)) {
     try {
-        $NtAccount = New-Object System.Security.Principal.NTAccount($Username)
+        $NtAccount = New-Object System.Security.Principal.NTAccount($FullUsername)
         $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
     } catch {
         try {
-            $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $Username }).SID
-        } catch {}
+            $NtAccount = New-Object System.Security.Principal.NTAccount($LeafUsername)
+            $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
+        } catch {
+            try {
+                $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $LeafUsername }).SID
+            } catch {}
+        }
     }
 }
 
@@ -52,7 +58,11 @@ if ([string]::IsNullOrWhiteSpace($UserSID)) {
         $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($Explorer) {
             $Owner = Invoke-CimMethod -InputObject $Explorer -MethodName GetOwner -ErrorAction SilentlyContinue
-            $NtAccount = New-Object System.Security.Principal.NTAccount($Owner.User)
+            $NtAccount = if (-not [string]::IsNullOrWhiteSpace($Owner.Domain)) {
+                New-Object System.Security.Principal.NTAccount($Owner.Domain, $Owner.User)
+            } else {
+                New-Object System.Security.Principal.NTAccount($Owner.User)
+            }
             $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
         }
     } catch {}
@@ -206,8 +216,23 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353694Enabled" "DWord" $scoobeVal
     }
     "disableFilterKeys" {
-        $filterVal = if ($Value -eq 1) { "122" } else { "126" }
-        Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" $filterVal
+        $CurrentFlags = $null
+        foreach ($base in $Targets) {
+            $fullPath = Join-Path $base "Control Panel\Accessibility\Keyboard Response"
+            if (Test-Path $fullPath) {
+                $CurrentFlags = (Get-ItemProperty -Path $fullPath -ErrorAction SilentlyContinue).Flags
+                if ($null -ne $CurrentFlags) { break }
+            }
+        }
+        if ($Value -eq 1) {
+            if ($CurrentFlags -eq "59") {
+                # Ya está optimizado y con teclas filtro desactivadas. No tocar para no romper latencia de periféricos.
+            } else {
+                Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" "122"
+            }
+        } else {
+            Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" "126"
+        }
     }
     "disableCopilot" {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" $(if ($Value -eq 1) {0} else {1})
@@ -370,21 +395,18 @@ switch ($ToggleName) {
 }
 
 if ($RequiresExplorerRestart) {
-    Stop-Process -Name explorer -Force
-    Start-Sleep -Seconds 1
-    if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
-        Start-Process explorer.exe | Out-Null
-    }
+    Write-Output "OK: $ToggleName establecido a $($Value -eq 1) (REQUIRES_EXPLORER_RESTART)"
 } else {
     if (-not ([System.Management.Automation.PSTypeName]'Win32.User32').Type) {
         Add-Type -MemberDefinition @'
 [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutA")]
 public static extern System.IntPtr SendMessageTimeout(System.IntPtr hWnd, uint Msg, System.IntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out System.IntPtr lpdwResult);
-'@ -Name "User32" -Namespace "Win32"
+'@ -Name "User32" -Namespace "Win32" -ErrorAction SilentlyContinue | Out-Null
     }
     $result = [IntPtr]::Zero
-    [Win32.User32]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, "Environment", 2, 5000, [ref] $result)
+    try {
+        [Win32.User32]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, "Environment", 2, 5000, [ref] $result) | Out-Null
+    } catch {}
+    Write-Output "OK: $ToggleName establecido a $($Value -eq 1)"
 }
-
-Write-Output "OK: $ToggleName establecido a $($Value -eq 1)"
 exit 0

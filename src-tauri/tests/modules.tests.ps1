@@ -224,20 +224,115 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $RevertContent = Get-Content -Path $RevertPath -Raw
         }
 
-        It "Debe comprobar que cada Backup-OverlordRegistryValue con llave estatica tenga su correspondiente restauracion en el revert" {
+        It "Debe comprobar que cada Backup-OverlordRegistryValue en scripts de aplicacion tenga un restaurador simetrico en la reversion" {
+            $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1'
+            } | Where-Object { $_.Name -ne '10_revertir.ps1' }
+
+            foreach ($File in $ModuleFiles) {
+                $Content = Get-Content -Path $File.FullName -Raw
+                $Calls = [regex]::Matches($Content, 'Backup-OverlordRegistryValue\s+[^|\n;]+')
+                foreach ($Call in $Calls) {
+                    $Text = $Call.Value
+                    $ValueName = $null
+                    $SubFolder = $null
+                    if ($Text -match '-ValueName\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $ValueName = $Matches[1].Trim() }
+                    if ($Text -match '-BackupSubFolder\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $SubFolder = $Matches[1].Trim() }
+                    
+                    # Excluir subcarpetas de servicios y HibernateEnabled porque se restauran de forma personalizada
+                    if ($null -ne $ValueName -and $null -ne $SubFolder -and $SubFolder -notmatch '^Services\\' -and $ValueName -ne 'HibernateEnabled') {
+                        $EscapedVal = [regex]::Escape($ValueName)
+                        $EscapedSub = [regex]::Escape($SubFolder)
+                        
+                        $Found = $false
+                        if ($RevertContent -match "-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?[^|;\n]*?-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?") {
+                            $Found = $true
+                        } elseif ($RevertContent -match "-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?[^|;\n]*?-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
+                            $Found = $true
+                        }
+                        
+                        # Fallback para variables o loops (ej. $PKey)
+                        if (!$Found -and ($ValueName -match '^\$' -or $SubFolder -match '^\$')) {
+                            if ($RevertContent -match "-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
+                                $Found = $true
+                            }
+                        }
+                        
+                        if (-not $Found) {
+                            Write-Host "[-] ERROR SIMETRIA BACKUP -> REVERT: No se encontro restauracion para ValueName = '$ValueName', SubFolder = '$SubFolder' (Origen: $($File.Name))" -ForegroundColor Red
+                        }
+                        $Found | Should Be $true
+                    }
+                }
+            }
+        }
+
+        It "Debe comprobar que cada restaurador de registro en la reversion tenga un Backup-OverlordRegistryValue en algun script de aplicacion" {
+            $RevertCalls = [regex]::Matches($RevertContent, '(Invoke-OverlordSafeRestore|Restore-OverlordRegistryValue)\s+[^|\n;]+')
+            
+            $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1'
+            } | Where-Object { $_.Name -ne '10_revertir.ps1' }
+            
+            $AppScriptsContent = ""
+            foreach ($File in $ModuleFiles) {
+                $AppScriptsContent += Get-Content -Path $File.FullName -Raw
+            }
+            
+            foreach ($Call in $RevertCalls) {
+                $Text = $Call.Value
+                $ValueName = $null
+                $SubFolder = $null
+                if ($Text -match '-ValueName\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $ValueName = $Matches[1].Trim() }
+                if ($Text -match '-BackupSubFolder\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $SubFolder = $Matches[1].Trim() }
+                
+                # Omitir los parámetros genéricos del helper definidos en la firma de Invoke-OverlordSafeRestore
+                if ($null -ne $ValueName -and $null -ne $SubFolder -and $ValueName -ne '$ValueName' -and $SubFolder -ne '$BackupSubFolder') {
+                    $EscapedVal = [regex]::Escape($ValueName)
+                    $EscapedSub = [regex]::Escape($SubFolder)
+                    
+                    $Found = $false
+                    if ($AppScriptsContent -match "Backup-OverlordRegistryValue[^|;\n]*?-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?[^|;\n]*?-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?") {
+                        $Found = $true
+                    } elseif ($AppScriptsContent -match "Backup-OverlordRegistryValue[^|;\n]*?-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?[^|;\n]*?-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
+                        $Found = $true
+                    }
+                    
+                    # Fallback para variables o loops (ej. $PKey)
+                    if (!$Found -and ($ValueName -match '^\$' -or $SubFolder -match '^\$')) {
+                        if ($AppScriptsContent -match "Backup-OverlordRegistryValue[^|;\n]*?-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
+                            $Found = $true
+                        }
+                    }
+                    
+                    if (-not $Found) {
+                        Write-Host "[-] ERROR SIMETRIA REVERT -> BACKUP: No se encontro backup para ValueName = '$ValueName', SubFolder = '$SubFolder' en los scripts de aplicacion" -ForegroundColor Red
+                    }
+                    $Found | Should Be $true
+                }
+            }
+        }
+
+        It "Debe certificar que ninguna llamada SETACVALUEINDEX o SETDCVALUEINDEX en scripts de aplicacion carezca de su correspondiente backup/query" {
             $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
                 $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
             foreach ($File in $ModuleFiles) {
                 $Content = Get-Content -Path $File.FullName -Raw
-                # Extrae todas las llamadas como: -ValueName "Win32PrioritySeparation"
-                $Matches = [regex]::Matches($Content, '-ValueName\s+["'']([^"'']+)["'']')
-                foreach ($m in $Matches) {
-                    $ValueName = $m.Groups[1].Value
-                    if ($ValueName -notmatch '\$') { # Omitir variables dinamicas en regex estatico
-                        ($RevertContent -match "\b$ValueName\b") | Should Be $true
-                    }
+                if ($Content -match "SETACVALUEINDEX|SETDCVALUEINDEX") {
+                    ($Content -match "powercfg\s+/q" -or $Content -match "Backup-OverlordPowerSetting" -or $Content -match "Backup-OverlordRegistryValue") | Should Be $true
+                }
+            }
+        }
+
+        It "Debe verificar que get_modules_status.ps1 no use Test-Path sobre carpetas de backup como proxy de estado sin validacion real" {
+            $StatusContent = Get-Content -Path (Join-Path $ScriptsPath "get_modules_status.ps1") -Raw
+            $TestPathCalls = [regex]::Matches($StatusContent, 'Test-Path\s+\$(\w+Backup\w*|\w*Backup\w*)')
+            foreach ($Call in $TestPathCalls) {
+                $VarName = $Call.Groups[1].Value
+                if ($VarName -ne "GameHooksBackup") {
+                    throw "Se detecto un Test-Path sobre la variable de backup `$$VarName` en get_modules_status.ps1, lo cual viola la Regla 8 de AGENTS.md"
                 }
             }
         }
@@ -257,7 +352,6 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $DebloatContent = Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw
             $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
             
-            # Buscar rutas tipicas de tareas de Windows
             $TaskMatches = [regex]::Matches($DebloatContent + $TelemetryContent, '["''](Microsoft\\Windows\\[^"'']+)["'']')
             foreach ($m in $TaskMatches) {
                 $FullPath = $m.Groups[1].Value
@@ -268,7 +362,6 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
         It "Debe comprobar que todos los Autologgers desactivados en telemetria tengan su revert en el desinstalador" {
             $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
-            # Buscar nombres de loggers
             $LoggerMatches = [regex]::Matches($TelemetryContent, '(AutoLogger-[a-zA-Z0-9-]+|SQMLogger|DiagLog|AitEventLog)')
             foreach ($m in $LoggerMatches) {
                 $LoggerName = $m.Groups[1].Value

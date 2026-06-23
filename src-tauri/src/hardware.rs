@@ -2,10 +2,9 @@ use serde::Serialize;
 use std::path::Path;
 use winreg::enums::*;
 use winreg::RegKey;
-use std::process::Command; 
+use tokio::process::Command; 
 use sysinfo::System;
-use std::os::windows::process::CommandExt;
-use std::sync::OnceLock;
+use tokio::sync::OnceCell;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -35,11 +34,10 @@ extern "system" {
     fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
 }
 
-static HARDWARE_CACHE: OnceLock<HardwareResponse> = OnceLock::new();
+static HARDWARE_CACHE: OnceCell<HardwareResponse> = OnceCell::const_new();
 
-
-pub fn get_system_hardware() -> HardwareResponse {
-    HARDWARE_CACHE.get_or_init(|| {
+pub async fn get_system_hardware() -> HardwareResponse {
+    HARDWARE_CACHE.get_or_init(|| async {
         let mut sys = System::new_all();
         sys.refresh_memory();
         sys.refresh_cpu();
@@ -93,7 +91,7 @@ pub fn get_system_hardware() -> HardwareResponse {
             })
             .unwrap_or(false);
 
-        // Consultar velocidad de RAM de forma síncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
+        // Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let mut ram_speed_val = None;
         let output = Command::new("powershell.exe")
             .creation_flags(0x08000000)
@@ -102,7 +100,8 @@ pub fn get_system_hardware() -> HardwareResponse {
                 "-Command",
                 "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
             ])
-            .output();
+            .output()
+            .await;
         if let Ok(out) = output {
             if out.status.success() {
                 let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -119,7 +118,8 @@ pub fn get_system_hardware() -> HardwareResponse {
             let output = Command::new("wmic.exe")
                 .creation_flags(0x08000000)
                 .args(&["path", "Win32_PhysicalMemory", "get", "ConfiguredClockSpeed"])
-                .output();
+                .output()
+                .await;
             if let Ok(out) = output {
                 if out.status.success() {
                     let text = String::from_utf8_lossy(&out.stdout);
@@ -209,7 +209,7 @@ pub fn get_system_hardware() -> HardwareResponse {
             is_x3d,
             is_ssd: drive_is_ssd,
         }
-    }).clone()
+    }).await.clone()
 }
 
 fn get_steam_library_paths() -> Vec<String> {
@@ -312,7 +312,6 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    
     if let Ok(steam_key) = hkcu.open_subkey("Software\\Valve\\Steam\\Apps") {
         for app_id in steam_key.enum_keys().map(|x| x.unwrap_or_default()) {
             if let Ok(app_subkey) = steam_key.open_subkey(&app_id) {
@@ -332,7 +331,6 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    
     let steam_paths = get_steam_library_paths();
     for path in &steam_paths {
         for game in catalog.iter_mut() {
@@ -342,7 +340,6 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    
     let epic_games = get_epic_installed_games();
     for (folder_name, install_loc) in &epic_games {
         let lower_folder = folder_name.to_lowercase();
@@ -355,7 +352,6 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    
     let gog_paths = ["SOFTWARE\\GOG.com\\Games", "SOFTWARE\\Wow6432Node\\GOG.com\\Games"];
     for path in &gog_paths {
         if let Ok(gog_key) = hklm.open_subkey(path) {
@@ -372,7 +368,6 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    
     let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
     let common_epic_paths = [format!("{}\\Epic Games", program_files), "D:\\Epic Games".to_string()];
     for path in &common_epic_paths {

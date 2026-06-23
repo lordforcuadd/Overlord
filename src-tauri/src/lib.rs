@@ -67,7 +67,7 @@ fn check_backup_exists() -> bool {
 
 #[tauri::command]
 async fn fetch_hardware() -> HardwareResponse {
-    get_system_hardware()
+    get_system_hardware().await
 }
 
 #[tauri::command]

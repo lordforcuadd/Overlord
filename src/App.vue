@@ -44,7 +44,7 @@
 
       <div v-if="store.isInitialized">
         <QuickActions />
-        <QolPanel />
+        <QolPanel :swalConfig="overlordSwalConfig" />
         <ProfileSelector />
         <BenchmarkPanel class="mb-6" />
         <OptimizationGrid

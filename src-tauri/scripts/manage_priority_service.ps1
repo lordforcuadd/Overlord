@@ -25,10 +25,16 @@ if ($Action -eq "install") {
         $Acl.SetAccessRuleProtection($true, $false)
         $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
         $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $AdminsRule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administradores", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
         $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $UsersRule2  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Usuarios", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+        
         $Acl.AddAccessRule($SystemRule)
         $Acl.AddAccessRule($AdminsRule)
+        try { $Acl.AddAccessRule($AdminsRule2) } catch {}
         $Acl.AddAccessRule($UsersRule)
+        try { $Acl.AddAccessRule($UsersRule2) } catch {}
+        
         Set-Acl -Path $InstallDir -AclObject $Acl | Out-Null
     }
 
@@ -63,27 +69,26 @@ while ($true) {
         if ($Games) {
             $GamesList = $Games -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
             if ($GamesList) {
-                $ActiveProcs = Get-Process -ErrorAction Stop
-                $ActiveProcsHash = $ActiveProcs | Group-Object -Property Name -AsHashTable -AsString
                 foreach ($Game in $GamesList) {
                     $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
-                    $Procs = $ActiveProcsHash[$ProcName]
-                    if ($null -ne $Procs) {
-                        foreach ($Proc in $Procs) {
-                            try {
-                                if ($Proc.PriorityClass -ne 'High') {
-                                    $Proc.PriorityClass = 'High'
-                                    Write-DaemonLog "Establecida prioridad ALTA para el proceso: $($Proc.Name) (PID: $($Proc.Id))"
+                    try {
+                        $Procs = [System.Diagnostics.Process]::GetProcessesByName($ProcName)
+                        if ($null -ne $Procs -and $Procs.Count -gt 0) {
+                            foreach ($Proc in $Procs) {
+                                try {
+                                    if ($Proc.PriorityClass -ne 'High') {
+                                        $Proc.PriorityClass = 'High'
+                                        Write-DaemonLog "Establecida prioridad ALTA para el proceso: $($Proc.Name) (PID: $($Proc.Id))"
+                                    }
+                                } catch {
+                                    Write-DaemonLog "No se pudo cambiar la prioridad del proceso $($Proc.Name): $_"
+                                } finally {
+                                    if ($null -ne $Proc) { $Proc.Dispose() }
                                 }
-                            } catch {
-                                Write-DaemonLog "No se pudo cambiar la prioridad del proceso $($Proc.Name): $_"
                             }
                         }
-                    }
-                }
-                if ($ActiveProcs) {
-                    foreach ($P in $ActiveProcs) {
-                        try { $P.Close(); $P.Dispose() } catch {}
+                    } catch {
+                        Write-DaemonLog "Error buscando procesos para $ProcName: $_"
                     }
                 }
             }

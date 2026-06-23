@@ -27,33 +27,12 @@ function Invoke-OverlordSafeRestore {
         $TargetKey = $TargetKey -replace '^HKCU:', $global:HKCU_Path
     }
     
-    # Validar si el modulo fue aplicado alguna vez verificando la raiz de su carpeta de backup
-    $BackupRoot = ($BackupSubFolder -split '\\' | Select-Object -First 1)
-    $BackupRootKey = "HKLM:\SOFTWARE\Overlord\Backup\$BackupRoot"
-    if (!(Test-Path $BackupRootKey)) {
-        return
-    }
-
     $BackupKey = "HKLM:\SOFTWARE\Overlord\Backup\$BackupSubFolder"
-    $HasBackup = $false
     if (Test-Path $BackupKey) {
         $BckVal = Get-SafeRegistryValue -Path $BackupKey -Name $ValueName
         if ($null -ne $BckVal) {
-            $HasBackup = $true
-        }
-    }
-    if ($HasBackup) {
-        if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Restore-OverlordRegistryValue -TargetKey $TargetKey -ValueName $ValueName -BackupSubFolder $BackupSubFolder | Out-Null
-        }
-    } else {
-        if ($null -ne $DefaultValue) {
-            if (!(Test-Path $TargetKey)) { New-Item -Path $TargetKey -Force | Out-Null }
-            Set-ItemProperty -Path $TargetKey -Name $ValueName -Type $DefaultType -Value $DefaultValue -Force | Out-Null
-        } else {
-            # Si no hay backup y el valor por defecto es nulo, eliminamos la propiedad del registro para restaurar el stock del sistema
-            if (Test-Path $TargetKey) {
-                Remove-ItemProperty -Path $TargetKey -Name $ValueName -ErrorAction SilentlyContinue | Out-Null
+            if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                Restore-OverlordRegistryValue -TargetKey $TargetKey -ValueName $ValueName -BackupSubFolder $BackupSubFolder | Out-Null
             }
         }
     }
@@ -255,24 +234,24 @@ Try {
         "Microsoft\Windows\Shell\FamilySafetyRefreshTask"
     )
     $TasksBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Tasks"
-    foreach ($Task in $Tasks) {
-        $TPath = "\" + (Split-Path $Task -Parent)
-        $TName = Split-Path $Task -Leaf
-        $TaskKeyName = $Task -replace '\\', '_'
-        
-        $WasEnabled = 1 # Por defecto habilitada si no hay backup (comportamiento seguro de stock)
-        if (Test-Path $TasksBackupPath) {
-            $props = Get-ItemProperty -Path $TasksBackupPath -ErrorAction SilentlyContinue
+    if (Test-Path $TasksBackupPath) {
+        $props = Get-ItemProperty -Path $TasksBackupPath -ErrorAction SilentlyContinue
+        foreach ($Task in $Tasks) {
+            $TPath = "\" + (Split-Path $Task -Parent)
+            $TName = Split-Path $Task -Leaf
+            $TaskKeyName = $Task -replace '\\', '_'
+            
+            $WasEnabled = 1 # Por defecto habilitada si no hay backup (comportamiento seguro de stock)
             $SavedState = if ($null -ne $props -and $null -ne $props.PSObject.Properties[$TaskKeyName]) { $props.PSObject.Properties[$TaskKeyName].Value } else { $null }
             if ($null -ne $SavedState) {
                 $WasEnabled = $SavedState
             }
-        }
-        
-        if ($WasEnabled -eq 1) {
-            Enable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
-        } else {
-            Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
+            
+            if ($WasEnabled -eq 1) {
+                Enable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
+            } else {
+                Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
+            }
         }
     }
 
@@ -317,9 +296,7 @@ Try {
         }
     }
 
-    netsh int tcp set global rss=enabled | Out-Null
-    netsh int tcp set global autotuninglevel=normal | Out-Null
-    netsh int tcp set global ecncapability=default | Out-Null
+
 
     $NetworkBackupRoot = "$BackupPath\Network"
     if (Test-Path $NetworkBackupRoot) {

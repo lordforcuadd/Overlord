@@ -36,12 +36,37 @@ Este archivo es la memoria persistente entre sesiones de Antigravity, que no rec
 
 `README.md` describió durante varias versiones `FTH`, `SvcHostSplitThresholdInKB`, `disabledynamictick`, `MouseDataQueueSize`/`KeyboardDataQueueSize`, `MaxCacheTtl`/`TcpTimedWaitDelay`, `TdrDelay`/`SwapEffectUpgradeDisable` — todas funciones que ya habían sido eliminadas del código real. `src/data/tweaksMetadata.ts` (lo que el usuario ve dentro de la app) se mantuvo correctamente sincronizado en paralelo — el README es el que se desincronizó. Ambos deben actualizarse en el mismo commit que añade o quita un tweak.
 
-### 9. Justificaciones técnicas inventadas para tweaks ya removidos
+### 10. PowerShell Strict-Mode array casting mismatch en `11_game_hooks.ps1`
 
-En una iteración de este mismo documento de reglas, se escribieron razones técnicas específicas para 6 tweaks en una "lista negra" — pero al menos 3 de esas razones resultaron ser inexactas o no verificadas: se afirmó que FTH causaba "overhead en la asignación de RAM" (la razón real discutida fue remoción de una red de seguridad ante corrupción de memoria, dirección distinta); se afirmó que `MouseDataQueueSize`/`KeyboardDataQueueSize` "provocan stutters a tasas altas" (la razón original del tweak era exactamente la contraria: prevenir drops de input a tasas altas; no hay evidencia de por qué se quitó); se afirmó que `disabledynamictick` "genera problemas de temporización" llamándolo placebo (es un mecanismo real y documentado con un tradeoff de energía vs. consistencia de timer, no un placebo). Regla: nunca inventes un mecanismo técnico plausible para justificar una decisión pasada sin verificarlo. Es preferible escribir "removido sin razón documentada, no reintroducir sin investigar" que inventar una causa falsa.
+Al habilitar el modo estricto en PowerShell, la conversión explícita o asignación de variables de tipo array puede fallar si no se declara adecuadamente. Específicamente, en `11_game_hooks.ps1`, PowerShell fallaba con excepciones de tipo Strict-Mode al realizar `AddRange` de un valor escalar convertido a `[string[]]` si no se manejaba explícitamente, impidiendo que el módulo de prioridades de juegos se cargue correctamente.
+
+### 11. Salida anticipada (early exit) en la purga de RAM nativa (`purge_ram_native` en Rust)
+
+La función nativa de Rust `purge_ram_native` en `src-tauri/src/memory.rs` fallaba o salía de forma prematura en ciertas versiones de Windows debido a problemas de privilegios o a que no ejecutaba ambas fases del vaciado (vaciar la lista de standby y el working set de todos los procesos). Esto causaba que la liberación de memoria RAM no fuera efectiva o diera falsos positivos en el frontend.
+
+### 12. Detección mentirosa (falsos positivos) en `get_modules_status.ps1` al usar proxy de carpetas
+
+El lector de estado reportaba falsos positivos (`true`) para módulos como `peripheralLatency`, `smartStorage` y `gpuDisplay` simplemente verificando la existencia de la ruta de la carpeta de backup en el Registro en lugar de verificar los valores reales activos en el sistema (por ejemplo, el valor real de `Win32PrioritySeparation` para periféricos, o `NtfsDisableLastAccessUpdate` en el sistema de archivos para almacenamiento). Esto fue solucionado para asegurar que `get_modules_status.ps1` siempre consulte el estado real activo del sistema.
+
+### 13. Excepciones por variables no declaradas o nulas bajo Strict Mode
+
+Varios scripts de Overlord fallaron en producción al intentar acceder a propiedades nulas o variables no definidas globalmente (como usar `$RamGB` o `$IsLaptop` en `get_modules_status.ps1` sin declararlas en un bloque `param(...)` o sin validación de nulos previa). Esto provocaba que los scripts de PowerShell terminaran abruptamente con errores críticos bajo strict mode.
+
+### 14. Revertir Windows Error Reporting (`WER\Disabled`) con valor por defecto `$null`
+
+En `10_revertir.ps1`, la llamada a `Invoke-OverlordSafeRestore` para `Windows Error Reporting\Disabled` usaba un valor de restauración por defecto de `$null`. Si el usuario no tenía un backup previo, la restauración con `$null` simplemente no hacía nada (ya que la función omitía valores nulos de restauración), dejando el reporte de errores de Windows permanentemente desactivado (`Disabled = 1`) en lugar de eliminar el valor o restaurarlo a `0`. Se solucionó especificando un valor por defecto apropiado o eliminando físicamente la propiedad si no existía el backup (`_ABSENT_`).
+
+### 15. Desinstalación incompleta del daemon en `manage_priority_service.ps1`
+
+La sección de desinstalación (`uninstall`) del daemon de prioridad de juegos desregistraba la tarea programada con `Unregister-ScheduledTask`, pero no detenía de forma garantizada el proceso en ejecución de PowerShell en segundo plano (el cual corre en un ciclo infinito `while ($true)`) ni borraba la carpeta de instalación `InstallDir`, dejando el script y los logs remanentes en el sistema del usuario final.
+
+### 16. Claves de energía huérfanas en la restauración de configuraciones `powercfg` (`_ABSENT_`)
+
+Al restaurar ajustes de energía que inicialmente estaban ausentes (guardados con el marcador `_ABSENT_`), `10_revertir.ps1` solo eliminaba la propiedad específica `ACSettingIndex` / `DCSettingIndex` usando `Remove-ItemProperty`, pero dejaba la subclave del GUID del ajuste de energía vacía en el registro como un elemento huérfano. Para mantener la simetría matemática 1:1 estricta, la reversión ahora elimina la subclave completa si ya no contiene propiedades asociadas y no existía originalmente.
 
 ---
 
 ## Cómo usar este archivo
 
-Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 9 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
+Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 16 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
+

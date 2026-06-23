@@ -224,6 +224,11 @@
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
+import Swal from "sweetalert2";
+
+const props = defineProps<{
+  swalConfig?: any;
+}>();
 
 const isScanning = ref(true);
 const windowsBuild = ref(0);
@@ -484,6 +489,45 @@ async function applyToggle(settingKey: QolKeys) {
 
     console.log(`[QoL Toggle Success] ${settingKey} | Output:`, output);
     qolStatus.value[settingKey] = "success";
+
+    if (output.includes("(REQUIRES_EXPLORER_RESTART)")) {
+      const swalResult = await Swal.fire({
+        title: "REINICIO REQUERIDO",
+        text: "Este ajuste requiere reiniciar el Explorador de Windows para aplicarse. ¿Deseas recargarlo de forma segura ahora?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "SÍ, REINICIAR",
+        cancelButtonText: "MÁS TARDE",
+        ...props.swalConfig
+      });
+
+      if (swalResult.isConfirmed) {
+        try {
+          await invoke("run_optimization_script", {
+            scriptName: "quick_actions",
+            isLaptop: store.hardwareInfo.isLaptop,
+            ramGb: store.hardwareInfo.ramGb ?? 8,
+            gameList: "RestartExplorer",
+          });
+
+          await Swal.fire({
+            title: "EXPLORADOR REINICIADO",
+            text: "El Explorador de Windows se ha reiniciado correctamente.",
+            icon: "success",
+            ...props.swalConfig
+          });
+        } catch (err) {
+          console.error("Fallo al reiniciar el explorador:", err);
+          await Swal.fire({
+            title: "ERROR DE REINICIO",
+            text: "No se pudo reiniciar el Explorador de Windows de forma automática. Inténtalo de nuevo o reinicia tu PC manualmente.",
+            icon: "error",
+            ...props.swalConfig
+          });
+        }
+      }
+    }
+
     setTimeout(() => {
       if (qolStatus.value[settingKey] === "success")
         qolStatus.value[settingKey] = "idle";
