@@ -112,17 +112,27 @@ $buildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows 
 switch ($ToggleName) {
     "darkMode" {
         $themeVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") -ValueName "AppsUseLightTheme" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") -ValueName "SystemUsesLightTheme" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" "DWord" $themeVal
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "SystemUsesLightTheme" "DWord" $themeVal
         $RequiresExplorerRestart = $true
     }
     "showExtensions" {
         $extVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "HideFileExt" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" "DWord" $extVal
         $RequiresExplorerRestart = $true
     }
     "classicMenu" {
         if ($buildVer -lt 26000) {
+            foreach ($base in $Targets) {
+                Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}") -ValueName "ClassicMenuBackup" -BackupSubFolder "QoL\User"
+            }
             if ($Value -eq 1) {
                 Set-RegistryValue "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32" "" "String" ""
             } else {
@@ -161,12 +171,18 @@ switch ($ToggleName) {
         }
     }
     "disableBing" {
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Policies\Microsoft\Windows\Explorer") -ValueName "DisableSearchBoxSuggestions" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Search") -ValueName "BingSearchEnabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Search") -ValueName "CortanaConsent" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" "DWord" $Value
         $searchVal = if ($Value -eq 1) { 0 } else { 1 }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" "DWord" $searchVal
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Search" "CortanaConsent" "DWord" $searchVal
     }
     "disableLockScreen" {
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -ValueName "NoLockScreen" -BackupSubFolder "QoL\System"
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization"
         try {
             $OldEAP = $ErrorActionPreference
@@ -182,31 +198,59 @@ switch ($ToggleName) {
     }
     "disableStickyKeys" {
         $stickyVal = if ($Value -eq 1) { "506" } else { "510" }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Accessibility\StickyKeys") -ValueName "Flags" -BackupSubFolder "QoL\StickyKeys"
+        }
         Set-RegistryValue "Control Panel\Accessibility\StickyKeys" "Flags" "String" $stickyVal
     }
     "cleanAltTab" {
         $altTabVal = if ($Value -eq 1) { 3 } else { 0 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "MultiTaskingAltTabFilter" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" "DWord" $altTabVal
     }
     "taskbarLeft" {
         $taskbarVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "TaskbarAl" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAl" "DWord" $taskbarVal
     }
     "showHiddenFiles" {
         $hiddenVal = if ($Value -eq 1) { 1 } else { 2 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "Hidden" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Hidden" "DWord" $hiddenVal
         $RequiresExplorerRestart = $true
     }
     "launchToThisPC" {
         $launchVal = if ($Value -eq 1) { 1 } else { 2 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "LaunchTo" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" "DWord" $launchVal
     }
     "disableExplorerAds" {
         $adsVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "ShowSyncProviderNotifications" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" "DWord" $adsVal
     }
     "disableScoobe" {
         $scoobeVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement") -ValueName "ScoobeSystemSettingEnabled" -BackupSubFolder "QoL\User"
+            $CDM = "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-310093Enabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-338387Enabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-338388Enabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-338389Enabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-353696Enabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-353694Enabled" -BackupSubFolder "QoL\User"
+        }
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" "ScoobeSystemSettingEnabled" "DWord" $scoobeVal
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-310093Enabled" "DWord" $scoobeVal
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338387Enabled" "DWord" $scoobeVal
@@ -224,6 +268,9 @@ switch ($ToggleName) {
                 if ($null -ne $CurrentFlags) { break }
             }
         }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Accessibility\Keyboard Response") -ValueName "Flags" -BackupSubFolder "QoL\FilterKeys"
+        }
         if ($Value -eq 1) {
             if ($CurrentFlags -eq "59") {
                 # Ya está optimizado y con teclas filtro desactivadas. No tocar para no romper latencia de periféricos.
@@ -235,6 +282,11 @@ switch ($ToggleName) {
         }
     }
     "disableCopilot" {
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "ShowCopilotButton" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Policies\Microsoft\Windows\WindowsCopilot") -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User"
+        }
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System"
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" $(if ($Value -eq 1) {0} else {1})
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
@@ -252,6 +304,12 @@ switch ($ToggleName) {
         $RequiresExplorerRestart = $true
     }
     "disableRecall" {
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Policies\Microsoft\Windows\WindowsAI") -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Policies\Microsoft\Windows\WindowsAI") -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User"
+        }
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System"
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" "DWord" $Value
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
@@ -269,6 +327,7 @@ switch ($ToggleName) {
         }
     }
     "detailedBSoD" {
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System"
         $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl"
         try {
             $OldEAP = $ErrorActionPreference
@@ -282,6 +341,7 @@ switch ($ToggleName) {
         }
     }
     "disableOneDrive" {
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -ValueName "DisableFileSyncNGSC" -BackupSubFolder "QoL\System"
         if ($Value -eq 1) {
             Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue
             $Paths = @(
@@ -328,6 +388,10 @@ switch ($ToggleName) {
     }
     "disableWidgets" {
         $widgetsVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "TaskbarMn" -BackupSubFolder "QoL\User"
+        }
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh" -ValueName "AllowNewsAndInterests" -BackupSubFolder "QoL\System"
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" "DWord" $widgetsVal
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh"
         try {
@@ -344,6 +408,9 @@ switch ($ToggleName) {
         $RequiresExplorerRestart = $true
     } 
     "zeroStartupDelay" {
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize") -ValueName "StartupDelayInMSec" -BackupSubFolder "QoL\User"
+        }
         if ($Value -eq 1) {
             Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" "DWord" 0
         } else {
@@ -351,6 +418,13 @@ switch ($ToggleName) {
         }
     }
     "enableGameMode" {
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\GameBar") -ValueName "AllowAutoGameMode" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\GameBar") -ValueName "AutoGameModeEnabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\GameDVR") -ValueName "AppCaptureEnabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\GameDVR") -ValueName "AudioCaptureEnabled" -BackupSubFolder "QoL\User"
+        }
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR" -ValueName "value" -BackupSubFolder "QoL\System"
         Set-RegistryValue "Software\Microsoft\GameBar" "AllowAutoGameMode" "DWord" $Value
         Set-RegistryValue "Software\Microsoft\GameBar" "AutoGameModeEnabled" "DWord" $Value
         
@@ -373,6 +447,13 @@ switch ($ToggleName) {
     }
     "barebonesVisual" {
         $visualVal = if ($Value -eq 1) { "0" } else { "1" }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Desktop\WindowMetrics") -ValueName "MinAnimate" -BackupSubFolder "QoL\Visuals"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects") -ValueName "VisualFXSetting" -BackupSubFolder "QoL\Visuals"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Desktop") -ValueName "UserPreferencesMask" -BackupSubFolder "QoL\Visuals"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Desktop") -ValueName "FontSmoothing" -BackupSubFolder "QoL\Visuals"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Desktop") -ValueName "FontSmoothingType" -BackupSubFolder "QoL\Visuals"
+        }
         Set-RegistryValue "Control Panel\Desktop\WindowMetrics" "MinAnimate" "String" $visualVal
         
         if ($Value -eq 1) {

@@ -317,11 +317,37 @@ fn stop_game_priority_monitor() -> Result<(), String> {
 #[tauri::command]
 fn log_from_js(msg: String) {
     println!("[JS LOG]: {}", msg);
+    if let Ok(temp_dir) = std::env::var("TEMP") {
+        let log_path = std::path::Path::new(&temp_dir).join("OverlordSuite").join("overlord_errors.log");
+        if let Some(parent) = log_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+            use std::io::Write;
+            let _ = writeln!(file, "{}", msg);
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::command)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
+    // Configurar custom panic hook para registrar pánicos nativos de Rust
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("RUST PANIC: {:?}", info);
+        eprintln!("{}", msg);
+        if let Ok(temp_dir) = std::env::var("TEMP") {
+            let log_path = std::path::Path::new(&temp_dir).join("OverlordSuite").join("overlord_errors.log");
+            if let Some(parent) = log_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+                use std::io::Write;
+                let _ = writeln!(file, "{}", msg);
+            }
+        }
+    }));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Si el usuario abre otra instancia, la enfocamos

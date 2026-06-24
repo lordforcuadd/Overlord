@@ -160,6 +160,69 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
 
+    # --- Reversion de Modulo de Personalizacion y QoL ---
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "AppsUseLightTheme" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "SystemUsesLightTheme" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "HideFileExt" -BackupSubFolder "QoL\User" -DefaultValue 1
+
+    $ClassicMenuBck = Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\QoL\User" -Name "ClassicMenuBackup"
+    if ($ClassicMenuBck -eq '_ABSENT_') {
+        Remove-Item -Path "$HKCU_Path\Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+    } else {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}" -ValueName "ClassicMenuBackup" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+    }
+
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -ValueName "DisableSearchBoxSuggestions" -BackupSubFolder "QoL\User" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -ValueName "NoLockScreen" -BackupSubFolder "QoL\System" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "QoL\StickyKeys" -DefaultValue "510" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "MultiTaskingAltTabFilter" -BackupSubFolder "QoL\User" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "TaskbarAl" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "Hidden" -BackupSubFolder "QoL\User" -DefaultValue 2
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "LaunchTo" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "ShowSyncProviderNotifications" -BackupSubFolder "QoL\User" -DefaultValue 1
+
+    $EngagementPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement"
+    Invoke-OverlordSafeRestore -TargetKey $EngagementPath -ValueName "ScoobeSystemSettingEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    
+    $CdmPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+    Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-310093Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-338387Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-338388Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-338389Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-353696Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-353694Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "QoL\FilterKeys" -DefaultValue "126" -DefaultType "String"
+
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "ShowCopilotButton" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System" -DefaultValue 0
+
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System" -DefaultValue 0
+
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -ValueName "DisableFileSyncNGSC" -BackupSubFolder "QoL\System" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "TaskbarMn" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh" -ValueName "AllowNewsAndInterests" -BackupSubFolder "QoL\System" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -ValueName "StartupDelayInMSec" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\GameBar" -ValueName "AllowAutoGameMode" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\GameBar" -ValueName "AutoGameModeEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AudioCaptureEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR" -ValueName "value" -BackupSubFolder "QoL\System" -DefaultValue 1
+
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop\WindowMetrics" -ValueName "MinAnimate" -BackupSubFolder "QoL\Visuals" -DefaultValue "1" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -ValueName "VisualFXSetting" -BackupSubFolder "QoL\Visuals" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "UserPreferencesMask" -BackupSubFolder "QoL\Visuals" -DefaultValue '_ABSENT_' -DefaultType "Binary"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "FontSmoothing" -BackupSubFolder "QoL\Visuals" -DefaultValue "2" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "FontSmoothingType" -BackupSubFolder "QoL\Visuals" -DefaultValue 2
+
     $StartTypeMap = @{ 2 = "Automatic"; 3 = "Manual"; 4 = "Disabled" }
     $ServicesFallback = @{
         "DiagTrack"        = "Automatic"

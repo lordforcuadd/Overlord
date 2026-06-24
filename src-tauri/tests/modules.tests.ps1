@@ -226,7 +226,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
         It "Debe comprobar que cada Backup-OverlordRegistryValue en scripts de aplicacion tenga un restaurador simetrico en la reversion" {
             $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
-                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1'
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
             foreach ($File in $ModuleFiles) {
@@ -271,7 +271,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $RevertCalls = [regex]::Matches($RevertContent, '(Invoke-OverlordSafeRestore|Restore-OverlordRegistryValue)\s+[^|\n;]+')
             
             $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
-                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1'
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
             
             $AppScriptsContent = ""
