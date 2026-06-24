@@ -178,14 +178,32 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
 
 #[tauri::command]
 fn purge_ram_native() -> Result<String, String> {
+    // Verificación dinámica de la versión de build de Windows.
+    // La clase SystemMemoryListInformation (80) y la acción MemoryPurgeStandbyList (4)
+    // fueron introducidas en Windows Vista / Server 2008. Validamos Build >= 7600 (Windows 7+)
+    // para mitigar riesgos de comportamiento indefinido en colmenas legacy.
+    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+    if let Ok(key) = hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion") {
+        if let Ok(build_str) = key.get_value::<String, _>("CurrentBuild") {
+            if let Ok(build_num) = build_str.parse::<u32>() {
+                if build_num < 7600 {
+                    return Err("La purga nativa de RAM requiere Windows 7 o superior (Build >= 7600)".to_string());
+                }
+            }
+        }
+    }
+
     unsafe {
         let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
+        // Habilitar acceso de consulta y ajuste de privilegios en el token del proceso actual
         if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &raw mut token) == 0 {
             let err = std::io::Error::last_os_error();
             eprintln!("[OVERLORD ERROR] OpenProcessToken failed: {}", err);
             return Err(format!("No se pudo abrir el token del proceso: {}", err));
         }
         
+        // Se requiere el privilegio SeProfileSingleProcessPrivilege para poder invocar NtSetSystemInformation
+        // con clases de información de memoria de sistema (como SystemMemoryListInformation).
         let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
         let mut luid = Luid { low_part: 0, high_part: 0 };
         if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) == 0 {
@@ -197,7 +215,7 @@ fn purge_ram_native() -> Result<String, String> {
         
         let tp = TokenPrivileges {
             privilege_count: 1,
-            privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }],
+            privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }], // 0x00000002 = SE_PRIVILEGE_ENABLED
         };
         if AdjustTokenPrivileges(token, 0, &raw const tp, 0, std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
             let err = std::io::Error::last_os_error();
@@ -207,6 +225,10 @@ fn purge_ram_native() -> Result<String, String> {
         }
         CloseHandle(token);
         
+        // DOCUMENTACIÓN TÉCNICA DE REVERSING (Origen: ReactOS / Geoff Chappell NT API Research):
+        // * Clase 80 = SystemMemoryListInformation (Clase indocumentada de Windows NT)
+        // * command_class = 4 = MemoryPurgeStandbyList (Purga la lista de stand-by sin vaciar sets de trabajo)
+        // Este valor se pasa al buffer de entrada de NtSetSystemInformation con un tamaño de 4 bytes.
         let mut command_class = 4u32;
         let current_status = NtSetSystemInformation(80, &raw mut command_class as *mut std::ffi::c_void, 4);
 

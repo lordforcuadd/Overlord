@@ -20,24 +20,35 @@ fn parse_qol_params(game_list: &str) -> (String, String) {
 }
 
 fn build_script_header(is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str) -> String {
+    let game_list_b64 = encode_utf8_base64(game_list);
+    let action_id_b64 = encode_utf8_base64(game_list);
+    let toggle_name_b64 = encode_utf8_base64(toggle_name);
+    let is_enabled_str_b64 = encode_utf8_base64(is_enabled_str);
+    let version_b64 = encode_utf8_base64(env!("CARGO_PKG_VERSION"));
+
     format!(
         "$IsLaptop = ${}\n\
          $RamGB = {}\n\
-         $GameList = '{}'\n\
-         $ActionId = '{}'\n\
-         $ToggleName = '{}'\n\
-         $IsEnabledStr = '{}'\n\
-         $Version = '{}'\n\
+         $GameList = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $ActionId = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $ToggleName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $IsEnabledStr = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $Version = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
          $ErrorActionPreference = 'Stop'\n",
         if is_laptop { "true" } else { "false" },
         ram_gb,
-        game_list.replace("'", "''"),
-        game_list.replace("'", "''"),
-        toggle_name.replace("'", "''"),
-        is_enabled_str.replace("'", "''"),
-        env!("CARGO_PKG_VERSION")
+        game_list_b64,
+        action_id_b64,
+        toggle_name_b64,
+        is_enabled_str_b64,
+        version_b64
     )
 }
+
+fn encode_utf8_base64(s: &str) -> String {
+    custom_base64_encode(s.as_bytes())
+}
+
 
 fn encode_utf16_base64(script: &str) -> String {
     let utf16_units: Vec<u16> = script.encode_utf16().collect();
