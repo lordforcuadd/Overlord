@@ -118,7 +118,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 6. Afinidad IRQ (`06_irq_affinity.ps1`)
 
-- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) fuera del Core 0. Implementa una **política multi-núcleo selectiva compatible con RSS** (`DevicePolicy = 5` - *SpecifiedProcessors* para procesadores con 8 o más hilos lógicos, o `DevicePolicy = 3` - *OneCloseProcessor* para menos de 8 hilos lógicos) direccionando las interrupciones a dos cores físicos independientes (hilos lógicos 4 y 6 en CPUs >=12 hilos, o hilos lógicos 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT/HT). Esto previene stutters en aplicaciones secundarias y cuellos de botella de ancho de banda en descargas de alta velocidad (Gigabit+).
+- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) fuera del Core 0. Implementa una **política multi-núcleo selectiva compatible con RSS** (`DevicePolicy = 4` - *SpecifiedProcessors* para procesadores con 8 o más hilos lógicos, o `DevicePolicy = 2` - *OneCloseProcessor* para menos de 8 hilos lógicos) direccionando las interrupciones a dos cores físicos independientes (hilos lógicos 4 y 6 en CPUs >=12 hilos, o hilos lógicos 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT/HT). Esto previene stutters en aplicaciones secundarias y cuellos de botella de ancho de banda en descargas de alta velocidad (Gigabit+).
 - Preserva la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
 
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
@@ -212,7 +212,7 @@ irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | ie
 1. `irm` (_Invoke-RestMethod_) descarga en memoria el orquestador de lanzamiento.
 2. `launch.ps1` consulta la API pública de GitHub (`api.github.com/repos/lordforcuadd/Overlord/releases/latest`) para obtener dinámicamente la URL exacta del binario `.exe` del release más reciente, haciendo el comando inmune a cambios de versión.
 3. Descarga el ejecutable en un directorio temporal aislado (`$env:TEMP\OverlordSuite`) y lo ejecuta con el puente IPC elevado de Tauri.
-4. Al cerrar la UI, el script elimina forzosamente el directorio temporal, garantizando un entorno limpio sin residuos físicos.
+4. Al arrancar, el script realiza una autolimpieza de firmas hash e historiales de depuración anteriores en el directorio temporal y, al cerrar la interfaz, elimina forzosamente dicho directorio, garantizando un entorno limpio y libre de residuos físicos o lógicos huérfanos.
 
 > **Importante:** Antes de desinstalar Overlord o perder acceso al comando de lanzamiento, usa el botón **Revertir** desde la interfaz. Los cambios de Overlord quedan activos en el sistema incluso sin la aplicación; el backup en registro (`HKLM:\SOFTWARE\Overlord\Backup`) persiste y puede ser restaurado relanzando Overlord en cualquier momento.
 

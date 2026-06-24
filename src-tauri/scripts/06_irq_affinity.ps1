@@ -17,8 +17,8 @@ Try {
 
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
     # Mapeo inteligente multi-núcleo compatible con RSS (evita Core 0, evita hilos HT hermanos y evita E-cores al final)
-    # Establece DevicePolicy = 2 (SpecifiedProcessors) para que Windows use RSS en el conjunto de cores asignados.
-    $DevicePolicyValue = 5 # SpecifiedProcessors
+    # Establece DevicePolicy = 4 (SpecifiedProcessors) para que Windows use RSS en el conjunto de cores asignados.
+    $DevicePolicyValue = 4 # SpecifiedProcessors
     [uint64]$NetBitmask = 0
 
     if ($TotalCores -ge 12) {
@@ -30,8 +30,8 @@ Try {
         $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 4)
     } else {
         # CPUs muy antiguas (<=6 hilos): Mapear a un solo core alternativo (hilo lógico 2)
-        # DevicePolicy = 3 (OneCloseProcessor)
-        $DevicePolicyValue = 3
+        # DevicePolicy = 2 (OneCloseProcessor)
+        $DevicePolicyValue = 2
         $NetBitmask = [uint64]1 -shl 2
     }
 

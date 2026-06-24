@@ -50,8 +50,8 @@
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
-                v-model="store.priorityServiceSelected"
-                @change="handleServiceToggle"
+                :checked="store.priorityServiceSelected"
+                @change="handleServiceToggle($event)"
                 :disabled="isServiceLoading"
                 class="sr-only peer"
               />
@@ -68,6 +68,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import Swal from "sweetalert2";
 import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata } from "../data/tweaksMetadata";
 import ModuleCard from "./ModuleCard.vue";
@@ -82,6 +83,24 @@ const emit = defineEmits<{
 
 const store = useOverlordStore();
 const isServiceLoading = ref(false);
+
+const overlordSwalConfig = {
+  background: "rgba(15, 15, 15, 0.75)",
+  color: "#e5e5e5",
+  iconColor: "#eab308",
+  confirmButtonColor: "#eab308",
+  cancelButtonColor: "#27272a",
+  customClass: {
+    popup:
+      "backdrop-blur-md border border-yellow-500/30 shadow-[0_0_25px_rgba(234,179,8,0.15)] rounded-2xl",
+    title: "text-yellow-500 font-extrabold tracking-wider",
+    htmlContainer: "text-gray-300",
+    confirmButton:
+      "text-black font-bold tracking-wide hover:scale-105 transition-transform duration-200",
+    cancelButton:
+      "text-gray-300 border border-zinc-600 hover:bg-zinc-700 transition-colors duration-200",
+  },
+};
 
 const getModuleValue = (id: string | number | symbol) => {
   return store.modules[id as keyof typeof store.modules];
@@ -98,17 +117,38 @@ const handleWarningRequest = (payload: { id: string; warningText: string }) => {
   });
 };
 
-const handleServiceToggle = async () => {
+const handleServiceToggle = async (event: Event) => {
   if (isServiceLoading.value) return;
+
+  const target = event.target as HTMLInputElement;
+  const isChecked = target.checked;
+
+  if (props.cardStatus['gameHooks'] !== 'success') {
+    // Revertir el estado visual en el input inmediatamente
+    target.checked = !isChecked;
+    
+    await Swal.fire({
+      title: "Módulo Requerido",
+      text: "Para activar el Servicio de Fondo, primero debes aplicar con éxito el módulo de 'Game Hooks'.",
+      icon: "warning",
+      ...overlordSwalConfig,
+    });
+    return;
+  }
+
   isServiceLoading.value = true;
-  
   try {
-    const checked = store.priorityServiceSelected;
-    if (props.cardStatus['gameHooks'] === 'success') {
-      await store.togglePriorityService(checked);
-    }
+    await store.togglePriorityService(isChecked);
   } catch (err) {
     console.error("Fallo al alternar el servicio de prioridades:", err);
+    // Revertir el estado visual en caso de error
+    target.checked = !isChecked;
+    await Swal.fire({
+      title: "Error de Servicio",
+      text: "No se pudo alternar el Servicio de Fondo en el sistema.",
+      icon: "error",
+      ...overlordSwalConfig,
+    });
   } finally {
     isServiceLoading.value = false;
   }

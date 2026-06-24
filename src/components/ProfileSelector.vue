@@ -70,7 +70,7 @@
           input lag. Recomendado para setups de alta gama.</span
         >
         <span v-else-if="store.activeProfile === 'Programador & Competitivo'"
-          >Equilibrio perfecto. Mantiene VBS activo para Docker/Máquinas
+          >Equilibrio perfecto. Mantiene la virtualización activa para Docker/Máquinas
           Virtuales, pero inyecta baja latencia y hooks a los motores de
           juego.</span
         >

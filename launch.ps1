@@ -40,7 +40,11 @@ $DownloadUrl = if ($null -ne $Asset) { $Asset.browser_download_url } else { $nul
 $FileName = if ($null -ne $Asset) { $Asset.name } else { "Overlord.exe" }
 
 $TempDir = Join-Path $env:TEMP "OverlordSuite"
-if (!(Test-Path $TempDir)) {
+if (Test-Path $TempDir) {
+    try {
+        Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+    } catch {}
+} else {
     try {
         New-Item -Path $TempDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
     } catch {
@@ -52,10 +56,6 @@ if (!(Test-Path $TempDir)) {
 $ExePath = Join-Path $TempDir $FileName
 $HashPath = Join-Path $TempDir "Overlord.exe.sha256"
 $GlobalLog = Join-Path $TempDir "overlord_errors.log"
-
-if (Test-Path $GlobalLog) { 
-    try { Remove-Item $GlobalLog -Force -ErrorAction SilentlyContinue } catch {}
-}
 
 $ExecutionPermitted = $false
 
