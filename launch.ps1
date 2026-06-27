@@ -83,6 +83,10 @@ $GlobalLog = Join-Path $TempDir "overlord_errors.log"
 $ExecutionPermitted = $false
 
 if ($null -ne $DownloadUrl) {
+    if ($DownloadUrl -notmatch '^https://github\.com/') {
+        Write-Host "[-] Error critico: La URL de descarga no pertenece al dominio oficial github.com: $DownloadUrl" -ForegroundColor Red
+        exit 1
+    }
     try {
         Write-Host "[*] Descargando la suite Overlord v$Version..." -ForegroundColor Gray
         Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath -UseBasicParsing -ErrorAction Stop

@@ -113,9 +113,9 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
     };
 
     if is_readonly {
-        execute_script_in_memory_readonly(script_raw, is_laptop, ram_gb, &game_list).await
+        execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list).await
     } else {
-        execute_script_in_memory(script_raw, is_laptop, ram_gb, &game_list).await
+        execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list).await
     }
 }
 
@@ -282,6 +282,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
         
         tokio::spawn(async move {
             let mut sys = System::new_all();
+            let mut check_counter: u32 = 0;
             loop {
                 tokio::select! {
                     _ = &mut rx => {
@@ -290,11 +291,14 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
                         // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-                        if hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok() {
-                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
-                            break;
+                        if check_counter % 20 == 0 {
+                            let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+                            if hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok() {
+                                println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
+                                break;
+                            }
                         }
+                        check_counter = check_counter.wrapping_add(1);
 
                         sys.refresh_processes_specifics(
                             sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
@@ -349,7 +353,7 @@ fn log_from_js(msg: String) {
         let _ = std::fs::create_dir_all(parent);
     }
     if let Ok(metadata) = std::fs::metadata(&log_path) {
-        if metadata.len() > 500 * 1024 {
+        if metadata.len() > 100_000 {
             let _ = std::fs::remove_file(&log_path);
         }
     }
@@ -370,6 +374,11 @@ pub fn run() {
         let log_path = std::path::Path::new(&program_data).join("OverlordSuite").join("logs").join("overlord_errors.log");
         if let Some(parent) = log_path.parent() {
             let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(metadata) = std::fs::metadata(&log_path) {
+            if metadata.len() > 100_000 {
+                let _ = std::fs::remove_file(&log_path);
+            }
         }
         if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
             use std::io::Write;

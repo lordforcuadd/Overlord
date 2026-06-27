@@ -19,9 +19,9 @@ fn parse_qol_params(game_list: &str) -> (String, String) {
     (toggle_name, is_enabled_str)
 }
 
-fn build_script_header(is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str) -> String {
+fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str) -> String {
     let game_list_b64 = encode_utf8_base64(game_list);
-    let action_id_b64 = game_list_b64.clone();
+    let action_id_b64 = encode_utf8_base64(action_id);
     let toggle_name_b64 = encode_utf8_base64(toggle_name);
     let is_enabled_str_b64 = encode_utf8_base64(is_enabled_str);
     let version_b64 = encode_utf8_base64(env!("CARGO_PKG_VERSION"));
@@ -59,10 +59,10 @@ fn encode_utf16_base64(script: &str) -> String {
     custom_base64_encode(&utf16_bytes)
 }
 
-async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
     let backup_module = include_str!("../scripts/backup_manager.psm1");
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
-    let header = build_script_header(is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str);
+    let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str);
     let script_clean = strip_param_block(script_raw);
 
     let unified_script = format!(
@@ -103,38 +103,55 @@ async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb
     } 
 
     let timeout_secs = if game_list == "RepairOS" { 1200 } else { 300 };
-    let output_res = tokio::time::timeout(
+
+    let mut stdout = child.stdout.take().ok_or("No se pudo obtener stdout de PowerShell".to_string())?;
+    let mut stderr = child.stderr.take().ok_or("No se pudo obtener stderr de PowerShell".to_string())?;
+
+    let stdout_handle = tokio::spawn(async move {
+        let mut buf = Vec::new();
+        tokio::io::copy(&mut stdout, &mut buf).await.map(|_| buf)
+    });
+    let stderr_handle = tokio::spawn(async move {
+        let mut buf = Vec::new();
+        tokio::io::copy(&mut stderr, &mut buf).await.map(|_| buf)
+    });
+
+    let timeout_res = tokio::time::timeout(
         std::time::Duration::from_secs(timeout_secs),
-        child.wait_with_output()
+        child.wait()
     ).await;
 
-    let output = match output_res {
-        Ok(Ok(out)) => out,
+    let status = match timeout_res {
+        Ok(Ok(st)) => st,
         Ok(Err(e)) => return Err(format!("Error esperando la salida del proceso: {}", e)),
         Err(_) => {
-            return Err(format!("El script de optimizacion excedio el tiempo limite de ejecucion de {} segundos.", timeout_secs));
+            let _ = child.kill().await;
+            return Err("Timeout".into());
         }
     };
 
-    if !output.status.success() {
-        let error_str = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout_bytes = stdout_handle.await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
+    let stderr_bytes = stderr_handle.await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
+
+    if !status.success() {
+        let error_str = String::from_utf8_lossy(&stderr_bytes).trim().to_string();
         return Err(if error_str.is_empty() {
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
+            String::from_utf8_lossy(&stdout_bytes).trim().to_string()
         } else {
             error_str
         });
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    Ok(String::from_utf8_lossy(&stdout_bytes).trim().to_string())
 }
 
-pub async fn execute_script_in_memory(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+pub async fn execute_script_in_memory(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
     let _lock = EXECUTION_LOCK.lock().await;
-    execute_script_in_memory_impl(script_raw, is_laptop, ram_gb, game_list).await
+    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list).await
 }
 
-pub async fn execute_script_in_memory_readonly(script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
-    execute_script_in_memory_impl(script_raw, is_laptop, ram_gb, game_list).await
+pub async fn execute_script_in_memory_readonly(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list).await
 }
 
 fn strip_param_block(script: &str) -> String {

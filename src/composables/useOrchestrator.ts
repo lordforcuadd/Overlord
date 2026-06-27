@@ -125,14 +125,25 @@ export function useOrchestrator(overlordSwalConfig: any) {
       }
 
       if (huboError) {
+        try {
+          await invoke("run_optimization_script", {
+            scriptName: "10_revertir",
+            isLaptop: store.hardwareInfo.isLaptop,
+            ramGb: store.hardwareInfo.ramGb || 8,
+            gameList: "",
+          });
+        } catch (rollbackErr) {
+          console.error("[AUTO-ROLLBACK FAIL]:", rollbackErr);
+        }
+
         const textoExitos =
           modulosExitosos.length > 0
-            ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se aplicaron correctamente.`
+            ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se habían aplicado, pero se ejecutó un rollback automático por seguridad.`
             : "Ningún módulo previo pudo completarse.";
 
         await Swal.fire({
-          title: "OPTIMIZACIÓN PARCIAL",
-          html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>Puedes revertir todo el sistema al estado de fábrica desde el botón Revertir.`,
+          title: "OPTIMIZACIÓN FALLIDA",
+          html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>El sistema ha sido revertido a su estado inicial.`,
           icon: "error",
           ...overlordSwalConfig,
         });

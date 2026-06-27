@@ -357,6 +357,9 @@ try {
                 }
             }
 
+            # Detectar Vanguard/EAC antes de modificar IFEO
+            # Vanguard y EasyAntiCheat (EAC) son muy sensibles a la inyeccion en IFEO.
+            # Por seguridad, solo eliminamos registros de compatibilidad antiguos y no inyectamos nuevos hooks bajo HKLM:\...\Image File Execution Options.
             $OldIfeo = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$ExeName"
             if (Test-Path $OldIfeo) { Remove-Item -Path $OldIfeo -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
 
