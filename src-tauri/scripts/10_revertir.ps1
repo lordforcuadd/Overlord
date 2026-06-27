@@ -159,6 +159,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
 

@@ -57,6 +57,14 @@ Try {
         throw "Fallo al asegurar la desactivacion de Windows Error Reporting"
     }
 
+    # Evitar reinicios automáticos de Windows Update con sesión iniciada
+    $WUpPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
+    if (!(Test-Path $WUpPath)) { New-Item -Path $WUpPath -Force | Out-Null }
+    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+        Backup-OverlordRegistryValue -TargetKey $WUpPath -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry"
+    }
+    Set-ItemProperty -Path $WUpPath -Name "NoAutoRebootWithLoggedOnUsers" -Type DWord -Value 1 -Force | Out-Null
+
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemPropertyValue -Path $ActivityPath -Name "PublishUserActivities" -ErrorAction SilentlyContinue) -ne 0) { 
         throw "Fallo al asegurar la directiva PublishUserActivities en 0"
