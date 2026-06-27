@@ -155,3 +155,59 @@ function Restore-OverlordRegistryValue {
         Write-Warning "No se pudo restaurar el valor de registro $ValueName en $TargetKey : $_"
     }
 }
+
+function Backup-OverlordPowerSetting {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)][string]$SchemeGuid,
+        [Parameter(Mandatory=$true)][string]$SubGroupGuid,
+        [Parameter(Mandatory=$true)][string]$SettingGuid
+    )
+    
+    $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
+    if (!(Test-Path $PowerBackup)) { 
+        try { New-Item -Path $PowerBackup -Force | Out-Null } catch {} 
+    }
+    
+    $BackupName = "Power_${SchemeGuid}_${SettingGuid}"
+    $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
+    if ($null -eq $powerProps -or $null -eq $powerProps.PSObject.Properties[$BackupName]) {
+        $Value = $null
+        $QueryOut = & powercfg /q $SchemeGuid $SubGroupGuid 2>$null
+        if ($null -ne $QueryOut) {
+            $FoundSetting = $false
+            foreach ($Line in $QueryOut) {
+                if ($Line -match $SettingGuid) {
+                    $FoundSetting = $true
+                    continue
+                }
+                if ($FoundSetting) {
+                    if ($Line -match "GUID de configuraci(o|)n de energ(i|)a" -or $Line -match "Power Setting GUID") {
+                        break
+                    }
+                    if ($Line -match "\b(corriente\s+alterna|corriente\s+de\s+CA|AC|CA|secteur|Wechselstrom|Wechsel)\b.+\b(0x[0-9a-fA-F]+)") {
+                        $HexVal = $Matches[2]
+                        try {
+                            $Value = [System.Convert]::ToInt32($HexVal, 16)
+                        } catch {}
+                        break
+                    }
+                }
+            }
+        }
+        
+        # Fallback en caso de que powercfg falle o no retorne nada
+        if ($null -eq $Value) {
+            $RegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid\$SettingGuid"
+            if (Test-Path $RegPath) {
+                $regProps = Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue
+                if ($null -ne $regProps) {
+                    $Value = $regProps.ACSettingIndex
+                }
+            }
+        }
+        
+        $BckVal = if ($null -eq $Value) { '_ABSENT_' } else { $Value }
+        Set-ItemProperty -Path $PowerBackup -Name $BackupName -Value $BckVal -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+}

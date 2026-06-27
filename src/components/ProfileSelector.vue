@@ -37,7 +37,8 @@
         ]"
         :key="profile"
         @click="store.applyProfile(profile)"
-        class="px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 border text-center flex items-center justify-center min-h-[60px]"
+        :disabled="store.isGlobalBusy"
+        class="px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 border text-center flex items-center justify-center min-h-[60px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         :class="
           store.activeProfile === profile
             ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.15)]'

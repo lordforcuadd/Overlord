@@ -46,10 +46,11 @@ export const PROFILE_CONFIGS: Record<string, string[]> = {
     "powerProfiles",
     "gameHooks",
   ],
-  Programador: ["debloat", "smartStorage"],
+  Programador: ["debloat", "smartStorage", "generalPerformance"],
   "Home Office / Laptops": [
     "debloat",
     "smartStorage",
+    "networkOptimized",
   ],
   "Usuario Casual": ["debloat", "smartStorage"],
 };

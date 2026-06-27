@@ -8,14 +8,18 @@ Try {
             # Papelera de reciclaje
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue | Out-Null
 
-            # Purga directa de Caché de Shaders (DirectX, NVIDIA, AMD)
+            # Compactación del almacén de componentes DISM
+            Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+
+            # Purga directa de Caché de Shaders (DirectX, NVIDIA, AMD, Intel)
             $ShaderPaths = @(
                 "$env:localappdata\D3DSCache",
                 "$env:localappdata\Microsoft\Direct3D",
                 "$env:localappdata\NVIDIA\DXCache",
                 "$env:localappdata\NVIDIA\ComputeCache",
                 "$env:appdata\NVIDIA\GLCache",
-                "$env:localappdata\AMD\DxCache"
+                "$env:localappdata\AMD\DxCache",
+                "$env:userprofile\AppData\LocalLow\Intel\ShaderCache"
             )
             foreach ($Path in $ShaderPaths) {
                 if (Test-Path $Path) {

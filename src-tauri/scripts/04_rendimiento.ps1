@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    $HKCU_Path = $global:HKCU_Path
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Aplicando optimizaciones de rendimiento general y Kernel..."
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"

@@ -106,7 +106,7 @@
           type="checkbox"
           :checked="modelValue"
           @change="handleToggleAttempt"
-          :disabled="status === 'loading'"
+          :disabled="status === 'loading' || store.isGlobalBusy"
           class="sr-only peer"
         />
         <div
@@ -120,6 +120,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { tweaksMetadata } from "../data/tweaksMetadata";
+import { useOverlordStore } from "../stores/overlordStore";
+
+const store = useOverlordStore();
 
 const props = defineProps<{
   id: string;

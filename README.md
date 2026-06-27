@@ -211,8 +211,8 @@ irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | ie
 
 1. `irm` (_Invoke-RestMethod_) descarga en memoria el orquestador de lanzamiento.
 2. `launch.ps1` consulta la API pública de GitHub (`api.github.com/repos/lordforcuadd/Overlord/releases/latest`) para obtener dinámicamente la URL exacta del binario `.exe` del release más reciente, haciendo el comando inmune a cambios de versión.
-3. Descarga el ejecutable en un directorio temporal aislado (`$env:TEMP\OverlordSuite`) y lo ejecuta con el puente IPC elevado de Tauri.
-4. Al arrancar, el script realiza una autolimpieza de firmas hash e historiales de depuración anteriores en el directorio temporal y, al cerrar la interfaz, elimina forzosamente dicho directorio, garantizando un entorno limpio y libre de residuos físicos o lógicos huérfanos.
+3. Descarga el ejecutable en un directorio seguro y restringido (`$env:ProgramData\OverlordSuite`) y lo ejecuta con el puente IPC elevado de Tauri.
+4. Al arrancar, el script realiza una autolimpieza de firmas hash e historiales de depuración anteriores en el directorio de trabajo y, al cerrar la interfaz, elimina los archivos temporales de forma segura.
 
 > **Importante:** Antes de desinstalar Overlord o perder acceso al comando de lanzamiento, usa el botón **Revertir** desde la interfaz. Los cambios de Overlord quedan activos en el sistema incluso sin la aplicación; el backup en registro (`HKLM:\SOFTWARE\Overlord\Backup`) persiste y puede ser restaurado relanzando Overlord en cualquier momento.
 

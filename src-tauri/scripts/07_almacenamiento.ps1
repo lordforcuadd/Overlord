@@ -51,8 +51,7 @@ Try {
         powercfg.exe /hibernate off | Out-Null
     }
 
-    # Lanzar la compactacion de componentes de forma asincrona en segundo plano para no bloquear al optimizador
-    Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
+    # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
     try {
         $UpdateSession = New-Object -ComObject "Microsoft.Update.Session"

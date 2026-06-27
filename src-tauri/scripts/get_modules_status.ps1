@@ -3,7 +3,7 @@ param(
     [int]$RamGB = 8
 )
 $ErrorActionPreference = "SilentlyContinue"
-$HKCU_Path = $global:HKCU_Path
+$HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 
 $Status = @{
     peripheralLatency  = $false
@@ -87,7 +87,30 @@ if (Test-Path $ProfilePath) {
     
     $InitialRtoVal = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "InitialRto" -ErrorAction SilentlyContinue
     
-    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000) {
+    $CoalescingOk = $true
+    if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+        $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+            $_.Status -eq "Up" -and $_.Virtual -eq $false -and $_.NdisPhysicalMedium -eq 14 
+        } | ForEach-Object { "$($_.InterfaceGuid)" }
+        
+        if ($ActiveGuids.Count -gt 0) {
+            $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+            if (Test-Path $NetClassPath) {
+                $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
+                foreach ($Adapter in $NetAdapters) {
+                    if ($Adapter.PSChildName -match "^\d{4}$") {
+                        $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
+                        if ($null -ne $Props -and $ActiveGuids -contains $Props.NetCfgInstanceId) {
+                            if ($null -ne $Props."*PacketCoalescing" -and $Props."*PacketCoalescing" -ne "0") { $CoalescingOk = $false }
+                            if ($null -ne $Props.PacketCoalescing -and $Props.PacketCoalescing -ne "0") { $CoalescingOk = $false }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk) {
         $Status['networkOptimized'] = $true
     }
 }
@@ -253,7 +276,7 @@ if ($Status['gameHooks'] -ne $true -and (Test-Path $GameHooksBackup)) {
 $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 if (Test-Path $MemPath) {
     $Override = Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue
-    if ($Override -eq 3) {
+    if ($Override -eq 3 -or $Override -eq 8259) {
         $Status['disableMitigations'] = $true
     }
 }

@@ -126,15 +126,23 @@ pub async fn get_system_hardware() -> HardwareResponse {
             let mut ram_speed_val = None;
             let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
             let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
-            let output = std::process::Command::new(&powershell_path)
-                .creation_flags(0x08000000)
-                .args(&[
-                    "-NoProfile",
-                    "-Command",
-                    "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
-                ])
-                .output();
-            if let Ok(out) = output {
+            
+            let (tx_ps, rx_ps) = std::sync::mpsc::channel();
+            let ps_path_clone = powershell_path.clone();
+            std::thread::spawn(move || {
+                let output = std::process::Command::new(&ps_path_clone)
+                    .creation_flags(0x08000000)
+                    .args(&[
+                        "-NoProfile",
+                        "-Command",
+                        "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
+                    ])
+                    .output();
+                let _ = tx_ps.send(output);
+            });
+            
+            let output_ps = rx_ps.recv_timeout(std::time::Duration::from_secs(5));
+            if let Ok(Ok(out)) = output_ps {
                 if out.status.success() {
                     let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
                     if let Ok(speed) = text.parse::<u32>() {
@@ -147,11 +155,18 @@ pub async fn get_system_hardware() -> HardwareResponse {
 
             // Fallback a wmic.exe si PowerShell falla o no retorna velocidad en sistemas legacy
             if ram_speed_val.is_none() {
-                let output = std::process::Command::new("wmic.exe")
-                    .creation_flags(0x08000000)
-                    .args(&["path", "Win32_PhysicalMemory", "get", "ConfiguredClockSpeed"])
-                    .output();
-                if let Ok(out) = output {
+                let wmic_path = format!("{}\\System32\\wbem\\wmic.exe", system_root);
+                let (tx_wmic, rx_wmic) = std::sync::mpsc::channel();
+                std::thread::spawn(move || {
+                    let output = std::process::Command::new(&wmic_path)
+                        .creation_flags(0x08000000)
+                        .args(&["path", "Win32_PhysicalMemory", "get", "ConfiguredClockSpeed"])
+                        .output();
+                    let _ = tx_wmic.send(output);
+                });
+                
+                let output_wmic = rx_wmic.recv_timeout(std::time::Duration::from_secs(5));
+                if let Ok(Ok(out)) = output_wmic {
                     if out.status.success() {
                         let text = String::from_utf8_lossy(&out.stdout);
                         let lines: Vec<&str> = text.lines()
@@ -334,7 +349,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
-    // 1. Scan Uninstall registry keys (64-bit and 32-bit)
+    // 1. Scan Uninstall registry keys (64-bit and 32-bit) in HKLM and HKCU
     let registry_paths = [
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
         "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
@@ -342,6 +357,20 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
 
     for path in &registry_paths {
         if let Ok(uninstall_key) = hklm.open_subkey(path) {
+            for subkey_name in uninstall_key.enum_keys().map(|x| x.unwrap_or_default()) {
+                if let Ok(subkey) = uninstall_key.open_subkey(&subkey_name) {
+                    if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
+                        let lower_name = display_name.to_lowercase();
+                        for game in catalog.iter_mut() {
+                            if lower_name.contains(&game.name.to_lowercase()) {
+                                game.detected = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Ok(uninstall_key) = hkcu.open_subkey(path) {
             for subkey_name in uninstall_key.enum_keys().map(|x| x.unwrap_or_default()) {
                 if let Ok(subkey) = uninstall_key.open_subkey(&subkey_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
@@ -378,6 +407,37 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
 
     let steam_paths = get_steam_library_paths();
     for path in &steam_paths {
+        let steamapps_dir = Path::new(path).parent();
+        if let Some(steamapps) = steamapps_dir {
+            if let Ok(entries) = std::fs::read_dir(steamapps) {
+                for entry in entries.flatten() {
+                    if entry.path().extension().map_or(false, |ext| ext == "acf") {
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            let mut inst_dir = None;
+                            for line in content.lines() {
+                                if line.contains("\"installdir\"") {
+                                    let parts: Vec<&str> = line.split('"').collect();
+                                    if parts.len() >= 4 {
+                                        inst_dir = Some(parts[3].to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                            if let Some(dir_name) = inst_dir {
+                                let full_game_path = Path::new(path).join(&dir_name);
+                                if full_game_path.exists() {
+                                    for game in catalog.iter_mut() {
+                                        if dir_name.to_lowercase().contains(&game.name.to_lowercase()) || game.name.to_lowercase().contains(&dir_name.to_lowercase()) {
+                                            game.detected = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         for game in catalog.iter_mut() {
             if Path::new(path).join(&game.name).exists() {
                 game.detected = true;

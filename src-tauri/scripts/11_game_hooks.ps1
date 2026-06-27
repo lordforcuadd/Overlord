@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 try {
-    $HKCU_Path = $global:HKCU_Path
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 
     function Find-FileFaster {
         param(
@@ -98,6 +98,44 @@ try {
     $EpicPathReg = if ($null -ne $epicProps) { $epicProps.INSTALLDIR } else { $null }
     if ($EpicPathReg) { $LauncherRoots += $EpicPathReg }
 
+    # Buscar librerías adicionales de Steam en libraryfolders.vdf
+    if ($SteamPathReg -and (Test-Path (Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"))) {
+        try {
+            $VdfPath = Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"
+            $VdfContent = Get-Content -Path $VdfPath -ErrorAction SilentlyContinue
+            if ($VdfContent) {
+                foreach ($Line in $VdfContent) {
+                    if ($Line -match '"path"\s+"([^"]+)"') {
+                        $LibPath = $Matches[1] -replace '\\\\', '\'
+                        $CommonPath = Join-Path $LibPath "steamapps\common"
+                        if (Test-Path $CommonPath) {
+                            if (!$LauncherRoots.Contains($CommonPath)) { $LauncherRoots.Add($CommonPath) }
+                        }
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    # Buscar manifiestos de Epic Games (.item) para resolver rutas secundarias
+    $ProgDataForEpic = $env:ProgramData
+    if ([string]::IsNullOrWhiteSpace($ProgDataForEpic)) { $ProgDataForEpic = "C:\ProgramData" }
+    $EpicManifestsPath = Join-Path $ProgDataForEpic "Epic\EpicGamesLauncher\Data\Manifests"
+    if (Test-Path $EpicManifestsPath) {
+        try {
+            $ManifestFiles = Get-ChildItem -Path $EpicManifestsPath -Filter "*.item" -ErrorAction SilentlyContinue
+            foreach ($MFile in $ManifestFiles) {
+                $MContent = Get-Content -Path $MFile.FullName -Raw -ErrorAction SilentlyContinue
+                if ($MContent -and $MContent -match '"InstallLocation"\s*:\s*"([^"]+)"') {
+                    $InstLoc = $Matches[1] -replace '\\\\', '\'
+                    if (Test-Path $InstLoc) {
+                        if (!$LauncherRoots.Contains($InstLoc)) { $LauncherRoots.Add($InstLoc) }
+                    }
+                }
+            }
+        } catch {}
+    }
+
     # Agregar rutas por defecto comunes de fallback
     $DefaultRoots = @(
         (Join-Path $ProgramFiles "Steam\steamapps\common"),
@@ -188,20 +226,31 @@ try {
                         $content = Get-Content $ini.FullName -ErrorAction SilentlyContinue
                         if ($null -eq $content) { $content = @() }
 
-                        # Validar formato INI básico (debe tener al menos una sección con corchetes)
-                        $hasSections = $false
-                        foreach ($line in $content) {
-                            if ($line -match "^\s*\[.+\]") {
-                                $hasSections = $true
-                                break
-                            }
-                        }
-                        if (-not $hasSections) {
-                            Write-Warning "El archivo $($ini.FullName) no parece ser un archivo INI valido de Unreal Engine. Se omitira su modificacion."
-                            continue
-                        }
                         $origReadOnly = $ini.IsReadOnly
                         if ($origReadOnly) { Set-ItemProperty -Path $ini.FullName -Name IsReadOnly -Value $false }
+
+                        # Resguardar los valores originales antes de cualquier modificacion
+                        foreach ($key in $engine.FullscreenKey) {
+                            $foundKey = $false
+                            foreach ($line in $content) {
+                                if ($line -match "^\s*$key\s*=\s*(\d+)") {
+                                    $origVal = $Matches[1]
+                                    $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
+                                    if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_$key"]) {
+                                        Set-ItemProperty -Path $GameBackupPath -Name "Original_$key" -Value $origVal -Force | Out-Null
+                                    }
+                                    $foundKey = $true
+                                    break
+                                }
+                            }
+                            if (-not $foundKey) {
+                                # Si no existía en el archivo, guardamos _ABSENT_ para la reversión simétrica
+                                $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
+                                if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_$key"]) {
+                                    Set-ItemProperty -Path $GameBackupPath -Name "Original_$key" -Value "_ABSENT_" -Force | Out-Null
+                                }
+                            }
+                        }
 
                         # Guardar ruta del archivo ini para reversion simetrica
                         Set-ItemProperty -Path $GameBackupPath -Name "IniPath" -Value $ini.FullName -Force | Out-Null
@@ -210,37 +259,90 @@ try {
                             Set-ItemProperty -Path $GameBackupPath -Name "Original_IsReadOnly" -Value $(if ($origReadOnly) { 1 } else { 0 }) -Force | Out-Null
                         }
 
-                        $content = Get-Content $ini.FullName
-
-                        # Resguardar los valores originales antes de la modificacion
+                        # Construir el nuevo contenido
+                        $newContent = [System.Collections.Generic.List[string]]::new()
+                        $sectionHeader = "[/Script/Engine.GameUserSettings]"
+                        $hasSection = $false
+                        $inSection = $false
+                        
                         foreach ($line in $content) {
-                            foreach ($key in $engine.FullscreenKey) {
-                                if ($line -match "^\s*$key\s*=\s*(\d+)") {
-                                    $origVal = $Matches[1]
-                                    $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
-                                    if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_$key"]) {
-                                        Set-ItemProperty -Path $GameBackupPath -Name "Original_$key" -Value $origVal -Force | Out-Null
-                                    }
-                                }
+                            if ($line -match "^\s*\[/Script/Engine\.GameUserSettings\]") {
+                                $hasSection = $true
+                                break
                             }
                         }
 
-                        $newContent = [System.Collections.Generic.List[string]]::new()
+                        $keysToWrite = [System.Collections.Generic.Dictionary[string, bool]]::new()
+                        foreach ($key in $engine.FullscreenKey) {
+                            $keysToWrite.Add($key, $true)
+                        }
+
                         $changed = $false
-                        foreach ($line in $content) {
-                            $modified = $line
+
+                        if (-not $hasSection) {
+                            foreach ($line in $content) {
+                                $newContent.Add($line)
+                            }
+                            $newContent.Add("")
+                            $newContent.Add($sectionHeader)
                             foreach ($key in $engine.FullscreenKey) {
-                                if ($line -match "^\s*$key\s*=") {
-                                    $targetValue = "$key=0"
-                                    if ($line.Trim() -notmatch "^\s*$key\s*=\s*0\s*$") {
-                                        $modified = $targetValue
+                                $newContent.Add("$key=0")
+                            }
+                            $changed = $true
+                        } else {
+                            foreach ($line in $content) {
+                                if ($line -match "^\s*\[") {
+                                    if ($inSection) {
+                                        foreach ($key in $keysToWrite.Keys) {
+                                            if ($keysToWrite[$key]) {
+                                                $newContent.Add("$key=0")
+                                                $changed = $true
+                                            }
+                                        }
+                                        $keysToWrite = [System.Collections.Generic.Dictionary[string, bool]]::new()
+                                    }
+                                    if ($line -match "^\s*\[/Script/Engine\.GameUserSettings\]") {
+                                        $inSection = $true
+                                    } else {
+                                        $inSection = $false
+                                    }
+                                    $newContent.Add($line)
+                                    continue
+                                }
+
+                                if ($inSection) {
+                                    $matchedKey = $null
+                                    foreach ($key in $keysToWrite.Keys) {
+                                        if ($line -match "^\s*$key\s*=") {
+                                            $matchedKey = $key
+                                            break
+                                        }
+                                    }
+                                    if ($null -ne $matchedKey) {
+                                        if ($line.Trim() -notmatch "^\s*$matchedKey\s*=\s*0\s*$") {
+                                            $newContent.Add("$matchedKey=0")
+                                            $changed = $true
+                                        } else {
+                                            $newContent.Add($line)
+                                        }
+                                        $keysToWrite.Remove($matchedKey)
+                                    } else {
+                                        $newContent.Add($line)
+                                    }
+                                } else {
+                                    $newContent.Add($line)
+                                }
+                            }
+                            if ($inSection) {
+                                foreach ($key in $keysToWrite.Keys) {
+                                    if ($keysToWrite[$key]) {
+                                        $newContent.Add("$key=0")
                                         $changed = $true
                                     }
-                                    break
                                 }
                             }
-                            $newContent.Add($modified)
                         }
+
                         if ($changed) {
                             Set-Content -Path $ini.FullName -Value $newContent -Force
                             Write-Host "    -> Modo exclusivo forzado en $($engine.Name) ($($ini.FullName))"
@@ -264,10 +366,17 @@ try {
             $RealExePath = $null
 
             if (![string]::IsNullOrWhiteSpace($RawRegistryValue)) {
-                $CleanedPath = $RawRegistryValue -replace '^"|"$',''
-                $CleanedPath = ($CleanedPath -split '\.exe')[0] + ".exe"
-                if (Test-Path $CleanedPath -PathType Leaf) {
-                    $RealExePath = $CleanedPath
+                try {
+                    $CleanedPath = $RawRegistryValue -replace '^"|"$',''
+                    if ($CleanedPath -match '([a-zA-Z]:\\[^"]+\.exe)') {
+                        $CleanedPath = $Matches[1]
+                    }
+                    $ResolvedPath = [System.IO.Path]::GetFullPath($CleanedPath)
+                    if (Test-Path $ResolvedPath -PathType Leaf) {
+                        $RealExePath = $ResolvedPath
+                    }
+                } catch {
+                    Write-Warning "No se pudo resolver la ruta del registro para $ExeName: $_"
                 }
             }
 

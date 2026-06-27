@@ -21,7 +21,7 @@ fn parse_qol_params(game_list: &str) -> (String, String) {
 
 fn build_script_header(is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str) -> String {
     let game_list_b64 = encode_utf8_base64(game_list);
-    let action_id_b64 = encode_utf8_base64(game_list);
+    let action_id_b64 = game_list_b64.clone();
     let toggle_name_b64 = encode_utf8_base64(toggle_name);
     let is_enabled_str_b64 = encode_utf8_base64(is_enabled_str);
     let version_b64 = encode_utf8_base64(env!("CARGO_PKG_VERSION"));
@@ -76,7 +76,11 @@ async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb
 
     let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script }";
     let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
-    let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+    let mut powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+    let sysnative_path = format!("{}\\Sysnative\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+    if std::path::Path::new(&sysnative_path).exists() {
+        powershell_path = sysnative_path;
+    }
     let mut child = Command::new(&powershell_path)
         .creation_flags(0x08000000)
         .kill_on_drop(true)
@@ -98,8 +102,9 @@ async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb
         stdin.write_all(b64_encoded.as_bytes()).await.map_err(|e| format!("Error al escribir en stdin: {}", e))?;
     } 
 
+    let timeout_secs = if game_list == "RepairOS" { 1200 } else { 300 };
     let output_res = tokio::time::timeout(
-        std::time::Duration::from_secs(300),
+        std::time::Duration::from_secs(timeout_secs),
         child.wait_with_output()
     ).await;
 
@@ -107,7 +112,7 @@ async fn execute_script_in_memory_impl(script_raw: &str, is_laptop: bool, ram_gb
         Ok(Ok(out)) => out,
         Ok(Err(e)) => return Err(format!("Error esperando la salida del proceso: {}", e)),
         Err(_) => {
-            return Err("El script de optimizacion excedio el tiempo limite de ejecucion de 300 segundos.".to_string());
+            return Err(format!("El script de optimizacion excedio el tiempo limite de ejecucion de {} segundos.", timeout_secs));
         }
     };
 
@@ -133,7 +138,22 @@ pub async fn execute_script_in_memory_readonly(script_raw: &str, is_laptop: bool
 }
 
 fn strip_param_block(script: &str) -> String {
-    let trimmed = script.trim_start();
+    let mut trimmed = script.trim_start();
+    loop {
+        if trimmed.starts_with('#') {
+            if let Some(newline_idx) = trimmed.find('\n') {
+                trimmed = trimmed[newline_idx + 1..].trim_start();
+                continue;
+            }
+        }
+        if trimmed.starts_with("<#") {
+            if let Some(end_block) = trimmed.find("#>") {
+                trimmed = trimmed[end_block + 2..].trim_start();
+                continue;
+            }
+        }
+        break;
+    }
     if trimmed.to_lowercase().starts_with("param") {
         if let Some(open_paren) = trimmed.find('(') {
             let mut depth = 0;
@@ -201,4 +221,45 @@ fn custom_base64_encode(bytes: &[u8]) -> String {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_param_block_basic() {
+        let script = "param(\n    [bool]$IsLaptop = $false\n)\nWrite-Host 'Hello'";
+        assert_eq!(strip_param_block(script), "Write-Host 'Hello'");
+    }
+
+    #[test]
+    fn test_strip_param_block_no_param() {
+        let script = "Write-Host 'Hello'";
+        assert_eq!(strip_param_block(script), "Write-Host 'Hello'");
+    }
+
+    #[test]
+    fn test_strip_param_block_case_insensitive() {
+        let script = "PARAM(\n    $Var\n)\nGet-Process";
+        assert_eq!(strip_param_block(script), "Get-Process");
+    }
+
+    #[test]
+    fn test_strip_param_block_nested_parens() {
+        let script = "param(\n    $List = @('a', 'b'),\n    $Num = 3\n)\nStart-Process";
+        assert_eq!(strip_param_block(script), "Start-Process");
+    }
+
+    #[test]
+    fn test_strip_param_block_quotes_and_escapes() {
+        let script = "param(\n    $Str = \"hello (world) `\" quote\"\n)\nGet-Service";
+        assert_eq!(strip_param_block(script), "Get-Service");
+    }
+
+    #[test]
+    fn test_strip_param_block_with_comments() {
+        let script = "# Copyright Overlord\n<# Some description #>\nparam(\n    [string]$ActionId\n)\nGet-Process";
+        assert_eq!(strip_param_block(script), "Get-Process");
+    }
 }

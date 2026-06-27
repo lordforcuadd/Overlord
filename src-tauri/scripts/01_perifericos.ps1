@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    $HKCU_Path = $global:HKCU_Path
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Iniciando inyeccion de Latencia de Perifericos..."
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
@@ -14,62 +14,7 @@ Try {
     $MsiBackupKey = "HKLM:\SOFTWARE\Overlord\Backup\MSI"
     if (!(Test-Path $MsiBackupKey)) { New-Item -Path $MsiBackupKey -Force | Out-Null }
 
-    function Backup-OverlordPowerSetting {
-        param(
-            [string]$SchemeGuid,
-            [string]$SubGroupGuid,
-            [string]$SettingGuid
-        )
-        $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
-        if (!(Test-Path $PowerBackup)) { 
-            try { New-Item -Path $PowerBackup -Force | Out-Null } catch {} 
-        }
-        
-        $BackupName = "Power_${SchemeGuid}_${SettingGuid}"
-        $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
-        if ($null -eq $powerProps -or $null -eq $powerProps.PSObject.Properties[$BackupName]) {
-            $Value = $null
-            # Ejecutar powercfg /q con 2 parámetros para cumplir estrictamente con la Regla 9 de AGENTS.md
-            $QueryOut = & powercfg /q $SchemeGuid $SubGroupGuid 2>$null
-            if ($null -ne $QueryOut) {
-                $FoundSetting = $false
-                foreach ($Line in $QueryOut) {
-                    if ($Line -match $SettingGuid) {
-                        $FoundSetting = $true
-                        continue
-                    }
-                    if ($FoundSetting) {
-                        # Si encontramos otra configuración antes de encontrar el índice AC, paramos
-                        if ($Line -match "GUID de configuraci(o|)n de energ(i|)a" -or $Line -match "Power Setting GUID") {
-                            break
-                        }
-                        # Buscar la linea de corriente alterna (AC/CA) en ingles y espanol
-                        if ($Line -match "\b(corriente\s+alterna|AC|CA)\b.+:\s*(0x[0-9a-fA-F]+)") {
-                            $HexVal = $Matches[2]
-                            try {
-                                $Value = [System.Convert]::ToInt32($HexVal, 16)
-                            } catch {}
-                            break
-                        }
-                    }
-                }
-            }
-            
-            # Fallback en caso de que powercfg falle o no retorne nada
-            if ($null -eq $Value) {
-                $RegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid\$SettingGuid"
-                if (Test-Path $RegPath) {
-                    $regProps = Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue
-                    if ($null -ne $regProps) {
-                        $Value = $regProps.ACSettingIndex
-                    }
-                }
-            }
-            
-            $BckVal = if ($null -eq $Value) { '_ABSENT_' } else { $Value }
-            Set-ItemProperty -Path $PowerBackup -Name $BackupName -Value $BckVal -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-    }
+
 
     $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
     if ($pciKey) {
@@ -186,32 +131,37 @@ Try {
     Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -Force | Out-Null
-
     if ((Get-ItemPropertyValue -Path $MousePath -Name "MouseSpeed" -ErrorAction SilentlyContinue) -ne "0") { 
         Write-Warning "No se pudo asegurar MouseSpeed lineal" 
     }
 
+    $StickyPath = "$HKCU_Path\Control Panel\Accessibility\StickyKeys"
+    $TogglePath = "$HKCU_Path\Control Panel\Accessibility\ToggleKeys"
+    $KeyRespPath = "$HKCU_Path\Control Panel\Accessibility\Keyboard Response"
+
+    if (!(Test-Path $StickyPath)) { New-Item -Path $StickyPath -Force | Out-Null }
+    if (!(Test-Path $TogglePath)) { New-Item -Path $TogglePath -Force | Out-Null }
+    if (!(Test-Path $KeyRespPath)) { New-Item -Path $KeyRespPath -Force | Out-Null }
+
     if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\ToggleKeys" -ValueName "Flags" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\Keyboard Response" -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Control Panel\Accessibility\Keyboard Response" -ValueName "BounceTime" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $StickyPath -ValueName "Flags" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $TogglePath -ValueName "Flags" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "Flags" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility"
+        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "BounceTime" -BackupSubFolder "Accessibility"
     }
 
-    Set-ItemProperty -Path "$HKCU_Path\Control Panel\Accessibility\StickyKeys" -Name "Flags" -Type String -Value "506" -Force | Out-Null
-    Set-ItemProperty -Path "$HKCU_Path\Control Panel\Accessibility\ToggleKeys" -Name "Flags" -Type String -Value "58" -Force | Out-Null
-    
-    $KeyRespPath = "$HKCU_Path\Control Panel\Accessibility\Keyboard Response"
+    Set-ItemProperty -Path $StickyPath -Name "Flags" -Type String -Value "506" -Force | Out-Null
+    Set-ItemProperty -Path $TogglePath -Name "Flags" -Type String -Value "58" -Force | Out-Null
     Set-ItemProperty -Path $KeyRespPath -Name "Flags" -Type String -Value "59" -Force | Out-Null
     Set-ItemProperty -Path $KeyRespPath -Name "AutoRepeatDelay" -Type String -Value "200" -Force | Out-Null
     Set-ItemProperty -Path $KeyRespPath -Name "AutoRepeatRate" -Type String -Value "15" -Force | Out-Null
     Set-ItemProperty -Path $KeyRespPath -Name "DelayBeforeAcceptance" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $KeyRespPath -Name "BounceTime" -Type String -Value "0" -Force | Out-Null
 
-    if ((Get-ItemPropertyValue -Path "$HKCU_Path\Control Panel\Accessibility\StickyKeys" -Name "Flags" -ErrorAction SilentlyContinue) -ne "506") { 
+    if ((Get-ItemPropertyValue -Path $StickyPath -Name "Flags" -ErrorAction SilentlyContinue) -ne "506") { 
         Write-Warning "No se pudo asegurar los Flags de StickyKeys stock" 
     }
 

@@ -89,7 +89,7 @@ Try {
             if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
                 try {
                     # Backup del estado original de LSO, RSC y RSS para este adaptador
-                    $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.Name)"
+                    $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
                     if (!(Test-Path $AdapterBackupPath)) { 
                         try { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
                     }

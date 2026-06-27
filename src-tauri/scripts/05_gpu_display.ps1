@@ -5,19 +5,39 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    $HKCU_Path = $global:HKCU_Path
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Aplicando optimizaciones visuales y calibración de GPU de Grado de Producción..."
 
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
-    
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "HwSchMode" -BackupSubFolder "GPU"
+    # Validar soporte WDDM >= 2.7 para evitar pantallas negras en GPU legacy
+    $WddmSupported = $false
+    if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+        $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+        foreach ($Controller in $Controllers) {
+            $DriverVer = $Controller.DriverVersion
+            if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
+                if ([int]$Matches[1] -ge 27) {
+                    $WddmSupported = $true
+                    break
+                }
+            }
+        }
+    } else {
+        # Fallback defensivo si no está CIM disponible
+        $WddmSupported = $true
     }
 
-    Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
-    if ((Get-ItemPropertyValue -Path $HagsPath -Name "HwSchMode" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
+    if ($WddmSupported) {
+        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+            Backup-OverlordRegistryValue -TargetKey $HagsPath -ValueName "HwSchMode" -BackupSubFolder "GPU"
+        }
+        Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
+        if ((Get-ItemPropertyValue -Path $HagsPath -Name "HwSchMode" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
+    } else {
+        Write-Warning "HAGS no es compatible con el driver grafico actual (requiere WDDM >= 2.7). Saltando optimizacion."
+    }
 
     $GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
     if (!(Test-Path $GameBarPath)) { New-Item -Path $GameBarPath -Force | Out-Null }

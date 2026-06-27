@@ -129,7 +129,9 @@ pub struct BenchmarkResponse {
 
 #[tauri::command]
 async fn run_benchmark() -> Result<BenchmarkResponse, String> {
-    // 1. Medir latencia TCP (Tráfico de red general) de forma asíncrona
+    // 1. Medir latencia TCP (Tráfico de red general) de forma asíncrona.
+    // Se utiliza el puerto 80 del servidor DNS público de Cloudflare (1.1.1.1)
+    // para medir la latencia de establecimiento de conexión TCP pura de red.
     let start_tcp = Instant::now();
     let addr = "1.1.1.1:80".parse::<std::net::SocketAddr>().unwrap();
     let tcp_res = tokio::time::timeout(
@@ -142,7 +144,9 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
         _ => 1500.0, // Timeout o fallo de red
     };
 
-    // 2. Medir resolución DNS real vía UDP de forma asíncrona
+    // 2. Medir resolución DNS real vía UDP de forma asíncrona.
+    // Se realiza una consulta DNS UDP al puerto 53 del mismo servidor (1.1.1.1)
+    // para evaluar la latencia específica de resolución de nombres de dominio.
     let socket = tokio::net::UdpSocket::bind("0.0.0.0:0").await.map_err(|e| e.to_string())?;
     let dns_packet: [u8; 28] = [
         0xAA, 0xBB, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -235,9 +239,9 @@ fn purge_ram_native() -> Result<String, String> {
         if current_status >= 0 {
             Ok("Lista Standby del sistema purgada correctamente sin afectar el Working Set activo.".to_string())
         } else {
-            let err = std::io::Error::from_raw_os_error(current_status);
-            eprintln!("[OVERLORD ERROR] NtSetSystemInformation failed (status {}): {}", current_status, err);
-            Err(format!("Error en llamada al sistema NT (status {current_status}): {err}"))
+            let status_hex = format!("0x{:08X}", current_status as u32);
+            eprintln!("[OVERLORD ERROR] NtSetSystemInformation failed (status {}): {}", status_hex, current_status);
+            Err(format!("Error en llamada al sistema NT (NTSTATUS {}): {}", status_hex, current_status))
         }
     }
 }
@@ -339,15 +343,19 @@ fn stop_game_priority_monitor() -> Result<(), String> {
 #[tauri::command]
 fn log_from_js(msg: String) {
     println!("[JS LOG]: {}", msg);
-    if let Ok(temp_dir) = std::env::var("TEMP") {
-        let log_path = std::path::Path::new(&temp_dir).join("OverlordSuite").join("overlord_errors.log");
-        if let Some(parent) = log_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let log_path = std::path::Path::new(&program_data).join("OverlordSuite").join("logs").join("overlord_errors.log");
+    if let Some(parent) = log_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(metadata) = std::fs::metadata(&log_path) {
+        if metadata.len() > 500 * 1024 {
+            let _ = std::fs::remove_file(&log_path);
         }
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
-            use std::io::Write;
-            let _ = writeln!(file, "{}", msg);
-        }
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        use std::io::Write;
+        let _ = writeln!(file, "{}", msg);
     }
 }
 
@@ -358,15 +366,14 @@ pub fn run() {
     std::panic::set_hook(Box::new(|info| {
         let msg = format!("RUST PANIC: {:?}", info);
         eprintln!("{}", msg);
-        if let Ok(temp_dir) = std::env::var("TEMP") {
-            let log_path = std::path::Path::new(&temp_dir).join("OverlordSuite").join("overlord_errors.log");
-            if let Some(parent) = log_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
-                use std::io::Write;
-                let _ = writeln!(file, "{}", msg);
-            }
+        let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+        let log_path = std::path::Path::new(&program_data).join("OverlordSuite").join("logs").join("overlord_errors.log");
+        if let Some(parent) = log_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+            use std::io::Write;
+            let _ = writeln!(file, "{}", msg);
         }
     }));
 
@@ -378,7 +385,6 @@ pub fn run() {
                 let _ = w.set_focus();
             });
         }))
-        .plugin(tauri_plugin_shell::init())
         .manage(SystemStateCache::default())
         .invoke_handler(tauri::generate_handler![
             check_backup_exists,

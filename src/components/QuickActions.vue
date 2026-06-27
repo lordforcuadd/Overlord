@@ -38,7 +38,7 @@
         v-for="action in quickActions"
         :key="action.id"
         @click="runAction(action.id)"
-        :disabled="isExecutingGlobal"
+        :disabled="isExecutingGlobal || store.isGlobalBusy"
         :class="[
           'group relative flex items-start gap-4 p-4 rounded-xl border transition-all duration-300 text-left overflow-hidden',
           status[action.id] === 'success'
@@ -222,7 +222,7 @@ const quickActions = [
 ];
 
 const runAction = async (actionId) => {
-  if (isExecutingGlobal.value || status.value[actionId] === "loading") return;
+  if (isExecutingGlobal.value || store.isGlobalBusy || status.value[actionId] === "loading") return;
 
   // Diálogos de advertencia y confirmación antes de la ejecución de acciones críticas
   if (actionId !== "PurgeRAM") {
@@ -253,6 +253,7 @@ const runAction = async (actionId) => {
   }
 
   isExecutingGlobal.value = true;
+  store.setGlobalBusy(true);
   status.value[actionId] = "loading";
 
   try {
@@ -273,6 +274,7 @@ const runAction = async (actionId) => {
     status.value[actionId] = "error";
   } finally {
     isExecutingGlobal.value = false;
+    store.setGlobalBusy(false);
     setTimeout(() => {
       status.value[actionId] = "idle";
     }, 3500);

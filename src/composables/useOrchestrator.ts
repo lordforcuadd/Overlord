@@ -15,11 +15,13 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
   async function crearRespaldo() {
     isBackingUp.value = true;
+    const wasAlreadyBusy = store.isGlobalBusy;
+    if (!wasAlreadyBusy) store.setGlobalBusy(true);
     try {
       await invoke("run_optimization_script", {
         scriptName: "crear_respaldo",
         isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ramGb ?? 8,
+        ramGb: store.hardwareInfo.ramGb || 8,
         gameList: "",
       });
       store.restorePointCreated = true;
@@ -39,11 +41,12 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
     } finally {
       isBackingUp.value = false;
+      if (!wasAlreadyBusy) store.setGlobalBusy(false);
     }
   }
 
   async function ejecutarTodo() {
-    if (isExecutingAll.value) return;
+    if (isExecutingAll.value || store.isGlobalBusy) return;
 
     const modulosActivos = Object.entries(store.modules)
       .filter(([_, isEnabled]) => isEnabled)
@@ -51,125 +54,130 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
     if (modulosActivos.length === 0) return;
 
-    await store.checkBackupStatus();
-
-    if (!store.backupExists) {
-      const alertConfirm = await Swal.fire({
-        title: "RESPALDO REQUERIDO",
-        html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creará un respaldo obligatorio.",
-        icon: "info",
-        showCancelButton: true,
-        confirmButtonText: "SÍ, BLINDAR SISTEMA",
-        cancelButtonText: "CANCELAR",
-        ...overlordSwalConfig,
-      });
-
-      if (!alertConfirm.isConfirmed) return;
-      await crearRespaldo();
-      if (!store.restorePointCreated) return;
-    }
-
+    store.setGlobalBusy(true);
     isExecutingAll.value = true;
+    try {
+      await store.checkBackupStatus();
 
-    const modulosExitosos: string[] = [];
-    let moduloFallido: string | null = null;
-    let huboError = false;
-
-    for (const modKey of modulosActivos) {
-      const scriptName = tweaksMetadata[modKey]?.scriptName;
-      if (!scriptName) continue;
-
-      cardStatus.value[modKey] = "loading";
-      try {
-        let gameListOpt = "";
-        if (modKey === "gameHooks") {
-          gameListOpt = store.gameList
-            .filter((g) => g.optimize)
-            .map((g) => g.exe)
-            .join(",");
-        }
-
-        await invoke("run_optimization_script", {
-          scriptName: scriptName.replace(".ps1", ""),
-          isLaptop: store.hardwareInfo.isLaptop,
-          ramGb: store.hardwareInfo.ramGb ?? 8,
-          gameList: gameListOpt,
+      if (!store.backupExists) {
+        const alertConfirm = await Swal.fire({
+          title: "RESPALDO REQUERIDO",
+          html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creará un respaldo obligatorio.",
+          icon: "info",
+          showCancelButton: true,
+          confirmButtonText: "SÍ, BLINDAR SISTEMA",
+          cancelButtonText: "CANCELAR",
+          ...overlordSwalConfig,
         });
 
-        if (modKey === "gameHooks" && gameListOpt) {
-          store.isMonitorRunning = true;
-          await invoke("start_game_priority_monitor", {
-            gameListRaw: gameListOpt,
-          });
-          await store.togglePriorityService(store.priorityServiceSelected);
-          console.log(
-            `[RUST MONITOR]: Hilo dinámico de prioridad alta inicializado con éxito. Servicio de fondo configurado: ${store.priorityServiceSelected}`,
-          );
-        }
-
-        cardStatus.value[modKey] = "success";
-        store.modules[modKey as keyof typeof store.modules] = false;
-        modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
-      } catch (errorOutput) {
-        console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
-        cardStatus.value[modKey] = "error";
-
-        moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${String(errorOutput).substring(0, 80)}...</span>`;
-        huboError = true;
-        break;
+        if (!alertConfirm.isConfirmed) return;
+        await crearRespaldo();
+        if (!store.restorePointCreated) return;
       }
-    }
 
-    isExecutingAll.value = false;
+      const modulosExitosos: string[] = [];
+      let moduloFallido: string | null = null;
+      let huboError = false;
 
-    if (huboError) {
-      const textoExitos =
-        modulosExitosos.length > 0
-          ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se aplicaron correctamente.`
-          : "Ningún módulo previo pudo completarse.";
+      for (const modKey of modulosActivos) {
+        const scriptName = tweaksMetadata[modKey]?.scriptName;
+        if (!scriptName) continue;
 
-      await Swal.fire({
-        title: "OPTIMIZACIÓN PARCIAL",
-        html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>Puedes revertir todo el sistema al estado de fábrica desde el botón Revertir.`,
-        icon: "error",
-        ...overlordSwalConfig,
-      });
-      return;
-    }
-
-    if (modulosActivos.length > 0) {
-      const result = await Swal.fire({
-        title: "SISTEMA OPTIMIZADO",
-        html: "Es <b class='text-yellow-500'>OBLIGATORIO</b> reiniciar para inyectar los cambios en el Kernel.",
-        icon: "success",
-        confirmButtonText: "SÍ, REINICIAR AHORA",
-        cancelButtonText: "MÁS TARDE",
-        showCancelButton: true,
-        ...overlordSwalConfig,
-      });
-
-      if (result.isConfirmed) {
+        cardStatus.value[modKey] = "loading";
         try {
+          let gameListOpt = "";
+          if (modKey === "gameHooks") {
+            gameListOpt = store.gameList
+              .filter((g) => g.optimize)
+              .map((g) => g.exe)
+              .join(",");
+          }
+
           await invoke("run_optimization_script", {
-            scriptName: "shutdown",
-            isLaptop: false,
-            ramGb: 0,
-            gameList: "",
+            scriptName: scriptName.replace(".ps1", ""),
+            isLaptop: store.hardwareInfo.isLaptop,
+            ramGb: store.hardwareInfo.ramGb || 8,
+            gameList: gameListOpt,
           });
-        } catch (err) {
-          console.error("Fallo al ejecutar reinicio del sistema:", err);
-          await Swal.fire({
-            title: "ERROR AL REINICIAR",
-            text: "No se pudo iniciar el proceso de reinicio. Reinicia tu PC manualmente para aplicar los cambios.",
-            icon: "error",
-            ...overlordSwalConfig,
-          });
+
+          if (modKey === "gameHooks" && gameListOpt) {
+            store.isMonitorRunning = true;
+            await invoke("start_game_priority_monitor", {
+              gameListRaw: gameListOpt,
+            });
+            await store.togglePriorityService(store.priorityServiceSelected);
+            console.log(
+              `[RUST MONITOR]: Hilo dinámico de prioridad alta inicializado con éxito. Servicio de fondo configurado: ${store.priorityServiceSelected}`,
+            );
+          }
+
+          cardStatus.value[modKey] = "success";
+          store.modules[modKey as keyof typeof store.modules] = false;
+          modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
+        } catch (errorOutput) {
+          console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
+          cardStatus.value[modKey] = "error";
+
+          moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${String(errorOutput).substring(0, 80)}...</span>`;
+          huboError = true;
+          break;
         }
       }
+
+      if (huboError) {
+        const textoExitos =
+          modulosExitosos.length > 0
+            ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se aplicaron correctamente.`
+            : "Ningún módulo previo pudo completarse.";
+
+        await Swal.fire({
+          title: "OPTIMIZACIÓN PARCIAL",
+          html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>Puedes revertir todo el sistema al estado de fábrica desde el botón Revertir.`,
+          icon: "error",
+          ...overlordSwalConfig,
+        });
+        return;
+      }
+
+      if (modulosActivos.length > 0) {
+        const result = await Swal.fire({
+          title: "SISTEMA OPTIMIZADO",
+          html: "Es <b class='text-yellow-500'>OBLIGATORIO</b> reiniciar para inyectar los cambios en el Kernel.",
+          icon: "success",
+          confirmButtonText: "SÍ, REINICIAR AHORA",
+          cancelButtonText: "MÁS TARDE",
+          showCancelButton: true,
+          ...overlordSwalConfig,
+        });
+
+        if (result.isConfirmed) {
+          try {
+            await invoke("run_optimization_script", {
+              scriptName: "shutdown",
+              isLaptop: false,
+              ramGb: 0,
+              gameList: "",
+            });
+          } catch (err) {
+            console.error("Fallo al ejecutar reinicio del sistema:", err);
+            await Swal.fire({
+              title: "ERROR AL REINICIAR",
+              text: "No se pudo iniciar el proceso de reinicio. Reinicia tu PC manualmente para aplicar los cambios.",
+              icon: "error",
+              ...overlordSwalConfig,
+            });
+          }
+        }
+      }
+    } finally {
+      isExecutingAll.value = false;
+      store.setGlobalBusy(false);
     }
   }
 
   async function revertirStock() {
+    if (store.isGlobalBusy) return;
+
     const result = await Swal.fire({
       title: "ATENCIÓN",
       text: "¿Estás seguro de revertir los cambios y volver a stock?",
@@ -183,6 +191,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
     if (!result.isConfirmed) return;
 
     isReverting.value = true;
+    store.setGlobalBusy(true);
     try {
       // 1. Detener el monitor dinámico en Rust
       await invoke("stop_game_priority_monitor").catch((err) => {
@@ -197,7 +206,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       await invoke("run_optimization_script", {
         scriptName: "10_revertir",
         isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ramGb ?? 8,
+        ramGb: store.hardwareInfo.ramGb || 8,
         gameList: "",
       });
       store.restorePointCreated = false;
@@ -224,6 +233,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
     } finally {
       isReverting.value = false;
+      store.setGlobalBusy(false);
     }
   }
 
@@ -232,7 +242,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       const jsonStatus = await invoke<string>("run_optimization_script", {
         scriptName: "get_modules_status",
         isLaptop: store.hardwareInfo.isLaptop,
-        ramGb: store.hardwareInfo.ramGb ?? 8,
+        ramGb: store.hardwareInfo.ramGb || 8,
         gameList: "",
       });
 

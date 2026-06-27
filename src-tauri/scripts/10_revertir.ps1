@@ -24,7 +24,8 @@ function Invoke-OverlordSafeRestore {
         [string]$DefaultType = "DWord"
     )
     if ($TargetKey -match "^HKCU:") {
-        $TargetKey = $TargetKey -replace '^HKCU:', $global:HKCU_Path
+        $HKCU_RestorePath = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
+        $TargetKey = $TargetKey -replace '^HKCU:', $HKCU_RestorePath
     }
     
     $BackupKey = "HKLM:\SOFTWARE\Overlord\Backup\$BackupSubFolder"
@@ -39,7 +40,7 @@ function Invoke-OverlordSafeRestore {
 }
 
 Try {
-    $HKCU_Path = $global:HKCU_Path
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Iniciando reversion simetrica de Overlord con helpers globales..."
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
@@ -289,6 +290,7 @@ Try {
         "Microsoft\Windows\Autochk\Proxy",
         "Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
         "Microsoft\Windows\Application Experience\StartupAppTask",
+        "Microsoft\Windows\Device Information\Device",
         "Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
         "Microsoft\Windows\Feedback\Siuf\DmClient",
         "Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
@@ -372,7 +374,10 @@ Try {
             foreach ($Adapter in $Adapters) {
                 if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
                     try {
-                        $AdapterBackupPath = "$BackupPath\Network\Adapters_State\$($Adapter.Name)"
+                        $AdapterBackupPath = "$BackupPath\Network\Adapters_State\$($Adapter.InterfaceGuid)"
+                        if (!(Test-Path $AdapterBackupPath)) {
+                            $AdapterBackupPath = "$BackupPath\Network\Adapters_State\$($Adapter.Name)"
+                        }
                         $HasAdapterBackup = Test-Path $AdapterBackupPath
                         
                         if ($HasAdapterBackup) {
@@ -543,6 +548,22 @@ Try {
                             $SettingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid\$SettingGuid"
                             if (Test-Path $SettingPath) {
                                 Remove-ItemProperty -Path $SettingPath -Name "ACSettingIndex" -ErrorAction SilentlyContinue | Out-Null
+                                Remove-ItemProperty -Path $SettingPath -Name "DCSettingIndex" -ErrorAction SilentlyContinue | Out-Null
+                                
+                                # Si la clave ya no tiene propiedades ni subclaves, eliminarla por completo
+                                $key = Get-Item -Path $SettingPath -ErrorAction SilentlyContinue
+                                if ($null -ne $key -and $key.ValueCount -eq 0 -and $key.SubKeyCount -eq 0) {
+                                    Remove-Item -Path $SettingPath -Force -ErrorAction SilentlyContinue | Out-Null
+                                }
+                                
+                                # También verificar si la clave de subgrupo queda vacía
+                                $SubGroupPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid"
+                                if (Test-Path $SubGroupPath) {
+                                    $subKey = Get-Item -Path $SubGroupPath -ErrorAction SilentlyContinue
+                                    if ($null -ne $subKey -and $subKey.ValueCount -eq 0 -and $subKey.SubKeyCount -eq 0) {
+                                        Remove-Item -Path $SubGroupPath -Force -ErrorAction SilentlyContinue | Out-Null
+                                    }
+                                }
                             }
                         } else {
                             & powercfg /SETACVALUEINDEX $SchemeGuid $SubGroupGuid $SettingGuid $Val 2>$null | Out-Null
@@ -621,18 +642,26 @@ Try {
                     $newContent = [System.Collections.Generic.List[string]]::new()
                     $changed = $false
                     foreach ($line in $content) {
+                        $keepLine = $true
                         $modified = $line
                         foreach ($K in $RestoredValues.Keys) {
                             if ($line -match "^\s*$K\s*=") {
-                                $targetValue = "$K=$($RestoredValues[$K])"
-                                if ($line.Trim() -notmatch "^\s*$K\s*=\s*$($RestoredValues[$K])\s*$") {
-                                    $modified = $targetValue
+                                if ($RestoredValues[$K] -eq '_ABSENT_') {
+                                    $keepLine = $false
                                     $changed = $true
+                                } else {
+                                    $targetValue = "$K=$($RestoredValues[$K])"
+                                    if ($line.Trim() -notmatch "^\s*$K\s*=\s*$($RestoredValues[$K])\s*$") {
+                                        $modified = $targetValue
+                                        $changed = $true
+                                    }
                                 }
                                 break
                             }
                         }
-                        $newContent.Add($modified)
+                        if ($keepLine) {
+                            $newContent.Add($modified)
+                        }
                     }
                     if ($changed) {
                         Set-Content -Path $IniPath -Value $newContent -Force | Out-Null
@@ -700,15 +729,22 @@ Try {
         "Microsoft.BingSports", "Microsoft.MicrosoftMahjong", "Microsoft.WindowsFeedbackHub",
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
-    foreach ($App in $AppsToRestore) {
-        try {
-            Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | ForEach-Object {
-                $ManifestPath = Join-Path $_.InstallLocation "AppXManifest.xml" -ErrorAction SilentlyContinue
-                if ($ManifestPath -and (Test-Path $ManifestPath)) {
-                    Add-AppxPackage -DisableDevelopmentMode -Register $ManifestPath -ErrorAction SilentlyContinue | Out-Null
+    $WindowsAppsPath = Join-Path $env:ProgramFiles "WindowsApps"
+    if (Test-Path $WindowsAppsPath) {
+        foreach ($App in $AppsToRestore) {
+            try {
+                $AppDirs = Get-ChildItem -Path $WindowsAppsPath -Directory -Filter "$App*" -ErrorAction SilentlyContinue
+                foreach ($Dir in $AppDirs) {
+                    $ManifestPath = Join-Path $Dir.FullName "AppXManifest.xml"
+                    if (Test-Path $ManifestPath) {
+                        Add-AppxPackage -DisableDevelopmentMode -Register $ManifestPath -ErrorAction SilentlyContinue | Out-Null
+                        if (Get-Command Add-AppxProvisionedPackage -ErrorAction SilentlyContinue) {
+                            Add-AppxProvisionedPackage -Online -PackagePath $Dir.FullName -DependencyPackagePath @() -LicensePath "" -ErrorAction SilentlyContinue | Out-Null
+                        }
+                    }
                 }
-            }
-        } catch {}
+            } catch {}
+        }
     }
 
     if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
@@ -724,8 +760,10 @@ Try {
 
     Write-Host "[+] Reversion completa de Overlord finalizada con exito."
     Write-Host "Reiniciando el entorno del Explorador de Windows..."
-    Stop-Process -Name explorer -Force
-    Start-Sleep -Seconds 1
+    if (Get-Process -Name explorer -ErrorAction SilentlyContinue) {
+        Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+    }
     if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
         Start-Process explorer.exe | Out-Null
     }

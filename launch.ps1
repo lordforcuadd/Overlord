@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
 Write-Host "[*] Conectando con los servidores de GitHub para buscar actualizaciones..." -ForegroundColor Gray
 
@@ -39,18 +39,41 @@ if ($null -ne $ReleaseData -and $null -ne $ReleaseData.assets) {
 $DownloadUrl = if ($null -ne $Asset) { $Asset.browser_download_url } else { $null }
 $FileName = if ($null -ne $Asset) { $Asset.name } else { "Overlord.exe" }
 
-$TempDir = Join-Path $env:TEMP "OverlordSuite"
-if (Test-Path $TempDir) {
-    try {
-        Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-    } catch {}
-} else {
+$ProgData = $env:ProgramData
+if ([string]::IsNullOrWhiteSpace($ProgData)) { $ProgData = "C:\ProgramData" }
+$TempDir = Join-Path $ProgData "OverlordSuite"
+
+if (!(Test-Path $TempDir)) {
     try {
         New-Item -Path $TempDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
     } catch {
-        Write-Host "[-] Error critico: No se pudo crear el directorio temporal de trabajo: $_" -ForegroundColor Red
+        Write-Host "[-] Error critico: No se pudo crear el directorio de trabajo seguro: $_" -ForegroundColor Red
         exit 1
     }
+} else {
+    try {
+        Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+try {
+    $Acl = Get-Acl $TempDir
+    $Acl.SetAccessRuleProtection($true, $false)
+    $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $AdminsRule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administradores", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $UsersRule2  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Usuarios", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    
+    $Acl.AddAccessRule($SystemRule)
+    $Acl.AddAccessRule($AdminsRule)
+    try { $Acl.AddAccessRule($AdminsRule2) } catch {}
+    $Acl.AddAccessRule($UsersRule)
+    try { $Acl.AddAccessRule($UsersRule2) } catch {}
+    
+    Set-Acl -Path $TempDir -AclObject $Acl | Out-Null
+} catch {
+    Write-Host "[*] Advertencia: No se pudieron endurecer los permisos NTFS del directorio de trabajo." -ForegroundColor Yellow
 }
 
 $ExePath = Join-Path $TempDir $FileName
@@ -110,8 +133,15 @@ if ($null -ne $DownloadUrl) {
 } else {
     # Si no se pudo obtener el link de descarga (por ejemplo, sin internet), buscar si existe una versión descargada previamente
     if (Test-Path $ExePath) {
-        Write-Host "[*] Utilizando binario local detectado previamente..." -ForegroundColor Gray
-        $ExecutionPermitted = $true
+        Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
+        $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
+        if ($null -ne $Signature -and $Signature.Status -eq "Valid") {
+            Write-Host "[+] Binario local validado mediante firma digital." -ForegroundColor Green
+            $ExecutionPermitted = $true
+        } else {
+            Write-Host "[-] ERROR CRÍTICO: El binario local no posee una firma digital válida o está corrupto/manipulado. Abortando por seguridad." -ForegroundColor Red
+            $ExecutionPermitted = $false
+        }
     } else {
         Write-Host "[-] Error critico: No se pudo localizar el binario en linea y no existe una copia local cacheada." -ForegroundColor Red
     }
@@ -149,7 +179,7 @@ try {
 } finally {
     if (Test-Path $TempDir) {
         try {
-            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+            Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
         } catch {}
     }
 }

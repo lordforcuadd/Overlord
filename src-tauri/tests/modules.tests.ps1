@@ -221,7 +221,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Analisis Estatico de Simetria de Backups y Reversion" {
         BeforeAll {
-            $RevertContent = Get-Content -Path $RevertPath -Raw
+            $RevertContent = (Get-Content -Path $RevertPath -Raw) -replace '`\r?\n\s*', ' '
         }
 
         It "Debe comprobar que cada Backup-OverlordRegistryValue en scripts de aplicacion tenga un restaurador simetrico en la reversion" {
@@ -230,7 +230,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
             foreach ($File in $ModuleFiles) {
-                $Content = Get-Content -Path $File.FullName -Raw
+                $Content = (Get-Content -Path $File.FullName -Raw) -replace '`\r?\n\s*', ' '
                 $Calls = [regex]::Matches($Content, 'Backup-OverlordRegistryValue\s+[^|\n;]+')
                 foreach ($Call in $Calls) {
                     $Text = $Call.Value
@@ -276,7 +276,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             
             $AppScriptsContent = ""
             foreach ($File in $ModuleFiles) {
-                $AppScriptsContent += Get-Content -Path $File.FullName -Raw
+                $AppScriptsContent += (Get-Content -Path $File.FullName -Raw) -replace '`\r?\n\s*', ' '
             }
             
             foreach ($Call in $RevertCalls) {
@@ -319,15 +319,22 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
             foreach ($File in $ModuleFiles) {
-                $Content = Get-Content -Path $File.FullName -Raw
+                $Content = (Get-Content -Path $File.FullName -Raw) -replace '`\r?\n\s*', ' '
                 if ($Content -match "SETACVALUEINDEX|SETDCVALUEINDEX") {
                     ($Content -match "powercfg\s+/q" -or $Content -match "Backup-OverlordPowerSetting" -or $Content -match "Backup-OverlordRegistryValue") | Should Be $true
+                    
+                    # Conteo exacto: por cada SETAC/SETDC debe haber una consulta de respaldo previa
+                    $SetCalls = [regex]::Matches($Content, "SETACVALUEINDEX|SETDCVALUEINDEX").Count
+                    $BackupCalls = [regex]::Matches($Content, "Backup-OverlordPowerSetting|Backup-OverlordRegistryValue|powercfg\s+/q").Count
+                    ($BackupCalls -ge $SetCalls) | Should Be $true
                 }
             }
         }
 
         It "Debe verificar que get_modules_status.ps1 no use Test-Path sobre carpetas de backup como proxy de estado sin validacion real" {
-            $StatusContent = Get-Content -Path (Join-Path $ScriptsPath "get_modules_status.ps1") -Raw
+            $StatusContent = (Get-Content -Path (Join-Path $ScriptsPath "get_modules_status.ps1") -Raw) -replace '`\r?\n\s*', ' '
+            
+            # Variables de backup
             $TestPathCalls = [regex]::Matches($StatusContent, 'Test-Path\s+\$(\w+Backup\w*|\w*Backup\w*)')
             foreach ($Call in $TestPathCalls) {
                 $VarName = $Call.Groups[1].Value
@@ -335,16 +342,23 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                     throw "Se detecto un Test-Path sobre la variable de backup `$$VarName` en get_modules_status.ps1, lo cual viola la Regla 8 de AGENTS.md"
                 }
             }
+            
+            # Rutas de backup literales
+            $LiteralBackupCalls = [regex]::Matches($StatusContent, 'Test-Path\s+["''][^"'']*Overlord\\Backup[^"'']*["'']')
+            if ($LiteralBackupCalls.Count -gt 0) {
+                throw "Se detecto un Test-Path sobre una ruta de backup literal en get_modules_status.ps1, lo cual viola la Regla 8 de AGENTS.md"
+            }
         }
 
         It "Debe verificar que todos los servicios desactivados en el debloat o la telemetria esten en la tabla de restauracion del revert" {
-            $DebloatContent = Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw
-            $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
+            $DebloatContent = (Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw) -replace '`\r?\n\s*', ' '
+            $TelemetryContent = (Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw) -replace '`\r?\n\s*', ' '
             
             $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc")
             
             foreach ($Svc in $KnownServices) {
                 ($RevertContent -match "\b$Svc\b") | Should Be $true
+                ($RevertContent -match "[\x22\x27]$Svc[\x22\x27]\s*=") | Should Be $true
             }
         }
 
@@ -355,8 +369,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $TaskMatches = [regex]::Matches($DebloatContent + $TelemetryContent, '["''](Microsoft\\Windows\\[^"'']+)["'']')
             foreach ($m in $TaskMatches) {
                 $FullPath = $m.Groups[1].Value
-                $TaskName = Split-Path $FullPath -Leaf
-                ($RevertContent -match "\b$TaskName\b") | Should Be $true
+                ($RevertContent -match "[\x22\x27]$([regex]::Escape($FullPath))[\x22\x27]") | Should Be $true
             }
         }
 

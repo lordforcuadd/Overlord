@@ -35,6 +35,8 @@ interface BenchmarkData {
 
 export const useOverlordStore = defineStore("overlord", {
   state: () => ({
+    isGlobalBusy: false,
+    hardwareError: false,
     hardwareInfo: {
       cpu: "",
       gpu: "",
@@ -95,6 +97,9 @@ export const useOverlordStore = defineStore("overlord", {
     isBenchmarkTesting: false,
   }),
   actions: {
+    setGlobalBusy(value: boolean) {
+      this.isGlobalBusy = value;
+    },
     async checkBackupStatus() {
       try {
         this.backupExists = await invoke<boolean>("check_backup_exists");
@@ -151,6 +156,7 @@ export const useOverlordStore = defineStore("overlord", {
         });
       } catch (e) {
         console.error("[ERROR DETECTANDO HARDWARE]:", e);
+        this.hardwareError = true;
       }
     },
     async checkPriorityServiceStatus() {
@@ -174,6 +180,7 @@ export const useOverlordStore = defineStore("overlord", {
       }
     },
     async togglePriorityService(enable: boolean) {
+      this.setGlobalBusy(true);
       try {
         const gameListOpt = this.gameList
           .filter((g) => g.optimize)
@@ -193,6 +200,8 @@ export const useOverlordStore = defineStore("overlord", {
       } catch (e) {
         console.error(`[ERROR TOGGLING PRIORITY SERVICE ${enable}]:`, e);
         await this.checkPriorityServiceStatus();
+      } finally {
+        this.setGlobalBusy(false);
       }
     },
     async scanGames() {
@@ -266,8 +275,9 @@ export const useOverlordStore = defineStore("overlord", {
       }).catch(() => {});
     },
     async ejecutarNetworkBenchmark(fase: "before" | "after") {
-      if (this.isBenchmarkTesting) return;
+      if (this.isBenchmarkTesting || this.isGlobalBusy) return;
       this.isBenchmarkTesting = true;
+      this.setGlobalBusy(true);
 
       try {
         const result = await invoke<{ tcp_latency: number; dns_latency: number }>("run_benchmark");
@@ -287,6 +297,7 @@ export const useOverlordStore = defineStore("overlord", {
         this.benchmarks[fase].measured = true;
       } finally {
         this.isBenchmarkTesting = false;
+        this.setGlobalBusy(false);
       }
     },
     updateModule(tweakId: string, value: boolean) {

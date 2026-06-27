@@ -21,22 +21,24 @@ $ConfigFile = Join-Path $InstallDir "games_to_optimize.txt"
 if ($Action -eq "install") {
     if (!(Test-Path $InstallDir)) {
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
-        $Acl = Get-Acl $InstallDir
-        $Acl.SetAccessRuleProtection($true, $false)
-        $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-        $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-        $AdminsRule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administradores", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-        $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-        $UsersRule2  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Usuarios", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-        
-        $Acl.AddAccessRule($SystemRule)
-        $Acl.AddAccessRule($AdminsRule)
-        try { $Acl.AddAccessRule($AdminsRule2) } catch {}
-        $Acl.AddAccessRule($UsersRule)
-        try { $Acl.AddAccessRule($UsersRule2) } catch {}
-        
-        Set-Acl -Path $InstallDir -AclObject $Acl | Out-Null
     }
+    
+    # Aplicar ACL de forma mandatoria siempre
+    $Acl = Get-Acl $InstallDir
+    $Acl.SetAccessRuleProtection($true, $false)
+    $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $AdminsRule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administradores", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $UsersRule2  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Usuarios", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    
+    $Acl.AddAccessRule($SystemRule)
+    $Acl.AddAccessRule($AdminsRule)
+    try { $Acl.AddAccessRule($AdminsRule2) } catch {}
+    $Acl.AddAccessRule($UsersRule)
+    try { $Acl.AddAccessRule($UsersRule2) } catch {}
+    
+    Set-Acl -Path $InstallDir -AclObject $Acl | Out-Null
 
     $GameList | Out-File -FilePath $ConfigFile -Encoding utf8 -Force
 
@@ -145,15 +147,9 @@ elseif ($Action -eq "uninstall") {
         }
     } catch {}
 
-    if (Test-Path $ConfigFile) { Remove-Item $ConfigFile -Force | Out-Null }
-    if (Test-Path $DaemonScript) { Remove-Item $DaemonScript -Force | Out-Null }
-    
-    # Limpieza de la carpeta raíz del daemon en ProgramData si está vacía
+    # Limpieza de la carpeta raíz del daemon en ProgramData
     if (Test-Path $InstallDir) {
-        $files = Get-ChildItem -Path $InstallDir -ErrorAction SilentlyContinue
-        if ($null -eq $files -or @($files).Count -eq 0) {
-            Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        }
+        Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 
     Write-Output "uninstalled"

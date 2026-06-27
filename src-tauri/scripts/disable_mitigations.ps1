@@ -10,13 +10,13 @@ try {
         Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance"
     }
 
-    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 3 -Force | Out-Null
-    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 3 -Force | Out-Null
+    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 8259 -Force | Out-Null
+    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 8259 -Force | Out-Null
 
-    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue) -ne 3) { 
+    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue) -ne 8259) { 
         throw "Fallo al escribir FeatureSettingsOverride" 
     }
-    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue) -ne 3) { 
+    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue) -ne 8259) { 
         throw "Fallo al escribir FeatureSettingsOverrideMask" 
     }
 

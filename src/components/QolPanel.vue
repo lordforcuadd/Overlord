@@ -64,7 +64,7 @@
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning || qolStatus[item.id] === 'loading'"
+            :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -111,7 +111,7 @@
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning || qolStatus[item.id] === 'loading'"
+            :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -158,7 +158,7 @@
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning || qolStatus[item.id] === 'loading'"
+            :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -205,7 +205,7 @@
           </div>
           <button
             @click="!isScanning && applyToggle(item.id)"
-            :disabled="isScanning || qolStatus[item.id] === 'loading'"
+            :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -472,10 +472,11 @@ onMounted(async () => {
 });
 
 async function applyToggle(settingKey: QolKeys) {
-  if (qolStatus.value[settingKey] === "loading") return;
+  if (qolStatus.value[settingKey] === "loading" || store.isGlobalBusy) return;
   const previousState = qol.value[settingKey];
   qol.value[settingKey] = !qol.value[settingKey];
   qolStatus.value[settingKey] = "loading";
+  store.setGlobalBusy(true);
 
   try {
     const isEnabledStr = qol.value[settingKey] ? "true" : "false";
@@ -483,7 +484,7 @@ async function applyToggle(settingKey: QolKeys) {
     const output = await invoke<string>("run_optimization_script", {
       scriptName: "set_qol",
       isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ramGb ?? 8,
+      ramGb: store.hardwareInfo.ramGb || 8,
       gameList: `${settingKey}:${isEnabledStr}`,
     });
 
@@ -506,7 +507,7 @@ async function applyToggle(settingKey: QolKeys) {
           await invoke("run_optimization_script", {
             scriptName: "quick_actions",
             isLaptop: store.hardwareInfo.isLaptop,
-            ramGb: store.hardwareInfo.ramGb ?? 8,
+            ramGb: store.hardwareInfo.ramGb || 8,
             gameList: "RestartExplorer",
           });
 
@@ -540,6 +541,8 @@ async function applyToggle(settingKey: QolKeys) {
       if (qolStatus.value[settingKey] === "error")
         qolStatus.value[settingKey] = "idle";
     }, 2000);
+  } finally {
+    store.setGlobalBusy(false);
   }
 }
 </script>

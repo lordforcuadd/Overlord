@@ -3,7 +3,7 @@ param(
     [int]$RamGB = 8
 )
 $ErrorActionPreference = "Stop"
-$HKCU_Path = $global:HKCU_Path
+$HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 
 Try {
     Write-Host "[*] Erradicando telemetria e hilos de recoleccion..."

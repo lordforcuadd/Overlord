@@ -123,7 +123,7 @@ const handleServiceToggle = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   const isChecked = target.checked;
 
-  if (props.cardStatus['gameHooks'] !== 'success') {
+  if (isChecked && props.cardStatus['gameHooks'] !== 'success') {
     // Revertir el estado visual en el input inmediatamente
     target.checked = !isChecked;
     

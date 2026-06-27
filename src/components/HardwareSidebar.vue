@@ -46,7 +46,7 @@
           <span>PLACA</span>
         </div>
         <span
-          class="text-gray-200 text-right truncate max-w-[600px]"
+          class="text-gray-200 text-right truncate max-w-[150px] sm:max-w-[300px] lg:max-w-[180px] xl:max-w-[240px]"
           :title="store.hardwareInfo.motherboard"
         >
           {{ store.hardwareInfo.motherboard || "Buscando..." }}
@@ -73,7 +73,7 @@
           <span>CPU</span>
         </div>
         <span
-          class="text-white text-right truncate max-w-[600px]"
+          class="text-white text-right truncate max-w-[150px] sm:max-w-[300px] lg:max-w-[180px] xl:max-w-[240px]"
           :title="store.hardwareInfo.cpu"
         >
           {{ store.hardwareInfo.cpu || "Buscando..." }}
@@ -106,7 +106,7 @@
           <span>GPU</span>
         </div>
         <span
-          class="text-yellow-400 font-bold text-right truncate max-w-[600px]"
+          class="text-yellow-400 font-bold text-right truncate max-w-[150px] sm:max-w-[300px] lg:max-w-[180px] xl:max-w-[240px]"
           :title="store.hardwareInfo.gpu"
         >
           {{ store.hardwareInfo.gpu || "Buscando..." }}

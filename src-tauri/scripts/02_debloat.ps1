@@ -4,7 +4,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    $HKCU_Path = $global:HKCU_Path
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Iniciando purga de Bloatware y aplicaciones residuales..."
 
     $Apps = @(
@@ -27,7 +27,7 @@ Try {
             continue
         }
         try {
-            Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
+            Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
             $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
         } catch {
             Write-Warning "No se pudo remover la aplicacion bloatware ${App}: $_"
@@ -153,7 +153,8 @@ Try {
         "Microsoft\Windows\Maps\MapsUpdateTask",
         "Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
         "Microsoft\Windows\Shell\FamilySafetyMonitor",
-        "Microsoft\Windows\Shell\FamilySafetyRefreshTask"
+        "Microsoft\Windows\Shell\FamilySafetyRefreshTask",
+        "Microsoft\Windows\Device Information\Device"
     )
 
     $TasksBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Tasks"
