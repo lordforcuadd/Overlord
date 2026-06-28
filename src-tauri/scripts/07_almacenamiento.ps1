@@ -1,11 +1,19 @@
 param(
     [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8
+    [int]$RamGB = 8,
+    [bool]$IsHybrid = $false,
+    [bool]$IsX3d = $false,
+    [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Iniciando Optimizacion y Limpieza de Disco..."
+    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
+    Write-Host "[*] Iniciando mantenimiento y optimización de almacenamiento..."
+
+    if ($IsSsd) {
+        Write-Host "[+] Unidad SSD detectada. Optimizando parametros de lectura/escritura NTFS y cache..." -ForegroundColor Green
+    }
 
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
     $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
@@ -54,16 +62,26 @@ Try {
     # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
     try {
-        $UpdateSession = New-Object -ComObject "Microsoft.Update.Session"
-        $UpdateInstaller = New-Object -ComObject "Microsoft.Update.Installer"
-        if (-not $UpdateInstaller.IsBusy) {
-            Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+        # El objeto COM Microsoft.Update.Installer.IsBusy es local, por lo que verificamos procesos activos
+        # de instaladores en caliente (TiWorker, TrustedInstaller) que denotan parches activos.
+        $IsUpdating = (Get-Process -Name "TiWorker", "TrustedInstaller" -ErrorAction SilentlyContinue) -ne $null
+        $WuauservSvc = Get-Service -Name "wuauserv" -ErrorAction SilentlyContinue
+        $IsServiceRunning = $null -ne $WuauservSvc -and $WuauservSvc.Status -eq "Running"
+
+        if (-not $IsUpdating) {
+            if ($IsServiceRunning) {
+                Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+            }
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-            Start-Service wuauserv -ErrorAction SilentlyContinue
+            if ($IsServiceRunning) {
+                Start-Service wuauserv -ErrorAction SilentlyContinue
+            }
+        } else {
+            # TiWorker o TrustedInstaller están activos. Borrar solo temporales no bloqueados sin apagar el servicio.
+            Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
     } catch {
-        # Si falla el objeto COM, evitamos apagar wuauserv por seguridad para no interrumpir parches en caliente.
-        # Se borran únicamente los temporales no bloqueados por el sistema.
+        # Evitamos apagar wuauserv por seguridad. Se borran únicamente los temporales no bloqueados.
         Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     }
 

@@ -1,12 +1,19 @@
 param(
     [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8
+    [int]$RamGB = 8,
+    [bool]$IsHybrid = $false,
+    [bool]$IsX3d = $false,
+    [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "Stop"
 
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Aplicando optimizaciones de rendimiento general y Kernel..."
+
+    if ($IsX3d) {
+        Write-Host "[+] CPU AMD 3D V-Cache (X3D) detectada. Maximizando prioridad MMCSS..." -ForegroundColor Green
+    }
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 

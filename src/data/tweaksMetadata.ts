@@ -496,15 +496,12 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     scriptName: "07_almacenamiento.ps1",
     impactoRendimiento:
       "Evita escrituras redundantes en discos SSD, aumentando su vida útil, y previene la degradación de memoria provocada por apagados sucios.",
-    warning:
-      "La consolidación profunda del almacén de componentes de Windows mediante DISM cuenta con un tiempo extendido para completarse.",
     details: [
       "Desactivación de la actualización de marcas de tiempo (Last Access Update) para mitigar ciclos de degradación en SSD.",
       "Desactivación universal de la creación de nombres de archivo cortos en formato MS-DOS 8.3 para acelerar el sistema de archivos.",
       "Optimización adaptativa de la caché de metadatos NTFS (NtfsMemoryUsage = 2) en sistemas con >= 16 GB de RAM.",
       "Desactivación completa de la hibernación y remoción del archivo fantasma persistente Hiberfil.sys (en desktops).",
       "Desactivación de Inicio Rápido (HiberbootEnabled = 0) para forzar un apagado limpio del kernel de Windows.",
-      "Ejecución y consolidación del almacén de componentes WinSxS mediante comandos DISM.",
     ],
     registryMapping: [
       {

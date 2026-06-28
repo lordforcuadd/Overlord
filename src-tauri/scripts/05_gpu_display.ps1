@@ -11,22 +11,27 @@ Try {
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
 
-    # Validar soporte WDDM >= 2.7 para evitar pantallas negras en GPU legacy
+    # Validar soporte WDDM >= 2.7 (introducido en Windows Build 19041) para evitar pantallas negras en GPU legacy
+    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
     $WddmSupported = $false
-    if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-        $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
-        foreach ($Controller in $Controllers) {
-            $DriverVer = $Controller.DriverVersion
-            if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
-                if ([int]$Matches[1] -ge 27) {
-                    $WddmSupported = $true
-                    break
+    
+    if ($BuildNum -ge 19041) {
+        if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+            $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+            foreach ($Controller in $Controllers) {
+                $DriverVer = $Controller.DriverVersion
+                # El formato DCH de drivers (NVIDIA/AMD/Intel) mapea el WDDM major en el primer segmento
+                if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
+                    if ([int]$Matches[1] -ge 27) {
+                        $WddmSupported = $true
+                        break
+                    }
                 }
             }
+        } else {
+            # Fallback defensivo si no está CIM disponible pero el SO es moderno
+            $WddmSupported = $true
         }
-    } else {
-        # Fallback defensivo si no está CIM disponible
-        $WddmSupported = $true
     }
 
     if ($WddmSupported) {

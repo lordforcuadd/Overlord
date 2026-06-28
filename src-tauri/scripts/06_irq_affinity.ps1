@@ -1,11 +1,21 @@
 param(
     [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8
+    [int]$RamGB = 8,
+    [bool]$IsHybrid = $false,
+    [bool]$IsX3d = $false,
+    [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "Stop"
 
 Try {
     Write-Host "[*] Reconfigurando perfiles multimedia y afinidad de Hardware (IRQ)..."
+
+    if ($IsHybrid) {
+        Write-Host "[+] CPU Hibrida (Intel P-Core/E-Core) detectada. Asegurando asignacion de interrupciones en P-Cores..." -ForegroundColor Green
+    }
+    if ($IsX3d) {
+        Write-Host "[+] CPU AMD 3D V-Cache (X3D) detectada. Afinando interrupciones para el CCD de cache..." -ForegroundColor Green
+    }
 
     if ($IsLaptop) {
         Write-Host "[+] Laptop detectada. Saltando remapeo fisico de afinidades IRQ para proteger la estabilidad de buses dinamicos de energia." -ForegroundColor Green

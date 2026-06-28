@@ -19,7 +19,7 @@ fn parse_qol_params(game_list: &str) -> (String, String) {
     (toggle_name, is_enabled_str)
 }
 
-fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str) -> String {
+fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> String {
     let game_list_b64 = encode_utf8_base64(game_list);
     let action_id_b64 = encode_utf8_base64(action_id);
     let toggle_name_b64 = encode_utf8_base64(toggle_name);
@@ -34,6 +34,9 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
          $ToggleName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
          $IsEnabledStr = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
          $Version = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $IsHybrid = ${}\n\
+         $IsX3d = ${}\n\
+         $IsSsd = ${}\n\
          $ErrorActionPreference = 'Stop'\n",
         if is_laptop { "true" } else { "false" },
         ram_gb,
@@ -41,7 +44,10 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
         action_id_b64,
         toggle_name_b64,
         is_enabled_str_b64,
-        version_b64
+        version_b64,
+        if is_hybrid { "true" } else { "false" },
+        if is_x3d { "true" } else { "false" },
+        if is_ssd { "true" } else { "false" }
     )
 }
 
@@ -59,10 +65,10 @@ fn encode_utf16_base64(script: &str) -> String {
     custom_base64_encode(&utf16_bytes)
 }
 
-async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
     let backup_module = include_str!("../scripts/backup_manager.psm1");
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
-    let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str);
+    let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str, is_hybrid, is_x3d, is_ssd);
     let script_clean = strip_param_block(script_raw);
 
     let unified_script = format!(
@@ -145,13 +151,13 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     Ok(String::from_utf8_lossy(&stdout_bytes).trim().to_string())
 }
 
-pub async fn execute_script_in_memory(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
+pub async fn execute_script_in_memory(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
     let _lock = EXECUTION_LOCK.lock().await;
-    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list).await
+    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list, is_hybrid, is_x3d, is_ssd).await
 }
 
-pub async fn execute_script_in_memory_readonly(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str) -> Result<String, String> {
-    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list).await
+pub async fn execute_script_in_memory_readonly(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
+    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list, is_hybrid, is_x3d, is_ssd).await
 }
 
 fn strip_param_block(script: &str) -> String {

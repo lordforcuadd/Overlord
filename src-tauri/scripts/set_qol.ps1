@@ -433,6 +433,20 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\GameBar" "AutoGameModeEnabled" "DWord" $Value
         
         $dvrVal = if ($Value -eq 1) { 0 } else { 1 }
+        
+        # Evitar sobreescribir con 1 si otro módulo de rendimiento/GPU ya optimizó y respaldó la clave
+        if ($Value -eq 0) {
+            $HasGpuBackup = Test-Path "HKLM:\SOFTWARE\Overlord\Backup\GPU"
+            $HasPerfBackup = Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Performance"
+            
+            $GpuBckVal = if ($HasGpuBackup) { Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\GPU" -Name "AppCaptureEnabled" } else { $null }
+            $PerfBckVal = if ($HasPerfBackup) { Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Performance" -Name "GameDVR_Enabled" } else { $null }
+            
+            if ($null -ne $GpuBckVal -or $null -ne $PerfBckVal) {
+                $dvrVal = 0
+            }
+        }
+        
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\GameDVR" "AppCaptureEnabled" "DWord" $dvrVal
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\GameDVR" "AudioCaptureEnabled" "DWord" $dvrVal
         

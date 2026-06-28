@@ -83,6 +83,11 @@ fn get_live_telemetry(cache: State<'_, SystemStateCache>) -> LiveMetricsResponse
 
 #[tauri::command]
 async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
+    let hw = get_system_hardware().await;
+    let is_hybrid = hw.is_hybrid;
+    let is_x3d = hw.is_x3d;
+    let is_ssd = hw.is_ssd;
+
     let script_raw = match script_name.as_str() {
         "01_perifericos" => include_str!("../scripts/01_perifericos.ps1"),
         "02_debloat" => include_str!("../scripts/02_debloat.ps1"),
@@ -113,9 +118,9 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
     };
 
     if is_readonly {
-        execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list).await
+        execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
     } else {
-        execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list).await
+        execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
     }
 }
 

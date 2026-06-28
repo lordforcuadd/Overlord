@@ -33,12 +33,27 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
     } catch (error) {
       store.restorePointCreated = false;
-      await Swal.fire({
-        title: "ERROR DE RESPALDO",
-        text: "No se pudo comprobar la integridad del servicio VSS u Overlord no cuenta con privilegios de Administrador.",
-        icon: "error",
-        ...overlordSwalConfig,
-      });
+      if (String(error).includes("[WARNING]")) {
+        const confirmBypass = await Swal.fire({
+          title: "ADVERTENCIA DE VSS",
+          html: "No se pudo crear el Punto de Restauración del sistema (el servicio VSS de Windows está inactivo o usas un sistema modificado).<br><br><b>¿Deseas continuar de todos modos?</b> Las optimizaciones y los respaldos locales del Registro de Overlord funcionarán normalmente.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "SÍ, CONTINUAR",
+          cancelButtonText: "CANCELAR",
+          ...overlordSwalConfig,
+        });
+        if (confirmBypass.isConfirmed) {
+          store.restorePointCreated = true;
+        }
+      } else {
+        await Swal.fire({
+          title: "ERROR DE RESPALDO",
+          text: "No se pudo comprobar la integridad del servicio VSS u Overlord no cuenta con privilegios de Administrador.",
+          icon: "error",
+          ...overlordSwalConfig,
+        });
+      }
     } finally {
       isBackingUp.value = false;
       if (!wasAlreadyBusy) store.setGlobalBusy(false);
@@ -126,6 +141,16 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
       if (huboError) {
         try {
+          // Detener el monitor dinámico en Rust
+          await invoke("stop_game_priority_monitor").catch((err) => {
+            console.error("[RUST MONITOR STOP FAIL ON ROLLBACK]:", err);
+          });
+
+          // Desinstalar el servicio/daemon de prioridad SYSTEM
+          await store.togglePriorityService(false).catch((err) => {
+            console.error("[SYSTEM DAEMON UNINSTALL FAIL ON ROLLBACK]:", err);
+          });
+
           await invoke("run_optimization_script", {
             scriptName: "10_revertir",
             isLaptop: store.hardwareInfo.isLaptop,
