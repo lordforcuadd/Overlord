@@ -310,6 +310,7 @@ switch ($ToggleName) {
         }
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System"
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System"
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" "DWord" $Value
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
@@ -319,6 +320,9 @@ switch ($ToggleName) {
             if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
             Set-ItemProperty -Path $Path -Name "TurnOffUserCameraCapture" -Type DWord -Value $Value -Force | Out-Null
             Set-ItemProperty -Path $Path -Name "DisableAIDataAnalysis" -Type DWord -Value $Value -Force | Out-Null
+            
+            $allowEnablementVal = if ($Value -eq 1) { 0 } else { 1 }
+            Set-ItemProperty -Path $Path -Name "AllowRecallEnablement" -Type DWord -Value $allowEnablementVal -Force | Out-Null
         } catch {
             Write-Error "[-] Error al desactivar Recall en HKLM: $_"
             exit 1
