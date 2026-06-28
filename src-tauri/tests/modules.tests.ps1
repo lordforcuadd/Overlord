@@ -6,14 +6,14 @@ if (Test-Path $ManifestPath) {
         $Version = $Matches[1]
     }
 }
-$ScriptsDir = Join-Path $PSScriptRoot "..\scripts"
+$script:ScriptsPath = Join-Path $PSScriptRoot "..\scripts"
 
 Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     BeforeAll {
         $GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
         $ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $MemoryManagerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-        $ScriptsPath = $ScriptsDir
+        $ScriptsPath = $script:ScriptsPath
         $GetQolPath = Join-Path $ScriptsPath "get_qol.ps1"
         $SetQolPath = Join-Path $ScriptsPath "set_qol.ps1"
         $RevertPath = Join-Path $ScriptsPath "10_revertir.ps1"
