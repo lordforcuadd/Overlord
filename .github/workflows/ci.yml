@@ -31,7 +31,7 @@ jobs:
     - name: Run Pester tests
       shell: powershell
       run: |
-        Import-Module Pester
+        Import-Module Pester -RequiredVersion 3.4.0
         $result = Invoke-Pester -Path src-tauri/tests/modules.tests.ps1 -PassThru
         if ($result.FailedCount -gt 0) {
             Write-Error "Fallo en los tests de Pester. Revisar arriba para ver los detalles."
