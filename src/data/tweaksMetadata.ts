@@ -606,6 +606,20 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         valueType: "REG_DWORD",
         fallbackValue: null,
       },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+        valueName: "AllowRecallEnablement",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
+      {
+        hive: "HKEY_LOCAL_MACHINE",
+        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+        valueName: "NoAutoRebootWithLoggedOnUsers",
+        valueType: "REG_DWORD",
+        fallbackValue: null,
+      },
     ],
   },
   powerProfiles: {

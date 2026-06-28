@@ -139,7 +139,8 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Desactiva los loggers WMI de telemetría: `AutoLogger-Diagtrack-Listener`, `SQMLogger`, `DiagLog`, `AitEventLog`.
 - Desactiva `PublishUserActivities` (historial de actividad y Timeline de Windows).
 - Inyecta la directiva global de deshabilitación de Windows Error Reporting (`Disabled = 1`) en el registro de políticas de Windows para evitar que el spawn secundario del proceso `WerFault.exe` consuma CPU o interrumpa el juego al ocurrir fallos inesperados.
-- Desactiva Windows Recall e inteligencia artificial de captura local (`TurnOffUserCameraCapture = 1` y `DisableAIDataAnalysis = 1`) en las políticas de Windows AI a nivel global y de usuario (HKLM y HKCU), impidiendo que el sistema registre capturas de pantalla de la actividad del usuario.
+- Desactiva Windows Recall e la instalación de componentes de IA de captura local (`TurnOffUserCameraCapture = 1`, `DisableAIDataAnalysis = 1` y `AllowRecallEnablement = 0`) en las políticas de Windows AI a nivel global y de usuario (HKLM y HKCU), impidiendo que el sistema registre capturas de pantalla o descargue paquetes de Recall en segundo plano.
+- Configura la directiva de Windows Update para impedir reinicios automáticos forzados mientras haya un usuario con sesión activa (`NoAutoRebootWithLoggedOnUsers = 1`).
 
 ### 9. Gestión de Energía (`09_energia.ps1`)
 
