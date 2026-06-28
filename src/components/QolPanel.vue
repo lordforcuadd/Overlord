@@ -488,7 +488,6 @@ async function applyToggle(settingKey: QolKeys) {
       gameList: `${settingKey}:${isEnabledStr}`,
     });
 
-    console.log(`[QoL Toggle Success] ${settingKey} | Output:`, output);
     qolStatus.value[settingKey] = "success";
 
     if (output.includes("(REQUIRES_EXPLORER_RESTART)")) {

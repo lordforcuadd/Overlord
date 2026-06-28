@@ -285,10 +285,6 @@ export const useOverlordStore = defineStore("overlord", {
         this.benchmarks[fase].networkLatency = result.tcp_latency;
         this.benchmarks[fase].dnsResolution = result.dns_latency;
         this.benchmarks[fase].measured = true;
-
-        console.log(
-          `[Overlord Benchmark] Fase ${fase} completada - TCP: ${result.tcp_latency}ms, DNS: ${result.dns_latency}ms`,
-        );
       } catch (e) {
         console.error("[BENCHMARK CRITICAL FAIL]:", e);
 

@@ -31,18 +31,23 @@ Try {
     $DevicePolicyValue = 4 # SpecifiedProcessors
     [uint64]$NetBitmask = 0
 
-    if ($TotalCores -ge 12) {
-        # CPUs de gama media-alta (>=12 hilos): Afinar a dos cores físicos separados (hilos lógicos 4 y 6)
-        # Esto permite a RSS balancear el procesamiento de paquetes sin saturar un solo hilo.
+    if ($IsHybrid) {
+        # CPU híbrida (Intel P-Core/E-Core): Afinar interrupciones a P-Cores físicos (hilos lógicos 4 y 6)
+        # evitando los E-Cores situados en la parte alta del rango de procesadores
         $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
-    } elseif ($TotalCores -ge 8) {
-        # CPUs estándar (8 a 11 hilos): Afinar a hilos lógicos 2 y 4 (dos cores físicos independientes)
-        $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 4)
+    } elseif ($IsX3d) {
+        # CPU AMD Ryzen 3D V-Cache: Direccionar a los cores físicos de alto rendimiento y caché 3D en CCD0 (hilos lógicos 4 y 6)
+        $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
     } else {
-        # CPUs muy antiguas (<=6 hilos): Mapear a un solo core alternativo (hilo lógico 2)
-        # DevicePolicy = 2 (OneCloseProcessor)
-        $DevicePolicyValue = 2
-        $NetBitmask = [uint64]1 -shl 2
+        # CPU estándar: Usar asignación adaptativa por hilos lógicos totales
+        if ($TotalCores -ge 12) {
+            $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
+        } elseif ($TotalCores -ge 8) {
+            $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 4)
+        } else {
+            $DevicePolicyValue = 2
+            $NetBitmask = [uint64]1 -shl 2
+        }
     }
 
     $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)

@@ -25,7 +25,8 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage"
         Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisable8dot3NameCreation" -BackupSubFolder "Storage"
-        if ($RamGB -ge 16) {
+        Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "DisableDeleteNotify" -BackupSubFolder "Storage"
+        if ($IsSsd -and $RamGB -ge 16) {
             Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage"
         }
     }
@@ -36,9 +37,14 @@ Try {
     # Desactivar nombres cortos MS-DOS 8.3
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -Type DWord -Value 1 -Force | Out-Null
 
-    # Optimizar caché de metadatos NTFS adaptativamente
-    if ($RamGB -ge 16) {
+    # Optimizar caché de metadatos NTFS adaptativamente (solo en SSD rápidos)
+    if ($IsSsd -and $RamGB -ge 16) {
         Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value 2 -Force | Out-Null
+    }
+
+    if ($IsSsd) {
+        # Asegurar soporte TRIM activo en SSD (DisableDeleteNotify = 0 significa TRIM habilitado)
+        Set-ItemProperty -Path $NtfsPath -Name "DisableDeleteNotify" -Type DWord -Value 0 -Force | Out-Null
     }
     
     # Desactivar Inicio Rapido de Windows (previene fugas de memoria y bloqueos de drivers)

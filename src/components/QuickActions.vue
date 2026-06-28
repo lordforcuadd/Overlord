@@ -259,7 +259,6 @@ const runAction = async (actionId) => {
   try {
     if (actionId === "PurgeRAM") {
       await invoke("purge_ram_native");
-      console.log("[Overlord] RAM purgada nativamente desde Rust.");
     } else {
       await invoke("run_optimization_script", {
         scriptName: "quick_actions",

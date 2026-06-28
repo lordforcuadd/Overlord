@@ -121,9 +121,6 @@ export function useOrchestrator(overlordSwalConfig: any) {
               gameListRaw: gameListOpt,
             });
             await store.togglePriorityService(store.priorityServiceSelected);
-            console.log(
-              `[RUST MONITOR]: Hilo dinámico de prioridad alta inicializado con éxito. Servicio de fondo configurado: ${store.priorityServiceSelected}`,
-            );
           }
 
           cardStatus.value[modKey] = "success";
