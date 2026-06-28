@@ -67,8 +67,7 @@
       </svg>
       <p class="text-sm text-gray-300 font-medium leading-relaxed">
         <span v-if="store.activeProfile === 'Competitivo'"
-          >Optimización máxima. Aísla el CPU, reduce latencia de periféricos y prioriza hilos de juego para 0%
-          input lag. Recomendado para setups de alta gama.</span
+          >Optimización máxima. Aísla el CPU, reduce latencia de periféricos y prioriza hilos de juego para minimizar el retardo de entrada (input lag) y evitar la pérdida de fotogramas (frame drops). Recomendado para setups de alta gama.</span
         >
         <span v-else-if="store.activeProfile === 'Programador & Competitivo'"
           >Equilibrio perfecto. Mantiene la virtualización activa para Docker/Máquinas
@@ -87,8 +86,7 @@
           tweaks arriesgados.</span
         >
         <span v-else
-          >Modo personalizado. Activa o desactiva los módulos manualmente según
-          tus necesidades técnicas.</span
+          >Modo personalizado. Conserva tu configuración actual como punto de partida para activar o desactivar los módulos manualmente según tus necesidades.</span
         >
       </p>
     </div>

@@ -116,7 +116,27 @@ const manualGameExe = ref("");
 function addManualGame() {
   const name = manualGameName.value.trim();
   const exe = manualGameExe.value.trim();
-  if (!name || !exe) return;
+  if (!name || !exe) {
+    Swal.fire({
+      title: "Campos Incompletos",
+      text: "Por favor, especifica el nombre del juego y el archivo ejecutable.",
+      icon: "warning",
+      ...overlordSwalConfig,
+    });
+    return;
+  }
+
+  const exeRegex = /^[^\\/:*?"<>|\s]+\.exe$/i;
+  if (!exeRegex.test(exe)) {
+    Swal.fire({
+      title: "Ejecutable Inválido",
+      text: "El nombre del ejecutable debe terminar en '.exe' y no contener espacios ni caracteres no válidos de Windows (\\ / : * ? \" < > |).",
+      icon: "error",
+      ...overlordSwalConfig,
+    });
+    return;
+  }
+
   store.addManualGame(name, exe);
   manualGameName.value = "";
   manualGameExe.value = "";

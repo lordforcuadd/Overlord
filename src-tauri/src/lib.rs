@@ -427,3 +427,34 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_version_sync() {
+        let cargo_toml_version = env!("CARGO_PKG_VERSION");
+        let package_json_content = std::fs::read_to_string("../package.json")
+            .expect("Fallo al leer package.json para verificar la versión");
+        
+        let parsed_version = package_json_content
+            .lines()
+            .find(|line| line.contains("\"version\""))
+            .and_then(|line| {
+                let parts: Vec<&str> = line.split('"').collect();
+                if parts.len() >= 4 {
+                    Some(parts[3])
+                } else {
+                    None
+                }
+            })
+            .expect("No se encontró el campo 'version' en package.json");
+
+        assert_eq!(
+            cargo_toml_version, 
+            parsed_version, 
+            "La versión de Cargo.toml ({}) y package.json ({}) no coinciden. Mantener sincronizados.",
+            cargo_toml_version,
+            parsed_version
+        );
+    }
+}

@@ -252,14 +252,15 @@ const maxDnsValue = computed(() => {
             v-else
             class="text-[11px] font-mono text-zinc-600 italic py-4 flex items-center gap-2 border border-dashed border-zinc-900 rounded p-2 justify-center bg-zinc-950/20"
           >
-            Bloque de optimización inactivo
+            {{ !store.benchmarks.before.measured ? "Requiere calibración inicial..." : "Bloque de optimización inactivo" }}
           </div>
         </div>
 
         <button
           @click="executeBenchmark('after')"
-          :disabled="store.isBenchmarkTesting"
-          class="mt-4 w-full py-2 px-3 bg-cyan-950/20 hover:bg-cyan-900/30 text-cyan-400 text-[10px] font-mono font-bold rounded border border-cyan-800/40 transition-all duration-150 disabled:opacity-40 active:scale-[0.98] shadow-sm shadow-cyan-950/50"
+          :disabled="store.isBenchmarkTesting || !store.benchmarks.before.measured"
+          class="mt-4 w-full py-2 px-3 bg-cyan-950/20 hover:bg-cyan-900/30 text-cyan-400 text-[10px] font-mono font-bold rounded border border-cyan-800/40 transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-sm shadow-cyan-950/50"
+          :title="!store.benchmarks.before.measured ? 'Primero debes calibrar el entorno inicial' : ''"
         >
           {{ store.isBenchmarkTesting ? "ANALIZANDO..." : "ESCANEAR MEJORA FILTRADA" }}
         </button>
