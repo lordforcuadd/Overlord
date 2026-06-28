@@ -1,4 +1,24 @@
-$ManifestPath = Join-Path $PSScriptRoot "..\Cargo.toml"
+$ScriptsDir = $null
+$ManifestPath = $null
+
+if ($null -ne $PSScriptRoot -and $PSScriptRoot -ne "") {
+    $ScriptsDir = Join-Path $PSScriptRoot "..\scripts"
+    $ManifestPath = Join-Path $PSScriptRoot "..\Cargo.toml"
+} elseif ($null -ne $MyInvocation -and $null -ne $MyInvocation.MyCommand -and $MyInvocation.MyCommand.Path -ne "") {
+    $Parent = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $ScriptsDir = Join-Path $Parent "..\scripts"
+    $ManifestPath = Join-Path $Parent "..\Cargo.toml"
+} elseif (Test-Path "src-tauri/scripts") {
+    $ScriptsDir = (Get-Item "src-tauri/scripts").FullName
+    $ManifestPath = (Get-Item "src-tauri/Cargo.toml").FullName
+} elseif (Test-Path "scripts") {
+    $ScriptsDir = (Get-Item "scripts").FullName
+    $ManifestPath = (Get-Item "Cargo.toml").FullName
+} else {
+    $ScriptsDir = "..\scripts"
+    $ManifestPath = "..\Cargo.toml"
+}
+
 $Version = "Unknown"
 if (Test-Path $ManifestPath) {
     $Manifest = Get-Content -Path $ManifestPath -Raw
@@ -6,7 +26,7 @@ if (Test-Path $ManifestPath) {
         $Version = $Matches[1]
     }
 }
-$global:OverlordScriptsPath = Join-Path $PSScriptRoot "..\scripts"
+$global:OverlordScriptsPath = $ScriptsDir
 
 Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     BeforeAll {
