@@ -368,6 +368,17 @@ fn log_from_js(msg: String) {
     }
 }
 
+#[tauri::command]
+fn read_overlord_log() -> Result<String, String> {
+    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let log_path = std::path::Path::new(&program_data).join("OverlordSuite").join("logs").join("overlord_errors.log");
+    if log_path.exists() {
+        std::fs::read_to_string(&log_path).map_err(|e| e.to_string())
+    } else {
+        Ok("No se encontraron registros de errores.".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::command)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -410,7 +421,8 @@ pub fn run() {
             purge_ram_native,
             start_game_priority_monitor,
             stop_game_priority_monitor,
-            log_from_js
+            log_from_js,
+            read_overlord_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

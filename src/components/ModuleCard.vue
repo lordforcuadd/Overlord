@@ -3,14 +3,14 @@
     class="bg-[#0a0a0a]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col justify-between gap-5 relative hover:border-white/10 transition-colors group"
   >
     <div class="flex flex-col gap-3">
-      <div class="flex justify-between items-start gap-4">
-        <h3 class="text-xl font-bold text-white tracking-wide leading-tight">
-          {{ meta.title }}
-        </h3>
-        <div class="flex items-center gap-2 shrink-0">
+      <div class="flex flex-col gap-2">
+        <div class="flex justify-between items-start gap-3">
+          <h3 class="text-xl font-bold text-white tracking-wide leading-snug flex-1">
+            {{ meta.title }}
+          </h3>
           <button
             @click="toggleDoc"
-            class="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+            class="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
             title="Ver Detalles Técnicos"
           >
             <svg
@@ -27,8 +27,18 @@
               ></path>
             </svg>
           </button>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-1.5">
           <span
-            class="px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider"
+            v-if="meta.evidenciaImpacto"
+            class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
+            :class="impactBadgeClass"
+          >
+            {{ meta.evidenciaImpacto }}
+          </span>
+          <span
+            class="px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider"
             :class="badgeClass"
           >
             {{ meta.riesgo }}
@@ -169,6 +179,19 @@ const badgeClass = computed(() => {
       return "bg-red-500/10 text-red-400 border border-red-500/20";
     default:
       return "bg-white/5 text-gray-400";
+  }
+});
+
+const impactBadgeClass = computed(() => {
+  switch (meta.value.evidenciaImpacto) {
+    case "Comprobado":
+      return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+    case "Situacional":
+      return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+    case "Cosmético":
+      return "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+    default:
+      return "bg-gray-500/10 text-gray-400 border border-gray-500/20";
   }
 });
 

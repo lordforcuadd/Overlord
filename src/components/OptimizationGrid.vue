@@ -15,29 +15,56 @@
         <div
           class="flex flex-col gap-3 mt-4 bg-[#0a0a0a] p-4 rounded-xl border border-white/10"
         >
-          <div
-            v-for="(game, index) in store.gameList"
-            :key="index"
-            class="flex items-center justify-between"
-          >
-            <span
-              class="text-xs font-mono font-medium"
-              :class="game.detected ? 'text-yellow-400' : 'text-gray-600'"
+          <!-- Contenedor scrollable para la lista de juegos -->
+          <div class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-1">
+            <div
+              v-for="(game, index) in store.gameList"
+              :key="index"
+              class="flex items-center justify-between"
             >
-              {{ game.name }}
-            </span>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                :checked="game.optimize"
-                @change="store.toggleGameOptimization(index, ($event.target as HTMLInputElement).checked)"
-                :disabled="!game.detected"
-                class="sr-only peer"
+              <span
+                class="text-xs font-mono font-medium truncate pr-2"
+                :class="game.detected ? 'text-yellow-400' : 'text-gray-600'"
+                :title="game.name + ' (' + game.exe + ')'"
+              >
+                {{ game.name }}
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  :checked="game.optimize"
+                  @change="store.toggleGameOptimization(index, ($event.target as HTMLInputElement).checked)"
+                  :disabled="!game.detected"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-8 h-4 bg-neutral-700 rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-500"
+                ></div>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Agregar juego manual -->
+          <div class="flex flex-col gap-2 p-1 border-t border-white/5 pt-3 mt-1">
+            <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Añadir Juego Manual</span>
+            <div class="flex flex-col gap-2">
+              <input 
+                v-model="manualGameName"
+                placeholder="Nombre (ej. Minecraft)"
+                class="w-full bg-[#121212] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-yellow-500/50"
               />
-              <div
-                class="w-8 h-4 bg-neutral-700 rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-500"
-              ></div>
-            </label>
+              <input 
+                v-model="manualGameExe"
+                placeholder="Ejecutable (ej. javaw.exe)"
+                class="w-full bg-[#121212] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-yellow-500/50"
+              />
+              <button 
+                @click="addManualGame"
+                class="w-full bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 hover:text-yellow-400 font-bold py-2 rounded-lg text-xs transition-colors"
+              >
+                Añadir Juego
+              </button>
+            </div>
           </div>
 
           <hr class="border-white/5 my-1" />
@@ -83,6 +110,17 @@ const emit = defineEmits<{
 
 const store = useOverlordStore();
 const isServiceLoading = ref(false);
+const manualGameName = ref("");
+const manualGameExe = ref("");
+
+function addManualGame() {
+  const name = manualGameName.value.trim();
+  const exe = manualGameExe.value.trim();
+  if (!name || !exe) return;
+  store.addManualGame(name, exe);
+  manualGameName.value = "";
+  manualGameExe.value = "";
+}
 
 const overlordSwalConfig = {
   background: "rgba(15, 15, 15, 0.75)",

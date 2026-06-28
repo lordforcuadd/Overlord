@@ -21,14 +21,12 @@ Try {
     if (!(Test-Path $NtfsPath)) { New-Item -Path $NtfsPath -Force | Out-Null }
     if (!(Test-Path $FastStartPath)) { New-Item -Path $FastStartPath -Force | Out-Null }
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage"
-        Backup-OverlordRegistryValue -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage"
-        Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisable8dot3NameCreation" -BackupSubFolder "Storage"
-        Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "DisableDeleteNotify" -BackupSubFolder "Storage"
-        if ($IsSsd -and $RamGB -ge 16) {
-            Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage"
-        }
+    Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisableLastAccessUpdate" -BackupSubFolder "Storage"
+    Backup-OverlordRegistryValue -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage"
+    Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisable8dot3NameCreation" -BackupSubFolder "Storage"
+    Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "DisableDeleteNotify" -BackupSubFolder "Storage"
+    if ($IsSsd -and $RamGB -ge 16) {
+        Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage"
     }
 
     # Desactivar actualizacion del ultimo acceso en NTFS para reducir escrituras en disco
@@ -59,9 +57,7 @@ Try {
 
     if (-not $IsLaptop) {
         $HibernateRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $HibernateRegPath -ValueName "HibernateEnabled" -BackupSubFolder "Storage"
-        }
         powercfg.exe /hibernate off | Out-Null
     }
 

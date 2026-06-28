@@ -1,0 +1,39 @@
+name: Rust & Pester CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Rust Cache
+      uses: swatinem/rust-cache@v2
+      with:
+        workspaces: src-tauri
+
+    - name: Run Cargo Tests
+      run: |
+        cargo test
+      working-directory: src-tauri
+      env:
+        TAURI_NO_ADMIN: "1"
+
+    - name: Run Pester tests
+      shell: powershell
+      run: |
+        Import-Module Pester
+        $result = Invoke-Pester -Path src-tauri/tests/modules.tests.ps1 -PassThru
+        if ($result.FailedCount -gt 0) {
+            Write-Error "Fallo en los tests de Pester. Revisar arriba para ver los detalles."
+            exit 1
+        }

@@ -34,36 +34,34 @@ Try {
         }
     }
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
-        
-        # Copia de seguridad para permisos de aplicaciones de segundo plano
-        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
-        
-        # Copia de seguridad para políticas de Microsoft Edge
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
+    
+    # Copia de seguridad para permisos de aplicaciones de segundo plano
+    Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
+    
+    # Copia de seguridad para políticas de Microsoft Edge
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry"
 
-        # Copias de seguridad de servicios
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -ValueName "Start" -BackupSubFolder "Services\dmwappushservice"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Fax" -ValueName "Start" -BackupSubFolder "Services\Fax"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RetailDemo" -ValueName "Start" -BackupSubFolder "Services\RetailDemo"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\MapsBroker" -ValueName "Start" -BackupSubFolder "Services\MapsBroker"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\PhoneSvc" -ValueName "Start" -BackupSubFolder "Services\PhoneSvc"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\AJRouter" -ValueName "Start" -BackupSubFolder "Services\AJRouter"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WpcMonSvc" -ValueName "Start" -BackupSubFolder "Services\WpcMonSvc"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\TrkWks" -ValueName "Start" -BackupSubFolder "Services\TrkWks"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RemoteRegistry" -ValueName "Start" -BackupSubFolder "Services\RemoteRegistry"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -ValueName "Start" -BackupSubFolder "Services\WdiServiceHost"
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -ValueName "Start" -BackupSubFolder "Services\WdiSystemHost"
-        if (-not $IsLaptop) {
-            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\SensorService" -ValueName "Start" -BackupSubFolder "Services\SensorService"
-        }
+    # Copias de seguridad de servicios
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -ValueName "Start" -BackupSubFolder "Services\dmwappushservice"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Fax" -ValueName "Start" -BackupSubFolder "Services\Fax"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RetailDemo" -ValueName "Start" -BackupSubFolder "Services\RetailDemo"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\MapsBroker" -ValueName "Start" -BackupSubFolder "Services\MapsBroker"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\PhoneSvc" -ValueName "Start" -BackupSubFolder "Services\PhoneSvc"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\AJRouter" -ValueName "Start" -BackupSubFolder "Services\AJRouter"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WpcMonSvc" -ValueName "Start" -BackupSubFolder "Services\WpcMonSvc"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\TrkWks" -ValueName "Start" -BackupSubFolder "Services\TrkWks"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RemoteRegistry" -ValueName "Start" -BackupSubFolder "Services\RemoteRegistry"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -ValueName "Start" -BackupSubFolder "Services\WdiServiceHost"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -ValueName "Start" -BackupSubFolder "Services\WdiSystemHost"
+    if (-not $IsLaptop) {
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\SensorService" -ValueName "Start" -BackupSubFolder "Services\SensorService"
     }
 
     $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"

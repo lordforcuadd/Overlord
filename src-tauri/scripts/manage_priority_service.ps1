@@ -98,8 +98,6 @@ while ($true) {
     } catch {
         Write-DaemonLog "Error general en el ciclo del daemon: $_"
     }
-    [System.GC]::Collect()
-    [System.GC]::WaitForPendingFinalizers()
     Start-Sleep -Seconds 15
 }
 '@
@@ -123,35 +121,7 @@ while ($true) {
     Write-Output "installed"
 }
 elseif ($Action -eq "uninstall") {
-    $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    if ($null -ne $ExistingTask) {
-        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
-    }
-
-    # Matar de forma explicita procesos PowerShell huérfanos del daemon (WMI/CIM compatible con PS 5.1)
-    try {
-        $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
-        if ($null -eq $DaemonProcs -or @($DaemonProcs).Count -eq 0) {
-            $DaemonProcs = Get-WmiObject -Class Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
-        }
-        if ($null -ne $DaemonProcs) {
-            foreach ($P in $DaemonProcs) {
-                $pidToKill = $null
-                if ($null -ne $P.ProcessId) { $pidToKill = $P.ProcessId }
-                elseif ($null -ne $P.ProcessID) { $pidToKill = $P.ProcessID }
-                if ($null -ne $pidToKill) {
-                    Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-            }
-        }
-    } catch {}
-
-    # Limpieza de la carpeta raíz del daemon en ProgramData
-    if (Test-Path $InstallDir) {
-        Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-    }
-
+    Uninstall-OverlordPriorityDaemon
     Write-Output "uninstalled"
 }
 elseif ($Action -eq "status") {

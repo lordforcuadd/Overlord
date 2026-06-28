@@ -5,10 +5,8 @@ try {
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
     if (!(Test-Path $MemPath)) { New-Item -Path $MemPath -Force | Out-Null }
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance"
-        Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance"
-    }
+    Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance"
+    Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance"
 
     Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value 8259 -Force | Out-Null
     Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value 8259 -Force | Out-Null

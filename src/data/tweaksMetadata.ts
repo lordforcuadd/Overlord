@@ -11,6 +11,7 @@ export interface TweakMetadata {
   title: string;
   description: string;
   riesgo: "Seguro" | "Balanceado" | "Experimental";
+  evidenciaImpacto: "Comprobado" | "Situacional" | "Cosmético";
   reversible: boolean;
   metodoReversion: string;
   hardwareRecomendado: string;
@@ -62,6 +63,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Desactiva la aceleración del puntero, optimiza los tiempos de repetición del teclado y deshabilita la suspensión selectiva de puertos USB para reducir la latencia de respuesta.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Cosmético",
     reversible: true,
     metodoReversion:
       "Restauración de la aceleración del ratón por defecto, reactivación de suspensión de USB y restablecimiento de velocidad de teclado stock.",
@@ -168,6 +170,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Elimina aplicaciones preinstaladas (Bloatware) y desactiva servicios innecesarios que consumen ciclos de CPU y RAM.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Intento de re-registro de paquetes AppX provisionados locales y habilitación de servicios deshabilitados.",
@@ -254,6 +257,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Desactiva el algoritmo de Nagle (TcpNoDelay) y elimina el estrangulamiento de red multimedia del sistema operativo para bajar el jitter de red.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Restauración de los valores originales de ThrottlingIndex, SystemResponsiveness y reactivación de Nagle.",
@@ -304,6 +308,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Configura la compresión adaptativa de RAM y desactiva el servicio de captura automática de juegos (GameDVR) para liberar recursos de CPU.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Reactivación de la compresión de RAM y re-habilitación de GameDVR.",
@@ -373,6 +378,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Desactiva las mitigaciones Spectre y Meltdown a nivel de Kernel para recuperar ciclos de reloj en procesadores legacy.",
     riesgo: "Experimental",
+    evidenciaImpacto: "Situacional",
     reversible: true,
     metodoReversion:
       "Reactivación de las directivas de mitigación nativas restableciendo FeatureSettingsOverride.",
@@ -383,7 +389,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://support.microsoft.com/en-us/topic/kb4073119-guidance-to-protect-against-speculative-execution-side-channel-vulnerabilities-in-windows-devices-419d691e-3652-32b0-951b-cb6104f7b494",
     scriptName: "disable_mitigations.ps1",
     impactoRendimiento:
-      "Incremento de hasta un 10-15% en throughput de CPU en procesadores antiguos vulnerables.",
+      "Recuperación de rendimiento y reducción de stutters en juegos, con una mejora marginal de FPS (1-5% real en gaming, aunque mayor en benchmarks de syscalls de CPU antiguos).",
     warning:
       "Desactivar mitigaciones expone al procesador a vulnerabilidades de ejecución especulativa de canal lateral.",
     details: [
@@ -413,6 +419,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Ajusta la prioridad del planificador gráfico oficial (HAGS) y desactiva la captura en segundo plano de GameBar para evitar caídas de FPS.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Reactivación de GameBar y restauración del modo de programación predeterminado de GPU.",
@@ -459,6 +466,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Aísla de forma exclusiva las cargas de interrupciones físicas de red fuera de los hilos principales del sistema operativo.",
     riesgo: "Experimental",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Restauración de las llaves de configuración de adaptadores PCI y remoción de las máscaras binarias dinámicas generadas.",
@@ -485,6 +493,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Optimiza el sistema de archivos NTFS desactivando LastAccessUpdate y deshabilita el Inicio Rápido para evitar fugas de memoria.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Re-habilitación del registro del último acceso y activación del Inicio Rápido de Windows.",
@@ -540,6 +549,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Purga por completo los flujos ocultos de recolección de diagnóstico, detiene event loggers y tareas programadas del sistema.",
     riesgo: "Experimental",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Restauración de loggers asíncronos y servicios de telemetría a su estado de fábrica.",
@@ -625,6 +635,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Inyecta el esquema energético de Máximo Rendimiento y deshabilita el Core Parking en PCs de escritorio.",
     riesgo: "Balanceado",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Inversión de los estados de estacionamiento de núcleos y restauración del plan de energía original.",
@@ -658,6 +669,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Fuerza el bypass gráfico de pantalla completa optimizada e inicializa el monitor dinámico de hilos en memoria RAM.",
     riesgo: "Seguro",
+    evidenciaImpacto: "Situacional",
     reversible: true,
     metodoReversion:
       "Eliminación determinista de subllaves aisladas mapeadas bajo la ruta absoluta de cada binario descubierto.",

@@ -108,9 +108,7 @@ Try {
         # Inyectar desactivación global de Power Throttling
         $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
         if (!(Test-Path $ThrottlePath)) { New-Item -Path $ThrottlePath -Force | Out-Null }
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $ThrottlePath -ValueName "PowerThrottlingOff" -BackupSubFolder "Power"
-        }
+        Backup-OverlordRegistryValue -TargetKey $ThrottlePath -ValueName "PowerThrottlingOff" -BackupSubFolder "Power"
         Set-ItemProperty -Path $ThrottlePath -Name "PowerThrottlingOff" -Type DWord -Value 1 -Force | Out-Null
 
         $ActivePlan = powercfg /getactivescheme 2>$null

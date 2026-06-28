@@ -36,3 +36,7 @@ strip = true         # Elimina los símbolos de debug de C++ y Rust
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
 
+[features]
+default = []
+no-admin = []
+

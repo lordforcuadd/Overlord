@@ -126,7 +126,7 @@
         <div>
           <h3
             :class="[
-              'text-sm font-semibold transition-colors duration-300',
+              'text-sm font-semibold transition-colors duration-300 flex items-center gap-2',
               status[action.id] === 'success'
                 ? 'text-green-400'
                 : status[action.id] === 'error'
@@ -136,7 +136,7 @@
                     : 'text-gray-200 group-hover:text-white',
             ]"
           >
-            {{
+            <span>{{
               status[action.id] === "loading"
                 ? "Ejecutando..."
                 : status[action.id] === "success"
@@ -144,7 +144,14 @@
                   : status[action.id] === "error"
                     ? "Falló la ejecución"
                     : action.title
-            }}
+            }}</span>
+            <span
+              v-if="status[action.id] === 'idle' && action.evidenciaImpacto"
+              class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0"
+              :class="getImpactClass(action.evidenciaImpacto)"
+            >
+              {{ action.evidenciaImpacto }}
+            </span>
           </h3>
           <p
             class="text-xs mt-1 leading-relaxed"
@@ -160,7 +167,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Swal from "sweetalert2";
@@ -200,24 +207,28 @@ const quickActions = [
     title: "Purgar RAM",
     desc: "Aniquila el micro-stuttering liberando la memoria en espera.",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />',
+    evidenciaImpacto: "Cosmético",
   },
   {
     id: "DeepClean",
     title: "Limpieza Profunda",
-    desc: "Vacia basura temporal y purga la caché de shaders de DirectX/Nvidia/AMD para evitar stutters.",
+    desc: "Vacía temporales y purga la caché de shaders de la GPU (puede causar tirones temporales tras el primer inicio de los juegos mientras se recompilan).",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />',
+    evidenciaImpacto: "Comprobado",
   },
   {
     id: "RepairOS",
     title: "Reparar Sistema",
     desc: "Ejecuta SFC y DISM. Útil contra pantallazos azules. (Puede demorar entre 15 a 20min)",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />',
+    evidenciaImpacto: "Comprobado",
   },
   {
     id: "FlushNet",
     title: "Liberar Red (DNS)",
     desc: "Resetea Winsock y la caché DNS para reparar el Ping. (REQUIERE REINICIO DE PC)",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />',
+    evidenciaImpacto: "Comprobado",
   },
 ];
 
@@ -230,7 +241,7 @@ const runAction = async (actionId) => {
     let text = "";
     if (actionId === "DeepClean") {
       title = "¿Iniciar Limpieza Profunda?";
-      text = "Se vaciarán archivos temporales y la caché de shaders de la GPU (DirectX/Nvidia/AMD). Se recomienda cerrar juegos antes de continuar.";
+      text = "Se vaciarán archivos temporales y la caché de shaders de la GPU. IMPORTANTE: Los primeros lanzamientos de cada juego tras esta limpieza experimentarán un tartamudeo (stuttering) temporal mientras el controlador gráfico vuelve a compilar los shaders. Se recomienda cerrar juegos antes de continuar.";
     } else if (actionId === "RepairOS") {
       title = "¿Reparar Sistema (SFC / DISM)?";
       text = "Este es un proceso de bajo nivel que verifica y restaura archivos corruptos de Windows. Puede tardar entre 15 y 20 minutos. No apagues la PC durante la ejecución.";
@@ -279,4 +290,17 @@ const runAction = async (actionId) => {
     }, 3500);
   }
 };
+
+function getImpactClass(evidencia: string) {
+  switch (evidencia) {
+    case "Comprobado":
+      return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+    case "Situacional":
+      return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+    case "Cosmético":
+      return "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+    default:
+      return "bg-gray-500/10 text-gray-400 border border-gray-500/20";
+  }
+}
 </script>

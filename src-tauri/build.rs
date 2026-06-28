@@ -1,19 +1,7 @@
 fn main() {
-    let mut is_test = false;
-
-    if let Ok(output) = std::process::Command::new("powershell")
-        .args(&[
-            "-NoProfile",
-            "-Command",
-            "$p = Get-CimInstance Win32_Process -Filter \"ProcessId = $PID\"; while ($p -and $p.Name -notmatch 'cargo') { $p = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $p.ParentProcessId) }; if ($p -and $p.CommandLine -match '\\btest\\b') { Write-Output 'test' }",
-        ])
-        .output()
-    {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if stdout.trim() == "test" {
-            is_test = true;
-        }
-    }
+    let is_test = std::env::var("TAURI_NO_ADMIN").is_ok()
+        || std::env::var("CARGO_FEATURE_NO_ADMIN").is_ok()
+        || std::env::var("CI").is_ok();
 
     let level = if is_test { "asInvoker" } else { "requireAdministrator" };
 

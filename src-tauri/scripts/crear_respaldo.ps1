@@ -23,9 +23,7 @@ Try {
 
     $SysRestorePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"
     if (!(Test-Path $SysRestorePath)) { New-Item -Path $SysRestorePath -Force | Out-Null }
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $SysRestorePath -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage"
-    }
+    Backup-OverlordRegistryValue -TargetKey $SysRestorePath -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage"
     Set-ItemProperty -Path $SysRestorePath -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0 -Force | Out-Null
 
     try {

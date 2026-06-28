@@ -55,8 +55,15 @@
           :class="getRowClass(item.id)"
         >
           <div class="pr-4">
-            <div class="text-sm font-bold text-gray-200 leading-tight">
-              {{ item.title }}
+            <div class="text-sm font-bold text-gray-200 leading-tight flex items-center gap-2">
+              <span>{{ item.title }}</span>
+              <span
+                v-if="item.evidenciaImpacto"
+                class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider shrink-0"
+                :class="getImpactClass(item.evidenciaImpacto)"
+              >
+                {{ item.evidenciaImpacto }}
+              </span>
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
               {{ getDescription(item.id) }}
@@ -102,8 +109,15 @@
           :class="getRowClass(item.id)"
         >
           <div class="pr-4">
-            <div class="text-sm font-bold text-gray-200 leading-tight">
-              {{ item.title }}
+            <div class="text-sm font-bold text-gray-200 leading-tight flex items-center gap-2">
+              <span>{{ item.title }}</span>
+              <span
+                v-if="item.evidenciaImpacto"
+                class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider shrink-0"
+                :class="getImpactClass(item.evidenciaImpacto)"
+              >
+                {{ item.evidenciaImpacto }}
+              </span>
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
               {{ getDescription(item.id) }}
@@ -149,8 +163,15 @@
           :class="getRowClass(item.id)"
         >
           <div class="pr-4">
-            <div class="text-sm font-bold text-gray-200 leading-tight">
-              {{ item.title }}
+            <div class="text-sm font-bold text-gray-200 leading-tight flex items-center gap-2">
+              <span>{{ item.title }}</span>
+              <span
+                v-if="item.evidenciaImpacto"
+                class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider shrink-0"
+                :class="getImpactClass(item.evidenciaImpacto)"
+              >
+                {{ item.evidenciaImpacto }}
+              </span>
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
               {{ getDescription(item.id) }}
@@ -196,8 +217,15 @@
           :class="getRowClass(item.id)"
         >
           <div class="pr-4">
-            <div class="text-sm font-bold text-gray-200 leading-tight">
-              {{ item.title }}
+            <div class="text-sm font-bold text-gray-200 leading-tight flex items-center gap-2">
+              <span>{{ item.title }}</span>
+              <span
+                v-if="item.evidenciaImpacto"
+                class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider shrink-0"
+                :class="getImpactClass(item.evidenciaImpacto)"
+              >
+                {{ item.evidenciaImpacto }}
+              </span>
             </div>
             <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
               {{ getDescription(item.id) }}
@@ -314,32 +342,38 @@ const uiToggles = [
     id: "barebonesVisual" as const,
     title: "Rendimiento Visual (Barebones)",
     desc: "Optimiza efectos y animaciones conservando suavizado ClearType.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "darkMode" as const,
     title: "Modo Oscuro Global",
     desc: "Fuerza el tema oscuro nativo.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "showExtensions" as const,
     title: "Mostrar Extensiones",
     desc: "Hace visibles formatos como .exe, .ps1.",
+    evidenciaImpacto: "Cosmético" as const,
   },
-  { id: "classicMenu" as const, title: "Menú Clásico Win 11", desc: "" },
+  { id: "classicMenu" as const, title: "Menú Clásico Win 11", desc: "", evidenciaImpacto: "Cosmético" as const },
   {
     id: "taskbarLeft" as const,
     title: "Barra a la Izquierda (Win11)",
     desc: "Mueve los iconos al estilo clásico.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "cleanAltTab" as const,
     title: "Alt+Tab Limpio",
     desc: "Oculta las pestañas de Edge del atajo.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "detailedBSoD" as const,
     title: "Pantallazo Azul Detallado",
     desc: "Muestra códigos de error reales.",
+    evidenciaImpacto: "Cosmético" as const,
   },
 ];
 
@@ -348,31 +382,37 @@ const privacyToggles = [
     id: "disableBing" as const,
     title: "Erradicar Bing",
     desc: "Desactiva búsquedas y sugerencias web en el Menú Inicio.",
+    evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "disableLockScreen" as const,
     title: "Ocultar Lock Screen",
     desc: "Va directo a la pantalla de contraseña.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "disableExplorerAds" as const,
     title: "Bloquear Ads Nativos",
     desc: "Oculta banners de OneDrive y Office.",
+    evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "disableScoobe" as const,
     title: 'Ocultar "Terminemos de Configurar"',
     desc: "Bloquea pantallas de bienvenida y sugerencias post-update.",
+    evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "disableCopilot" as const,
     title: "Erradicar MS Copilot",
     desc: "Bloquea el uso y telemetría de Copilot.",
+    evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "disableRecall" as const,
     title: "Bloquear Windows Recall",
     desc: "Impide capturas de pantalla.",
+    evidenciaImpacto: "Comprobado" as const,
   },
 ];
 
@@ -381,21 +421,25 @@ const explorerToggles = [
     id: "showHiddenFiles" as const,
     title: "Mostrar Archivos Ocultos",
     desc: "Revela carpetas ocultas.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "launchToThisPC" as const,
     title: 'Iniciar en "Este Equipo"',
     desc: "Evita la vista de historial.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "disableOneDrive" as const,
     title: "Erradicar OneDrive",
     desc: "Desinstala y bloquea la nube.",
+    evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "zeroStartupDelay" as const,
     title: "Cero Retraso de Arranque",
     desc: "Apps de inicio instantáneas.",
+    evidenciaImpacto: "Cosmético" as const,
   },
 ];
 
@@ -404,21 +448,25 @@ const gamingToggles = [
     id: "disableStickyKeys" as const,
     title: "Desactivar Sticky Keys",
     desc: "Evita minimizar juegos.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "disableFilterKeys" as const,
     title: "Desactivar Teclas Filtro",
     desc: "Bloquea alertas de Shift.",
+    evidenciaImpacto: "Cosmético" as const,
   },
   {
     id: "disableWidgets" as const,
     title: "Erradicar Widgets",
     desc: "Elimina el panel de noticias.",
+    evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "enableGameMode" as const,
     title: "Modo Juego",
     desc: "Prioriza hilos de juegos y apaga grabación GameDVR de fondo.",
+    evidenciaImpacto: "Comprobado" as const,
   },
 ];
 
@@ -442,6 +490,19 @@ function getDescription(id: QolKeys): string {
   ];
   const found = all.find((t) => t.id === id);
   return found ? found.desc : "";
+}
+
+function getImpactClass(evidencia: string) {
+  switch (evidencia) {
+    case "Comprobado":
+      return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+    case "Situacional":
+      return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+    case "Cosmético":
+      return "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+    default:
+      return "bg-gray-500/10 text-gray-400 border border-gray-500/20";
+  }
 }
 
 function getRowClass(id: QolKeys) {

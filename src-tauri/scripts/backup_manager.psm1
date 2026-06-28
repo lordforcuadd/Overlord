@@ -157,57 +157,69 @@ function Restore-OverlordRegistryValue {
 }
 
 function Backup-OverlordPowerSetting {
-    [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][string]$SchemeGuid,
-        [Parameter(Mandatory=$true)][string]$SubGroupGuid,
-        [Parameter(Mandatory=$true)][string]$SettingGuid
+        [string]$SchemeGuid,
+        [string]$SubGroupGuid,
+        [string]$SettingGuid,
+        [string]$BackupName
     )
     
     $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
-    if (!(Test-Path $PowerBackup)) { 
-        try { New-Item -Path $PowerBackup -Force | Out-Null } catch {} 
-    }
-    
-    $BackupName = "Power_${SchemeGuid}_${SettingGuid}"
-    $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
-    if ($null -eq $powerProps -or $null -eq $powerProps.PSObject.Properties[$BackupName]) {
+    if (!(Test-Path $PowerBackup)) { New-Item -Path $PowerBackup -Force | Out-Null }
+
+    if (!(Get-ItemProperty -Path $PowerBackup -Name $BackupName -ErrorAction SilentlyContinue)) {
         $Value = $null
-        $QueryOut = & powercfg /q $SchemeGuid $SubGroupGuid 2>$null
-        if ($null -ne $QueryOut) {
-            $FoundSetting = $false
-            foreach ($Line in $QueryOut) {
-                if ($Line -match $SettingGuid) {
-                    $FoundSetting = $true
-                    continue
-                }
-                if ($FoundSetting) {
-                    if ($Line -match "GUID de configuraci(o|)n de energ(i|)a" -or $Line -match "Power Setting GUID") {
-                        break
-                    }
-                    if ($Line -match "\b(corriente\s+alterna|corriente\s+de\s+CA|AC|CA|secteur|Wechselstrom|Wechsel)\b.+\b(0x[0-9a-fA-F]+)") {
-                        $HexVal = $Matches[2]
-                        try {
-                            $Value = [System.Convert]::ToInt32($HexVal, 16)
-                        } catch {}
-                        break
-                    }
-                }
-            }
-        }
         
-        # Fallback en caso de que powercfg falle o no retorne nada
-        if ($null -eq $Value) {
-            $RegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid\$SettingGuid"
-            if (Test-Path $RegPath) {
-                $regProps = Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue
-                if ($null -ne $regProps) {
-                    $Value = $regProps.ACSettingIndex
-                }
+        # Lectura directa del registro (locale-independiente y siempre funciona)
+        $RegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid\$SettingGuid"
+        if (Test-Path $RegPath) {
+            $regProps = Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue
+            if ($null -ne $regProps) {
+                $Value = $regProps.ACSettingIndex
             }
         }
         
         $BckVal = if ($null -eq $Value) { '_ABSENT_' } else { $Value }
         Set-ItemProperty -Path $PowerBackup -Name $BackupName -Value $BckVal -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+}
+
+function Uninstall-OverlordPriorityDaemon {
+    $TaskName = "OverlordPriorityMonitor"
+    $ProgData = $env:ProgramData
+    if ([string]::IsNullOrWhiteSpace($ProgData)) {
+        $SysDrive = $env:SystemDrive
+        if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
+        $ProgData = Join-Path $SysDrive "ProgramData"
+    }
+    $InstallDir = Join-Path $ProgData "Overlord"
+    
+    $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if ($null -ne $ExistingTask) {
+        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
+    }
+
+    # Matar de forma explicita procesos PowerShell huérfanos del daemon (WMI/CIM compatible con PS 5.1)
+    try {
+        $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
+        if ($null -eq $DaemonProcs -or @($DaemonProcs).Count -eq 0) {
+            $DaemonProcs = Get-WmiObject -Class Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
+        }
+        if ($null -ne $DaemonProcs) {
+            foreach ($P in $DaemonProcs) {
+                $pidToKill = $null
+                if ($null -ne $P.ProcessId) { $pidToKill = $P.ProcessId }
+                elseif ($null -ne $P.ProcessID) { $pidToKill = $P.ProcessID }
+                if ($null -ne $pidToKill) {
+                    Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+        }
+    } catch {}
+
+    # Limpieza de la carpeta raíz del daemon en ProgramData
+    if (Test-Path $InstallDir) {
+        Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 }

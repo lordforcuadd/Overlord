@@ -17,10 +17,8 @@ Try {
 
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        $StorePath = "$HKCU_Path\System\GameConfigStore"
-        Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
-    }
+    $StorePath = "$HKCU_Path\System\GameConfigStore"
+    Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
 
     # Guardar backup de MMAgent de forma dinámica y configurar adaptativamente
     try {
@@ -59,13 +57,11 @@ Try {
 
     $GamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
     if (Test-Path $GamesPath) {
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
             Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Scheduling Category" -BackupSubFolder "Performance"
             Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "SFIO Priority" -BackupSubFolder "Performance"
             Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Priority" -BackupSubFolder "Performance"
             Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "GPU Priority" -BackupSubFolder "Performance"
             Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Clock Rate" -BackupSubFolder "Performance"
-        }
         Set-ItemProperty -Path $GamesPath -Name "Scheduling Category" -Type String -Value "High" -Force | Out-Null
         Set-ItemProperty -Path $GamesPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
         Set-ItemProperty -Path $GamesPath -Name "Priority" -Type DWord -Value 6 -Force | Out-Null

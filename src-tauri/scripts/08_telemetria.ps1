@@ -12,9 +12,7 @@ Try {
 
     if (!(Test-Path $ActivityPath)) { New-Item -Path $ActivityPath -Force | Out-Null }
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
-    }
+    Backup-OverlordRegistryValue -TargetKey $ActivityPath -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry"
 
     try {
         $SvcObj = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
@@ -24,9 +22,7 @@ Try {
             $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
             Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
         }
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
-        }
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
     } catch {}
@@ -40,18 +36,14 @@ Try {
             Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
         }
         $WerSvcPath = "HKLM:\SYSTEM\CurrentControlSet\Services\WerSvc"
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Services\WerSvc"
-        }
+        Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Services\WerSvc"
         # Asegurar inicio Manual para no romper Windows Update
         Set-Service "WerSvc" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 
     $WerPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
     if (!(Test-Path $WerPath)) { New-Item -Path $WerPath -Force | Out-Null }
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $WerPath -ValueName "Disabled" -BackupSubFolder "Telemetry"
-    }
+    Backup-OverlordRegistryValue -TargetKey $WerPath -ValueName "Disabled" -BackupSubFolder "Telemetry"
     Set-ItemProperty -Path $WerPath -Name "Disabled" -Type DWord -Value 1 -Force | Out-Null
     if ((Get-ItemPropertyValue -Path $WerPath -Name "Disabled" -ErrorAction SilentlyContinue) -ne 1) { 
         throw "Fallo al asegurar la desactivacion de Windows Error Reporting"
@@ -60,9 +52,7 @@ Try {
     # Evitar reinicios automáticos de Windows Update con sesión iniciada
     $WUpPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
     if (!(Test-Path $WUpPath)) { New-Item -Path $WUpPath -Force | Out-Null }
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $WUpPath -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry"
-    }
+    Backup-OverlordRegistryValue -TargetKey $WUpPath -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry"
     Set-ItemProperty -Path $WUpPath -Name "NoAutoRebootWithLoggedOnUsers" -Type DWord -Value 1 -Force | Out-Null
 
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
@@ -95,9 +85,7 @@ Try {
     foreach ($Logger in $Loggers) {
         $LoggerKey = "$LoggersPath\$Logger"
         if (Test-Path $LoggerKey) {
-            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry\Loggers\$Logger"
-            }
+            Backup-OverlordRegistryValue -TargetKey $LoggerKey -ValueName "Start" -BackupSubFolder "Telemetry\Loggers\$Logger"
             Set-ItemProperty -Path $LoggerKey -Name "Start" -Type DWord -Value 0 -Force | Out-Null
             
             if ((Get-ItemPropertyValue -Path $LoggerKey -Name "Start" -ErrorAction SilentlyContinue) -ne 0) { 
@@ -111,13 +99,11 @@ Try {
     $WindowsAIPolicyHKLM = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
     $WindowsAIPolicyHKCU = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsAI"
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry"
-        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry"
-    }
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry"
 
     if (!(Test-Path $WindowsAIPolicyHKLM)) { New-Item -Path $WindowsAIPolicyHKLM -Force | Out-Null }
     Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "TurnOffUserCameraCapture" -Type DWord -Value 1 -Force | Out-Null

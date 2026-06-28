@@ -145,6 +145,27 @@
                 isReverting ? "Restaurando Windows..." : "Revertir Cambios"
               }}</span>
             </button>
+
+            <button
+              @click="copiarReporteErrores"
+              :disabled="isCopyingLog"
+              class="bg-purple-500/10 backdrop-blur-md border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.1)] flex items-center justify-center gap-3 w-full md:w-auto disabled:opacity-50"
+            >
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+              <span>Copiar Reporte de Errores</span>
+            </button>
           </div>
         </footer>
       </div>
@@ -247,6 +268,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
+import Swal from "sweetalert2";
 import BenchmarkPanel from "./components/BenchmarkPanel.vue";
 import { useOverlordStore } from "./stores/overlordStore";
 import { useOrchestrator } from "./composables/useOrchestrator";
@@ -263,6 +286,7 @@ const warningModalOpen = ref(false);
 const warningModalMessage = ref("");
 const pendingTweakKey = ref("");
 const appVersion = ref("");
+const isCopyingLog = ref(false);
 
 const overlordSwalConfig = {
   background: "rgba(15, 15, 15, 0.75)",
@@ -310,6 +334,29 @@ const cancelDangerousTweak = () => {
   store.updateModule(key, false);
   warningModalOpen.value = false;
 };
+
+async function copiarReporteErrores() {
+  isCopyingLog.value = true;
+  try {
+    const logs = await invoke<string>("read_overlord_log");
+    await navigator.clipboard.writeText(logs);
+    await Swal.fire({
+      title: "Reporte Copiado",
+      text: "El registro de errores se ha copiado al portapapeles. Pégalo en tu issue de GitHub.",
+      icon: "success",
+      ...overlordSwalConfig,
+    });
+  } catch (e) {
+    await Swal.fire({
+      title: "Error de lectura",
+      text: "No se pudieron obtener los registros de errores del sistema.",
+      icon: "error",
+      ...overlordSwalConfig,
+    });
+  } finally {
+    isCopyingLog.value = false;
+  }
+}
 
 onMounted(async () => {
   try {

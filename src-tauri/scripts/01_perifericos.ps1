@@ -97,9 +97,7 @@ Try {
     # 26 decimal = 0x1A (Quanta Corta, Fija, Foreground Boost 3:1). Evita stutters ante procesos en segundo plano.
     $PriorityControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
     if (Test-Path $PriorityControlPath) {
-        if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-            Backup-OverlordRegistryValue -TargetKey $PriorityControlPath -ValueName "Win32PrioritySeparation" -BackupSubFolder "Performance"
-        }
+        Backup-OverlordRegistryValue -TargetKey $PriorityControlPath -ValueName "Win32PrioritySeparation" -BackupSubFolder "Performance"
         Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 26 -Force | Out-Null
         if ((Get-ItemProperty -Path $PriorityControlPath -ErrorAction SilentlyContinue).Win32PrioritySeparation -ne 26) { 
             Write-Warning "No se pudo asegurar Win32PrioritySeparation" 
@@ -123,11 +121,9 @@ Try {
 
     # Desactivar Aceleracion del Raton (Precision del Puntero)
     $MousePath = "$HKCU_Path\Control Panel\Mouse"
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseSpeed" -BackupSubFolder "Mouse"
-        Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseThreshold1" -BackupSubFolder "Mouse"
-        Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseThreshold2" -BackupSubFolder "Mouse"
-    }
+    Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseSpeed" -BackupSubFolder "Mouse"
+    Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseThreshold1" -BackupSubFolder "Mouse"
+    Backup-OverlordRegistryValue -TargetKey $MousePath -ValueName "MouseThreshold2" -BackupSubFolder "Mouse"
     Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -Force | Out-Null
@@ -143,15 +139,13 @@ Try {
     if (!(Test-Path $TogglePath)) { New-Item -Path $TogglePath -Force | Out-Null }
     if (!(Test-Path $KeyRespPath)) { New-Item -Path $KeyRespPath -Force | Out-Null }
 
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $StickyPath -ValueName "Flags" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey $TogglePath -ValueName "Flags" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "Flags" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility"
-        Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "BounceTime" -BackupSubFolder "Accessibility"
-    }
+    Backup-OverlordRegistryValue -TargetKey $StickyPath -ValueName "Flags" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $TogglePath -ValueName "Flags" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "Flags" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "BounceTime" -BackupSubFolder "Accessibility"
 
     Set-ItemProperty -Path $StickyPath -Name "Flags" -Type String -Value "506" -Force | Out-Null
     Set-ItemProperty -Path $TogglePath -Name "Flags" -Type String -Value "58" -Force | Out-Null

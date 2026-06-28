@@ -73,6 +73,7 @@ export const useOverlordStore = defineStore("overlord", {
       exe: string;
       detected: boolean;
       optimize: boolean;
+      manual?: boolean;
     }>,
     benchmarks: {
       before: {
@@ -128,11 +129,29 @@ export const useOverlordStore = defineStore("overlord", {
         const lowerCpu = info.cpu.toLowerCase();
         const lowerGpu = info.gpu.toLowerCase();
 
+        // Heurísticas mejoradas de CPU para nuevas generaciones
+        const isIntelHighCpu = lowerCpu.includes("i9") || 
+                               lowerCpu.includes("ultra 9") || 
+                               lowerCpu.includes("ultra 7") || 
+                               /i7-1[234]\d{2,3}/.test(lowerCpu) || 
+                               /i7\s+1[234]\d{2,3}/.test(lowerCpu) ||
+                               /i7\s+2\d{2}/.test(lowerCpu) ||
+                               /12700/.test(lowerCpu) ||
+                               /13700/.test(lowerCpu) ||
+                               /14700/.test(lowerCpu) ||
+                               /12900/.test(lowerCpu) ||
+                               /13900/.test(lowerCpu) ||
+                               /14900/.test(lowerCpu);
+
+        const isAmdHighCpu = info.isX3d ||
+                             lowerCpu.includes("ryzen 9") ||
+                             /ryzen\s+7\s+[789]\d{3}/.test(lowerCpu) ||
+                             /ryzen\s+5\s+[789]\d{3}/.test(lowerCpu) ||
+                             /ryzen\s+9\s+[789]\d{3}/.test(lowerCpu);
+
         if (
-          info.isX3d ||
-          lowerCpu.includes("12700k") ||
-          lowerCpu.includes("i9") ||
-          lowerCpu.includes("ryzen 9") ||
+          isIntelHighCpu ||
+          isAmdHighCpu ||
           info.ramGb >= 32
         ) {
           this.hardwareInfo.tier = "Gama Alta";
@@ -140,7 +159,12 @@ export const useOverlordStore = defineStore("overlord", {
           info.ramGb >= 16 ||
           lowerGpu.includes("rtx") ||
           lowerGpu.includes("rx 6") ||
-          lowerGpu.includes("rx 7")
+          lowerGpu.includes("rx 7") ||
+          lowerGpu.includes("rx 8") ||
+          lowerGpu.includes("rx 9") ||
+          lowerGpu.includes("intel arc") ||
+          lowerGpu.includes("arc a") ||
+          lowerGpu.includes("arc b")
         ) {
           this.hardwareInfo.tier = "Gama Media-Alta";
         } else {
@@ -207,10 +231,13 @@ export const useOverlordStore = defineStore("overlord", {
     async scanGames() {
       try {
         const games = await invoke<GamePayload[]>("fetch_games");
-        this.gameList = games.map((g) => ({
+        const manualGames = this.gameList.filter((g) => g.manual);
+        const scanned = games.map((g) => ({
           ...g,
           optimize: g.detected,
+          manual: false,
         }));
+        this.gameList = [...scanned, ...manualGames];
       } catch (e) {
         console.error("[ERROR ESCANEANDO CATÁLOGO DE JUEGOS]:", e);
       }
@@ -303,6 +330,25 @@ export const useOverlordStore = defineStore("overlord", {
     toggleGameOptimization(index: number, optimize: boolean) {
       if (index >= 0 && index < this.gameList.length) {
         this.gameList[index].optimize = optimize;
+      }
+    },
+    addManualGame(name: string, exe: string) {
+      if (!name || !exe) return;
+      let cleanExe = exe.trim();
+      if (!cleanExe.toLowerCase().endsWith(".exe")) {
+        cleanExe += ".exe";
+      }
+      const exists = this.gameList.some(
+        (g) => g.exe.toLowerCase() === cleanExe.toLowerCase()
+      );
+      if (!exists) {
+        this.gameList.push({
+          name: name.trim(),
+          exe: cleanExe,
+          detected: true,
+          optimize: true,
+          manual: true,
+        });
       }
     },
   },

@@ -344,6 +344,16 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         ScanGamesResponse { name: "Grand Theft Auto V".to_string(), exe: "GTA5.exe".to_string(), detected: false },
         ScanGamesResponse { name: "Dota 2".to_string(), exe: "dota2.exe".to_string(), detected: false },
         ScanGamesResponse { name: "Call of Duty".to_string(), exe: "cod.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Minecraft".to_string(), exe: "javaw.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Roblox".to_string(), exe: "RobloxPlayerBeta.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Rust".to_string(), exe: "RustClient.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "PUBG: BATTLEGROUNDS".to_string(), exe: "TslGame.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Hogwarts Legacy".to_string(), exe: "HogwartsLegacy.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Wuthering Waves".to_string(), exe: "Client-Win64-Shipping.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Black Myth: Wukong".to_string(), exe: "b1-Win64-Shipping.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "The Witcher 3: Wild Hunt".to_string(), exe: "witcher3.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Elden Ring".to_string(), exe: "eldenring.exe".to_string(), detected: false },
+        ScanGamesResponse { name: "Destiny 2".to_string(), exe: "destiny2.exe".to_string(), detected: false },
     ];
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
@@ -362,7 +372,13 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         let lower_name = display_name.to_lowercase();
                         for game in catalog.iter_mut() {
-                            if lower_name.contains(&game.name.to_lowercase()) {
+                            let game_lower = game.name.to_lowercase();
+                            let matches = if game_lower == "rust" {
+                                lower_name == "rust"
+                            } else {
+                                lower_name.contains(&game_lower)
+                            };
+                            if matches {
                                 game.detected = true;
                             }
                         }
@@ -376,7 +392,13 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         let lower_name = display_name.to_lowercase();
                         for game in catalog.iter_mut() {
-                            if lower_name.contains(&game.name.to_lowercase()) {
+                            let game_lower = game.name.to_lowercase();
+                            let matches = if game_lower == "rust" {
+                                lower_name == "rust"
+                            } else {
+                                lower_name.contains(&game_lower)
+                            };
+                            if matches {
                                 game.detected = true;
                             }
                         }
@@ -394,7 +416,13 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                         if let Ok(name) = app_subkey.get_value::<String, _>("Name") {
                             let lower_steam_name = name.to_lowercase();
                             for game in catalog.iter_mut() {
-                                if lower_steam_name.contains(&game.name.to_lowercase()) {
+                                let game_lower = game.name.to_lowercase();
+                                let matches = if game_lower == "rust" {
+                                    lower_steam_name == "rust"
+                                } else {
+                                    lower_steam_name.contains(&game_lower)
+                                };
+                                if matches {
                                     game.detected = true;
                                 }
                             }

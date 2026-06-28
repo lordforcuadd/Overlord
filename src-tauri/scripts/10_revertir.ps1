@@ -682,41 +682,7 @@ Try {
 
 
 
-    $TaskName = "OverlordPriorityMonitor"
-    $ProgData = $env:ProgramData
-    if ([string]::IsNullOrWhiteSpace($ProgData)) { 
-        $SysDrive = $env:SystemDrive
-        if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
-        $ProgData = Join-Path $SysDrive "ProgramData"
-    }
-    $InstallDir = Join-Path $ProgData "Overlord"
-    $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    if ($null -ne $ExistingTask) {
-        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
-    }
-    
-    # Matar de forma explicita procesos PowerShell huérfanos del daemon (WMI/CIM compatible con PS 5.1)
-    try {
-        $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
-        if ($null -eq $DaemonProcs -or @($DaemonProcs).Count -eq 0) {
-            $DaemonProcs = Get-WmiObject -Class Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
-        }
-        if ($null -ne $DaemonProcs) {
-            foreach ($P in $DaemonProcs) {
-                $pidToKill = $null
-                if ($null -ne $P.ProcessId) { $pidToKill = $P.ProcessId }
-                elseif ($null -ne $P.ProcessID) { $pidToKill = $P.ProcessID }
-                if ($null -ne $pidToKill) {
-                    Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-            }
-        }
-    } catch {}
-
-    if (Test-Path $InstallDir) {
-        Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-    }
+    Uninstall-OverlordPriorityDaemon
 
     # Restauracion dinamica de USB Selective Suspend delegada al bucle general
 

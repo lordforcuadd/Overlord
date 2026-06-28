@@ -12,11 +12,9 @@ Try {
     if (!(Test-Path $TcpPath)) { New-Item -Path $TcpPath -Force | Out-Null }
     if (!(Test-Path $ProfilePath)) { New-Item -Path $ProfilePath -Force | Out-Null }
     
-    if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-        Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network"
-        Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "SystemResponsiveness" -BackupSubFolder "Network"
-        Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "InitialRto" -BackupSubFolder "Network"
-    }
+    Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network"
+    Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "SystemResponsiveness" -BackupSubFolder "Network"
+    Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "InitialRto" -BackupSubFolder "Network"
 
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value ([uint32]4294967295) -Force | Out-Null
     Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 10 -Force | Out-Null
@@ -34,10 +32,8 @@ Try {
         $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
         foreach ($Key in $InterfaceKeys) {
             try {
-                if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                    Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
-                    Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
-                }
+                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
+                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
                 Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
                 Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
             } catch {
@@ -72,9 +68,7 @@ Try {
                     $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
                     foreach ($PKey in $PowerKeys) {
                         if ($null -ne $adapterProps -and $null -ne $adapterProps.PSObject.Properties[$PKey]) {
-                            if (Get-Command Backup-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                                Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
-                            }
+                            Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
                             Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
                         }
                     }
@@ -87,6 +81,13 @@ Try {
         $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
         foreach ($Adapter in $Adapters) {
             if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
+                # Evitar optimizaciones de descarga y latencia agresivas en adaptadores Wi-Fi
+                $IsWiFi = $Adapter.PhysicalMediaType -match "802.11" -or $Adapter.MediaType -match "Wireless" -or $Adapter.Name -match "Wi-Fi|Wireless|wlan"
+                if ($IsWiFi) {
+                    Write-Host "    -> Saltando optimizaciones de bajo nivel para adaptador Wi-Fi ($($Adapter.Name)) para preservar estabilidad de enlace inalambrico."
+                    continue
+                }
+                
                 try {
                     # Backup del estado original de LSO, RSC y RSS para este adaptador
                     $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"

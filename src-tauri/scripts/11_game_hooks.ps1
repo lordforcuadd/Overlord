@@ -471,10 +471,20 @@ try {
                     }
                     if ($FilteredLayers) { $NewFlagsList.AddRange([string[]]$FilteredLayers) }
                 }
-                $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
+                
+                $DpiVal = Get-ItemPropertyValue -Path "$HKCU_Path\Control Panel\Desktop" -Name "LogPixels" -ErrorAction SilentlyContinue
+                $IsDpi100 = $null -eq $DpiVal -or $DpiVal -eq 96
+                if (-not $IsDpi100) {
+                    $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
+                }
+                
                 $FinalFlagsValue = ($NewFlagsList -join " ").Trim()
 
-                Set-ItemProperty -Path $LayersPath -Name $RealExePath -Type String -Value $FinalFlagsValue -Force | Out-Null
+                if ($FinalFlagsValue) {
+                    Set-ItemProperty -Path $LayersPath -Name $RealExePath -Type String -Value $FinalFlagsValue -Force | Out-Null
+                } else {
+                    Remove-ItemProperty -Path $LayersPath -Name $RealExePath -ErrorAction SilentlyContinue | Out-Null
+                }
 
                 if ($FullscreenForced) {
                     Write-Host "    -> Capas dinamicas + modo exclusivo aplicados en: $RealExePath"
