@@ -91,7 +91,7 @@ if (Test-Path $ProfilePath) {
     
     $CoalescingOk = $true
     $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
-    if ($TotalThreads -gt 8 -and -not $IsLaptop) {
+    if (-not $IsLaptop -or $TotalThreads -gt 8) {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 $_.Status -eq "Up" -and $_.Virtual -eq $false -and $_.NdisPhysicalMedium -eq 14 

@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
+import { buildExpectedProfileState } from "../stores/profileLogic";
 import Swal from "sweetalert2";
 
 export function useOrchestrator(overlordSwalConfig: any) {
@@ -294,27 +295,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       const { isLaptop, tier } = store.hardwareInfo;
       let matchedProfile = "Personalizado";
       for (const [profileName, profileMods] of Object.entries(PROFILE_CONFIGS)) {
-        let expected: Record<string, boolean> = {
-          peripheralLatency: false,
-          debloat: false,
-          networkOptimized: false,
-          generalPerformance: false,
-          gpuDisplay: false,
-          irqAffinity: false,
-          smartStorage: false,
-          deepTelemetry: false,
-          powerProfiles: false,
-          gameHooks: false,
-          disableMitigations: false
-        };
-
-        profileMods.forEach((mod) => {
-          if (mod === "irqAffinity" && isLaptop) return;
-          if (mod === "powerProfiles" && isLaptop) return;
-          if (mod === "irqAffinity" && tier === "Gama Estándar") return;
-          if (mod === "disableMitigations" && tier !== "Gama Estándar") return;
-          expected[mod] = true;
-        });
+        const expected = buildExpectedProfileState(profileMods, { isLaptop, tier });
 
         let isMatch = true;
         for (const modKey of Object.keys(expected)) {

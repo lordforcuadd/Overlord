@@ -77,7 +77,7 @@ Try {
                         
                         # Desactivar Coalescencia, Moderación de Interrupción y Control de Flujo únicamente en PCs de Escritorio con >8 hilos lógicos
                         $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
-                        if ($TotalThreads -gt 8 -and -not $IsLaptop) {
+                        if (-not $IsLaptop -or $TotalThreads -gt 8) {
                             $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
                         }
 

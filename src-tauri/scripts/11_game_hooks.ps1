@@ -361,7 +361,21 @@ try {
             # Vanguard y EasyAntiCheat (EAC) son muy sensibles a la inyeccion en IFEO.
             # Por seguridad, solo eliminamos registros de compatibilidad antiguos y no inyectamos nuevos hooks bajo HKLM:\...\Image File Execution Options.
             $OldIfeo = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$ExeName"
-            if (Test-Path $OldIfeo) { Remove-Item -Path $OldIfeo -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
+            $IfeoBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks\$ExeName\IFEORegacy"
+            if (Test-Path $OldIfeo) {
+                if (!(Test-Path (Split-Path $IfeoBackup -Parent))) {
+                    New-Item -Path (Split-Path $IfeoBackup -Parent) -Force | Out-Null
+                }
+                Copy-Item -Path $OldIfeo -Destination $IfeoBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                Remove-Item -Path $OldIfeo -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+            } else {
+                # Guardar marcador de ausente para saber que no existía originalmente
+                if (!(Test-Path (Split-Path $IfeoBackup -Parent))) {
+                    New-Item -Path (Split-Path $IfeoBackup -Parent) -Force | Out-Null
+                }
+                $null = New-Item -Path $IfeoBackup -Force -ErrorAction SilentlyContinue
+                Set-ItemProperty -Path $IfeoBackup -Name "Status" -Value "_ABSENT_" -Force -ErrorAction SilentlyContinue | Out-Null
+            }
 
             $AppPathRegistry = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$ExeName"
             $RegProps = Get-ItemProperty -Path $AppPathRegistry -ErrorAction SilentlyContinue

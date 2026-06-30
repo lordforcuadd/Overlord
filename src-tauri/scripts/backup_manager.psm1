@@ -34,8 +34,16 @@ if ([string]::IsNullOrWhiteSpace($Username)) {
     $Username = $env:USERNAME
 }
 
-# Traducir a SID
-if (-not [string]::IsNullOrWhiteSpace($Username)) {
+# Intentar obtener SID de perfil cargado activamente (excluyendo cuentas de sistema)
+try {
+    $ActiveProfile = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and $_.SID -match '^S-1-5-21-' } | Select-Object -First 1
+    if ($ActiveProfile) {
+        $UserSID = $ActiveProfile.SID
+    }
+} catch {}
+
+# Fallback: Traducir a SID a partir del Username si no se obtuvo
+if ([string]::IsNullOrWhiteSpace($UserSID) -and -not [string]::IsNullOrWhiteSpace($Username)) {
     try {
         $NtAccount = New-Object System.Security.Principal.NTAccount($Username)
         $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value

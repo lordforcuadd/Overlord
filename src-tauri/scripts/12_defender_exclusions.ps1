@@ -258,6 +258,10 @@ try {
     }
 
     # Obtener exclusiones actuales de Windows Defender de forma nativa
+    if (-not (Get-Command Get-MpPreference -ErrorAction SilentlyContinue)) {
+        Write-Warning "Get-MpPreference no esta disponible en este sistema."
+        exit 0
+    }
     $CurrentExclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
     $CurrentExclusionsList = [System.Collections.Generic.List[string]]::new()
     if ($CurrentExclusions) {

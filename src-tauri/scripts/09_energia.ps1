@@ -91,19 +91,29 @@ Try {
             Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "be337238-0d82-4146-a960-4f3749d470c7" -BackupName "Power_${DesktopGuid}_be337238-0d82-4146-a960-4f3749d470c7"
         }
 
-        # Nota de rigor e inconsistencia: Las llamadas powercfg se envuelven en try/catch silencioso
-        # porque la disponibilidad de parametros como EPP (Energy Performance Preference) o Boost Mode
-        # depende directamente de la microarquitectura de la CPU y del firmware del fabricante.
-        # Lanzar excepciones interrumpiria la ejecucion en hardware que no soporta estos registros.
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null } catch {}
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bea128a440 d4e00550-747f-4ddb-bf3e-9b6c97a522a4 0 2>$null } catch {}
+        # Nota de rigor: Las llamadas powercfg externas no generan excepciones en PowerShell
+        # al fallar (por ejemplo, si el hardware/firmware no soporta EPP o Boost Mode).
+        # Verificamos explícitamente $LASTEXITCODE para reportar advertencias informadas sin interrumpir la ejecución.
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para ee12f906-d277-404b-b6da-e5fa1a576df5: código $LASTEXITCODE" }
 
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null } catch {}
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null } catch {}
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bea128a440 d4e00550-747f-4ddb-bf3e-9b6c97a522a4 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para d4e00550-747f-4ddb-bf3e-9b6c97a522a4: código $LASTEXITCODE" }
+
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para 0cc5b647-c1df-4637-891a-dec35c318583: código $LASTEXITCODE" }
+
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para ea0653f5-eab4-474c-8a0f-1ba102244432: código $LASTEXITCODE" }
         
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6733a230-cd1a-4929-94d4-540b4ddecbeb 0 2>$null } catch {}
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3668a66e-6856-4221-b530-747f2d53e4c6 0 2>$null } catch {}
-        try { & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 be337238-0d82-4146-a960-4f3749d470c7 2 2>$null } catch {}
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6733a230-cd1a-4929-94d4-540b4ddecbeb 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para 6733a230-cd1a-4929-94d4-540b4ddecbeb: código $LASTEXITCODE" }
+
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3668a66e-6856-4221-b530-747f2d53e4c6 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para 3668a66e-6856-4221-b530-747f2d53e4c6: código $LASTEXITCODE" }
+
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 be337238-0d82-4146-a960-4f3749d470c7 2 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg /setacvalueindex falló para be337238-0d82-4146-a960-4f3749d470c7: código $LASTEXITCODE" }
 
         # Inyectar desactivación global de Power Throttling
         $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"

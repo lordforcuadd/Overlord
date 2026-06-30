@@ -10,6 +10,9 @@ use tokio::sync::OnceCell;
 #[serde(rename_all = "camelCase")]
 pub struct HardwareResponse {
     pub cpu: String,
+    pub cpu_brand: String,
+    pub cpu_vendor: String,
+    pub cpu_frequency: u64,
     pub gpu: String,
     pub motherboard: String,
     pub ram_gb: u32,
@@ -50,6 +53,31 @@ static HARDWARE_CACHE: OnceCell<HardwareResponse> = OnceCell::const_new();
 
 pub async fn get_system_hardware() -> HardwareResponse {
     HARDWARE_CACHE.get_or_init(|| async {
+        // 1. Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
+        let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+        let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+        
+        let mut ram_speed_val = None;
+        let mut cmd = tokio::process::Command::new(&powershell_path);
+        cmd.creation_flags(0x08000000)
+           .args(&[
+               "-NoProfile",
+               "-Command",
+               "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
+           ]);
+        
+        if let Ok(output) = cmd.output().await {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if let Ok(speed) = text.parse::<u32>() {
+                    if speed > 0 {
+                        ram_speed_val = Some(speed);
+                    }
+                }
+            }
+        }
+
+        // 2. Ejecutar el resto de las consultas síncronas en un hilo de bloqueo
         tokio::task::spawn_blocking(move || {
             let mut sys = System::new_all();
             sys.refresh_memory();
@@ -66,6 +94,11 @@ pub async fn get_system_hardware() -> HardwareResponse {
                         .map(|cpu| cpu.brand().trim().to_string())
                         .unwrap_or_else(|| "CPU no detectada".to_string())
                 });
+
+            let cpus = sys.cpus();
+            let cpu_brand = cpus.first().map(|cpu| cpu.brand().trim().to_string()).unwrap_or_else(|| cpu_name.clone());
+            let cpu_vendor = cpus.first().map(|cpu| cpu.vendor_id().trim().to_string()).unwrap_or_else(|| "Unknown".to_string());
+            let cpu_frequency = cpus.first().map(|cpu| cpu.frequency()).unwrap_or(0);
 
             let motherboard_name = hklm
                 .open_subkey("HARDWARE\\DESCRIPTION\\System\\BIOS")
@@ -100,7 +133,7 @@ pub async fn get_system_hardware() -> HardwareResponse {
                 .open_subkey("SYSTEM\\CurrentControlSet\\Control\\SystemInformation")
                 .and_then(|key| {
                     let chassis_type: u32 = key.get_value("SystemChassisType")?;
-                    Ok(matches!(chassis_type, 8 | 9 | 10 | 11 | 12 | 14))
+                    Ok(matches!(chassis_type, 8 | 9 | 10 | 11 | 12 | 14 | 30 | 31 | 32))
                 })
                 .unwrap_or(false);
 
@@ -122,75 +155,15 @@ pub async fn get_system_hardware() -> HardwareResponse {
 
             let is_laptop = is_laptop_chassis || has_battery;
 
-            // Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
-            let mut ram_speed_val = None;
-            let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
-            let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
-            
-            let (tx_ps, rx_ps) = std::sync::mpsc::channel();
-            let ps_path_clone = powershell_path.clone();
-            std::thread::spawn(move || {
-                let output = std::process::Command::new(&ps_path_clone)
-                    .creation_flags(0x08000000)
-                    .args(&[
-                        "-NoProfile",
-                        "-Command",
-                        "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
-                    ])
-                    .output();
-                let _ = tx_ps.send(output);
-            });
-            
-            let output_ps = rx_ps.recv_timeout(std::time::Duration::from_secs(5));
-            if let Ok(Ok(out)) = output_ps {
-                if out.status.success() {
-                    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                    if let Ok(speed) = text.parse::<u32>() {
-                        if speed > 0 {
-                            ram_speed_val = Some(speed);
-                        }
-                    }
-                }
-            }
-
-            // Fallback a wmic.exe si PowerShell falla o no retorna velocidad en sistemas legacy
-            if ram_speed_val.is_none() {
-                let wmic_path = format!("{}\\System32\\wbem\\wmic.exe", system_root);
-                let (tx_wmic, rx_wmic) = std::sync::mpsc::channel();
-                std::thread::spawn(move || {
-                    let output = std::process::Command::new(&wmic_path)
-                        .creation_flags(0x08000000)
-                        .args(&["path", "Win32_PhysicalMemory", "get", "ConfiguredClockSpeed"])
-                        .output();
-                    let _ = tx_wmic.send(output);
-                });
-                
-                let output_wmic = rx_wmic.recv_timeout(std::time::Duration::from_secs(5));
-                if let Ok(Ok(out)) = output_wmic {
-                    if out.status.success() {
-                        let text = String::from_utf8_lossy(&out.stdout);
-                        let lines: Vec<&str> = text.lines()
-                            .map(|l| l.trim())
-                            .filter(|l| !l.is_empty() && !l.starts_with("ConfiguredClockSpeed"))
-                            .collect();
-                        if let Some(first_line) = lines.first() {
-                            if let Ok(speed) = first_line.parse::<u32>() {
-                                if speed > 0 {
-                                    ram_speed_val = Some(speed);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             let mut drive_is_ssd = false;
             let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
             let path_drive_str = format!("\\\\.\\{}", system_drive);
             let path_drive: Vec<u16> = path_drive_str.encode_utf16().chain(std::iter::once(0)).collect();
+            let mut handle_ok = false;
             unsafe {
                 let handle = CreateFileW(path_drive.as_ptr(), 0x80000000, 0x00000001 | 0x00000002, std::ptr::null_mut(), 3, 0x00000080, std::ptr::null_mut());
                 if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
+                    handle_ok = true;
                     #[repr(C)]
                     struct STORAGE_PROPERTY_QUERY { property_id: u32, query_type: u32, additional_parameters: [u8; 1] }
                     #[repr(C)]
@@ -213,6 +186,27 @@ pub async fn get_system_hardware() -> HardwareResponse {
                 } else {
                     let err = std::io::Error::last_os_error();
                     eprintln!("[OVERLORD WARNING] CreateFileW on C: failed: {}", err);
+                }
+            }
+
+            if !handle_ok {
+                // Fallback no-privilegiado vía PowerShell / Get-PhysicalDisk
+                let ps_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+                let output = std::process::Command::new(&ps_path)
+                    .creation_flags(0x08000000)
+                    .args(&[
+                        "-NoProfile",
+                        "-Command",
+                        "(Get-PhysicalDisk | Where-Object { $_.MediaType -eq 'SSD' })",
+                    ])
+                    .output();
+                if let Ok(out) = output {
+                    if out.status.success() {
+                        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !text.is_empty() {
+                            drive_is_ssd = true;
+                        }
+                    }
                 }
             }
 
@@ -246,6 +240,9 @@ pub async fn get_system_hardware() -> HardwareResponse {
 
             HardwareResponse {
                 cpu: cpu_name,
+                cpu_brand,
+                cpu_vendor,
+                cpu_frequency,
                 gpu: gpu_name,
                 motherboard: motherboard_name,
                 ram_gb: ram_calc,
@@ -259,6 +256,9 @@ pub async fn get_system_hardware() -> HardwareResponse {
             eprintln!("[OVERLORD ERROR] spawn_blocking failed for hardware info: {:?}", e);
             HardwareResponse {
                 cpu: "Error al detectar CPU".to_string(),
+                cpu_brand: "Error al detectar CPU".to_string(),
+                cpu_vendor: "Desconocido".to_string(),
+                cpu_frequency: 0,
                 gpu: "Error al detectar GPU".to_string(),
                 motherboard: "Error al detectar Placa".to_string(),
                 ram_gb: 0,

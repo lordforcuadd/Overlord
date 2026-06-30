@@ -1,24 +1,4 @@
-#![allow(
-    clippy::unreadable_literal,
-    clippy::too_many_lines,
-    clippy::redundant_closure_for_method_calls,
-    clippy::explicit_iter_loop,
-    clippy::unnecessary_map_or,
-    clippy::borrow_as_ptr,
-    clippy::ptr_as_ptr,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_lossless,
-    clippy::wildcard_imports,
-    clippy::struct_excessive_bools,
-    clippy::map_unwrap_or,
-    clippy::uninlined_format_args,
-    clippy::cast_sign_loss,
-    clippy::needless_borrows_for_generic_args,
-    clippy::ref_as_ptr,
-    clippy::single_char_pattern,
-    clippy::manual_div_ceil
-)]
+// Global allows removed for quality auditing compliance
 mod executor;
 mod hardware;
 mod memory;
@@ -81,8 +61,18 @@ fn get_live_telemetry(cache: State<'_, SystemStateCache>) -> LiveMetricsResponse
     get_live_metrics(&cache)
 }
 
+fn validate_game_list(s: &str) -> Result<(), String> {
+    for c in s.chars() {
+        if !c.is_alphanumeric() && c != '.' && c != '-' && c != '_' && c != ',' && c != ':' && !c.is_whitespace() {
+            return Err(format!("Caracter no permitido en la lista de juegos: '{}'", c));
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
+    validate_game_list(&game_list)?;
     let hw = get_system_hardware().await;
     let is_hybrid = hw.is_hybrid;
     let is_x3d = hw.is_x3d;
@@ -139,7 +129,9 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
     // Se utiliza el puerto 80 del servidor DNS público de Cloudflare (1.1.1.1)
     // para medir la latencia de establecimiento de conexión TCP pura de red.
     let start_tcp = Instant::now();
-    let addr = "1.1.1.1:80".parse::<std::net::SocketAddr>().unwrap();
+    let addr: std::net::SocketAddr = "1.1.1.1:80".parse().unwrap_or_else(|_| {
+        std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1)), 80)
+    });
     let tcp_res = tokio::time::timeout(
         Duration::from_millis(1500),
         tokio::net::TcpStream::connect(addr)
@@ -252,8 +244,75 @@ fn purge_ram_native() -> Result<String, String> {
     }
 }
 
+// Helper function to get current user token SID
+fn get_current_user_sid() -> Option<Vec<u8>> {
+    unsafe {
+        use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+        use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+        let current_proc = GetCurrentProcess();
+        let mut token: HANDLE = 0;
+        if OpenProcessToken(current_proc, TOKEN_QUERY, &mut token) != 0 {
+            let mut size = 0;
+            GetTokenInformation(token, TokenUser, std::ptr::null_mut(), 0, &mut size);
+            if size > 0 {
+                let mut buf = vec![0u8; size as usize];
+                if GetTokenInformation(token, TokenUser, buf.as_mut_ptr() as *mut _, size, &mut size) != 0 {
+                    let token_user = buf.as_ptr() as *const TOKEN_USER;
+                    let sid = (*token_user).User.Sid;
+                    let len = windows_sys::Win32::Security::GetLengthSid(sid);
+                    let mut sid_bytes = vec![0u8; len as usize];
+                    std::ptr::copy_nonoverlapping(sid as *const u8, sid_bytes.as_mut_ptr(), len as usize);
+                    CloseHandle(token);
+                    return Some(sid_bytes);
+                }
+            }
+            CloseHandle(token);
+        }
+        None
+    }
+}
+
+// Helper function to check if target PID belongs to current user (CWE-269 prevention)
+fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
+    unsafe {
+        use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+        use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+        use windows_sys::Win32::System::Threading::{OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION};
+
+        let target_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if target_handle != 0 {
+            let mut token: HANDLE = 0;
+            let mut match_ok = false;
+            if OpenProcessToken(target_handle, TOKEN_QUERY, &mut token) != 0 {
+                let mut size = 0;
+                GetTokenInformation(token, TokenUser, std::ptr::null_mut(), 0, &mut size);
+                if size > 0 {
+                    let mut buf = vec![0u8; size as usize];
+                    if GetTokenInformation(token, TokenUser, buf.as_mut_ptr() as *mut _, size, &mut size) != 0 {
+                        let token_user = buf.as_ptr() as *const TOKEN_USER;
+                        let sid = (*token_user).User.Sid;
+                        let len = windows_sys::Win32::Security::GetLengthSid(sid);
+                        let mut sid_bytes = vec![0u8; len as usize];
+                        std::ptr::copy_nonoverlapping(sid as *const u8, sid_bytes.as_mut_ptr(), len as usize);
+                        if sid_bytes == current_sid {
+                            match_ok = true;
+                        }
+                    }
+                }
+                CloseHandle(token);
+            }
+            CloseHandle(target_handle);
+            return match_ok;
+        }
+        false
+    }
+}
+
 #[tauri::command]
 async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String> {
+    validate_game_list(&game_list_raw)?;
     if game_list_raw.trim().is_empty() { return Ok(()); }
 
     // Evitar iniciar el monitor redundante si el daemon de Scheduled Task de PowerShell ya está instalado
@@ -287,8 +346,8 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
         *guard = Some(tx);
         
         tokio::spawn(async move {
+            let current_sid = get_current_user_sid();
             let mut sys = System::new_all();
-            let mut check_counter: u32 = 0;
             loop {
                 tokio::select! {
                     _ = &mut rx => {
@@ -297,14 +356,11 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
                         // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        if check_counter % 20 == 0 {
-                            let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-                            if hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok() {
-                                println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
-                                break;
-                            }
+                        let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+                        if hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok() {
+                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
+                            break;
                         }
-                        check_counter = check_counter.wrapping_add(1);
 
                         sys.refresh_processes_specifics(
                             sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
@@ -315,18 +371,26 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                                 proc_name = proc_name[..proc_name.len() - 4].to_string();
                             }
                             if games.contains(&proc_name) {
-                                unsafe {
-                                    use windows_sys::Win32::System::Threading::{
-                                        OpenProcess, SetPriorityClass, GetPriorityClass, HIGH_PRIORITY_CLASS, 
-                                        PROCESS_SET_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION
-                                    };
-                                    let handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid.as_u32());
-                                    if handle != 0 {
-                                        if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS && SetPriorityClass(handle, HIGH_PRIORITY_CLASS) == 0 {
-                                            let err = std::io::Error::last_os_error();
-                                            eprintln!("[OVERLORD WARNING] SetPriorityClass falló para PID {}: {}", pid.as_u32(), err);
+                                let is_own = if let Some(ref sid) = current_sid {
+                                    does_process_belong_to_current_user(pid.as_u32(), sid)
+                                } else {
+                                    true
+                                };
+
+                                if is_own {
+                                    unsafe {
+                                        use windows_sys::Win32::System::Threading::{
+                                            OpenProcess, SetPriorityClass, GetPriorityClass, HIGH_PRIORITY_CLASS, 
+                                            PROCESS_SET_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION
+                                        };
+                                        let handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid.as_u32());
+                                        if handle != 0 {
+                                            if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS && SetPriorityClass(handle, HIGH_PRIORITY_CLASS) == 0 {
+                                                let err = std::io::Error::last_os_error();
+                                                eprintln!("[OVERLORD WARNING] SetPriorityClass falló para PID {}: {}", pid.as_u32(), err);
+                                            }
+                                            windows_sys::Win32::Foundation::CloseHandle(handle);
                                         }
-                                        windows_sys::Win32::Foundation::CloseHandle(handle);
                                     }
                                 }
                             }
@@ -360,7 +424,8 @@ fn log_from_js(msg: String) {
     }
     if let Ok(metadata) = std::fs::metadata(&log_path) {
         if metadata.len() > 100_000 {
-            let _ = std::fs::remove_file(&log_path);
+            let old_log_path = log_path.with_extension("old.log");
+            let _ = std::fs::rename(&log_path, &old_log_path);
         }
     }
     if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
@@ -394,7 +459,8 @@ pub fn run() {
         }
         if let Ok(metadata) = std::fs::metadata(&log_path) {
             if metadata.len() > 100_000 {
-                let _ = std::fs::remove_file(&log_path);
+                let old_log_path = log_path.with_extension("old.log");
+                let _ = std::fs::rename(&log_path, &old_log_path);
             }
         }
         if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {

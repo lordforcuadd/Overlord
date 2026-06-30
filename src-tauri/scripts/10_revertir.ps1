@@ -621,6 +621,23 @@ Try {
                 }
             }
 
+            # Restaurar IFEO original
+            $IfeoBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks\$($Key.PSChildName)\IFEORegacy"
+            $IfeoTarget = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$($Key.PSChildName)"
+            if (Test-Path $IfeoBackup) {
+                $StatusVal = Get-SafeRegistryValue -Path $IfeoBackup -Name "Status"
+                if ($StatusVal -eq "_ABSENT_") {
+                    if (Test-Path $IfeoTarget) {
+                        Remove-Item -Path $IfeoTarget -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                } else {
+                    if (Test-Path $IfeoTarget) {
+                        Remove-Item -Path $IfeoTarget -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    Copy-Item -Path $IfeoBackup -Destination $IfeoTarget -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+
             # Restaurar preferencias originales de pantalla en GameUserSettings.ini
             $IniPath = Get-SafeRegistryValue -Path $Key.PSPath -Name "IniPath"
             if ($IniPath -and (Test-Path $IniPath)) {
@@ -726,6 +743,8 @@ Try {
         Remove-Item -Path $DefenderBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 
+    Write-Host "[+] Reversion completa de Overlord finalizada con exito."
+
     if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
 
     # Eliminar la clave padre principal si queda vacía tras la reversión para no dejar huella
@@ -736,8 +755,6 @@ Try {
             Remove-Item -Path $OverlordKey -Force -ErrorAction SilentlyContinue | Out-Null
         }
     }
-
-    Write-Host "[+] Reversion completa de Overlord finalizada con exito."
     Write-Host "Reiniciando el entorno del Explorador de Windows..."
     if (Get-Process -Name explorer -ErrorAction SilentlyContinue) {
         Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue

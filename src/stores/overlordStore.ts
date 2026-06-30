@@ -1,9 +1,13 @@
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { PROFILE_CONFIGS } from "../data/tweaksMetadata";
+import { buildExpectedProfileState } from "./profileLogic";
 
 interface HardwarePayload {
   cpu: string;
+  cpuBrand: string;
+  cpuVendor: string;
+  cpuFrequency: number;
   gpu: string;
   motherboard: string;
   ramGb: number;
@@ -39,6 +43,9 @@ export const useOverlordStore = defineStore("overlord", {
     hardwareError: false,
     hardwareInfo: {
       cpu: "",
+      cpuBrand: "",
+      cpuVendor: "",
+      cpuFrequency: 0,
       gpu: "",
       motherboard: "",
       ramGb: 0,
@@ -117,6 +124,9 @@ export const useOverlordStore = defineStore("overlord", {
         const info = await invoke<HardwarePayload>("fetch_hardware");
 
         this.hardwareInfo.cpu = info.cpu;
+        this.hardwareInfo.cpuBrand = info.cpuBrand;
+        this.hardwareInfo.cpuVendor = info.cpuVendor;
+        this.hardwareInfo.cpuFrequency = info.cpuFrequency;
         this.hardwareInfo.gpu = info.gpu;
         this.hardwareInfo.motherboard = info.motherboard;
         this.hardwareInfo.ramGb = info.ramGb;
@@ -126,28 +136,33 @@ export const useOverlordStore = defineStore("overlord", {
         this.hardwareInfo.isX3d = info.isX3d;
         this.hardwareInfo.isSsd = info.isSsd;
 
-        const lowerCpu = info.cpu.toLowerCase();
+        const isIntel = info.cpuVendor.toLowerCase().includes("intel");
+        const isAmd = info.cpuVendor.toLowerCase().includes("amd");
+        const brand = info.cpuBrand;
         const lowerGpu = info.gpu.toLowerCase();
 
-        // Heurísticas mejoradas de CPU para nuevas generaciones
-        const isIntelHighCpu = lowerCpu.includes("i9") || 
-                               lowerCpu.includes("ultra 9") || 
-                               lowerCpu.includes("ultra 7") || 
-                               /i7-1[234]\d{2,3}/.test(lowerCpu) || 
-                               /i7\s+1[234]\d{2,3}/.test(lowerCpu) ||
-                               /i7\s+2\d{2}/.test(lowerCpu) ||
-                               /12700/.test(lowerCpu) ||
-                               /13700/.test(lowerCpu) ||
-                               /14700/.test(lowerCpu) ||
-                               /12900/.test(lowerCpu) ||
-                               /13900/.test(lowerCpu) ||
-                               /14900/.test(lowerCpu);
+        const isIntelHighCpu = isIntel && (
+          brand.includes("i9") || 
+          brand.includes("Ultra 9") || 
+          brand.includes("Ultra 7") || 
+          brand.includes("i7-12") || 
+          brand.includes("i7-13") || 
+          brand.includes("i7-14") || 
+          brand.includes("i7 12") || 
+          brand.includes("i7 13") || 
+          brand.includes("i7 14")
+        );
 
-        const isAmdHighCpu = info.isX3d ||
-                             lowerCpu.includes("ryzen 9") ||
-                             /ryzen\s+7\s+[789]\d{3}/.test(lowerCpu) ||
-                             /ryzen\s+5\s+[789]\d{3}/.test(lowerCpu) ||
-                             /ryzen\s+9\s+[789]\d{3}/.test(lowerCpu);
+        const isAmdHighCpu = isAmd && (
+          info.isX3d ||
+          brand.includes("Ryzen 9") ||
+          brand.includes("Ryzen 7 7") ||
+          brand.includes("Ryzen 7 8") ||
+          brand.includes("Ryzen 7 9") ||
+          brand.includes("Ryzen 5 7") ||
+          brand.includes("Ryzen 5 8") ||
+          brand.includes("Ryzen 5 9")
+        );
 
         if (
           isIntelHighCpu ||
@@ -273,28 +288,10 @@ export const useOverlordStore = defineStore("overlord", {
       });
 
       const activeModules = PROFILE_CONFIGS[profile] || [];
-      const { tier, isLaptop } = this.hardwareInfo;
+      const expected = buildExpectedProfileState(activeModules, this.hardwareInfo);
 
-      let hasGameHooks = false;
-      activeModules.forEach((mod) => {
-        // 1. Filtros por Laptop
-        if (mod === "irqAffinity" && isLaptop) return;
-        if (mod === "powerProfiles" && isLaptop) return;
-
-        // 2. Filtros inteligentes por Gama (Tier) de Hardware
-        // La afinidad de interrupciones (IRQ) requiere procesadores multinúcleo modernos.
-        // En equipos básicos (Gama Estándar), forzar afinidad puede saturar los pocos hilos disponibles y causar micro-stutters.
-        if (mod === "irqAffinity" && tier === "Gama Estándar") return;
-
-        // Desactivar mitigaciones de CPU solo da ventaja real en CPUs antiguos (Gama Estándar) con mitigaciones por software.
-        // En PCs modernas (Gama Alta / Gama Media-Alta), el silicio ya mitiga Spectre/Meltdown sin pérdida de rendimiento,
-        // por lo que desactivarlo no aporta fps pero sí reduce innecesariamente la seguridad.
-        if (mod === "disableMitigations" && tier !== "Gama Estándar") return;
-
-        this.modules[mod as keyof typeof this.modules] = true;
-        if (mod === "gameHooks") {
-          hasGameHooks = true;
-        }
+      Object.keys(expected).forEach((key) => {
+        this.modules[key as keyof typeof this.modules] = expected[key];
       });
       // Consentimiento separado: No autoseleccionar el daemon de fondo SYSTEM
       invoke("log_from_js", {

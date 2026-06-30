@@ -65,7 +65,17 @@ fn encode_utf16_base64(script: &str) -> String {
     custom_base64_encode(&utf16_bytes)
 }
 
+fn validate_input_string(s: &str) -> Result<(), String> {
+    for c in s.chars() {
+        if !c.is_alphanumeric() && c != '.' && c != '-' && c != '_' && c != ',' && c != ':' && !c.is_whitespace() {
+            return Err(format!("Caracter no permitido en el input: '{}'", c));
+        }
+    }
+    Ok(())
+}
+
 async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
+    validate_input_string(game_list)?;
     let backup_module = include_str!("../scripts/backup_manager.psm1");
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
     let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str, is_hybrid, is_x3d, is_ssd);
@@ -108,7 +118,17 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
         stdin.write_all(b64_encoded.as_bytes()).await.map_err(|e| format!("Error al escribir en stdin: {}", e))?;
     } 
 
-    let timeout_secs = if game_list == "RepairOS" { 1200 } else { 300 };
+    let mut timeout_secs = if game_list == "RepairOS" {
+        1200
+    } else {
+        let num_games = if game_list.is_empty() { 0 } else { game_list.split(',').filter(|s| !s.trim().is_empty()).count() };
+        let is_hdd = if is_ssd { 0 } else { 1 };
+        300 + (num_games as u64 * 30) + (is_hdd * 120)
+    };
+
+    if (action_id == "11_game_hooks" || action_id == "12_defender_exclusions") && timeout_secs < 600 {
+        timeout_secs = 600;
+    }
 
     let mut stdout = child.stdout.take().ok_or("No se pudo obtener stdout de PowerShell".to_string())?;
     let mut stderr = child.stderr.take().ok_or("No se pudo obtener stderr de PowerShell".to_string())?;
