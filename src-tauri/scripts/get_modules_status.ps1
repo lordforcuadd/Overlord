@@ -18,6 +18,7 @@ $Status = @{
     powerProfiles      = $false
     gameHooks          = $false
     disableMitigations = $false
+    defenderExclusions = $false
 }
 
 $MousePath = "$HKCU_Path\Control Panel\Mouse"
@@ -112,9 +113,42 @@ if (Test-Path $ProfilePath) {
                 }
             }
         }
+    $PnpOk = $true
+    $RunningOnBattery = $false
+    if ($IsLaptop) {
+        $BatteryStatus = Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
+        if ($null -ne $BatteryStatus -and $BatteryStatus.PowerOnline -eq $false) {
+            $RunningOnBattery = $true
+        }
     }
     
-    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk) {
+    if (-not $RunningOnBattery) {
+        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+                $_.Virtual -eq $false
+            } | ForEach-Object { "$($_.InterfaceGuid)" }
+            
+            if ($ActiveGuids.Count -gt 0) {
+                $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+                if (Test-Path $NetClassPath) {
+                    $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
+                    foreach ($Adapter in $NetAdapters) {
+                        if ($Adapter.PSChildName -match "^\d{4}$") {
+                            $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
+                            if ($null -ne $Props -and $ActiveGuids -contains $Props.NetCfgInstanceId) {
+                                $PnpVal = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "PnPCapabilities" -ErrorAction SilentlyContinue
+                                if ($null -eq $PnpVal -or $PnpVal -ne 24) {
+                                    $PnpOk = $false
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PnpOk) {
         $Status['networkOptimized'] = $true
     }
 }
@@ -310,5 +344,30 @@ if (Test-Path $MemPath) {
     }
 }
 
+$DefenderExclusionsOk = $false
+$BkpProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Overlord\Backup\DefenderExclusions" -ErrorAction SilentlyContinue
+if ($null -ne $BkpProps -and $null -ne $BkpProps.AddedExclusions) {
+    $PathsToCheck = $BkpProps.AddedExclusions -split ";" | Where-Object { $_ -ne "" }
+    if ($PathsToCheck.Count -gt 0) {
+        $CurrentExclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
+        $CurrentExclusionsSet = @{}
+        if ($CurrentExclusions) {
+            foreach ($Path in $CurrentExclusions) {
+                $CurrentExclusionsSet[[System.IO.Path]::GetFullPath($Path).TrimEnd('\').ToLower()] = $true
+            }
+        }
+        
+        $AllFound = $true
+        foreach ($Path in $PathsToCheck) {
+            $ResolvedPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\').ToLower()
+            if (-not $CurrentExclusionsSet.ContainsKey($ResolvedPath)) {
+                $AllFound = $false
+                break
+            }
+        }
+        $DefenderExclusionsOk = $AllFound
+    }
+}
+$Status['defenderExclusions'] = $DefenderExclusionsOk
 
 ConvertTo-Json $Status -Compress

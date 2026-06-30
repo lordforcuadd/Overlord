@@ -44,8 +44,22 @@ Try {
 
     $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
     if (Test-Path $NetClassPath) {
+        $RunningOnBattery = $false
+        if ($IsLaptop) {
+            $BatteryStatus = Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
+            if ($null -ne $BatteryStatus -and $BatteryStatus.PowerOnline -eq $false) {
+                $RunningOnBattery = $true
+            }
+        }
+
+        # Obtener adaptadores físicos activos (Ethernet y Wi-Fi)
+        $ActiveGuids = @()
         $EthernetGuids = @()
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+                $_.Virtual -eq $false
+            } | ForEach-Object { "$($_.InterfaceGuid)" }
+
             $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 $_.Virtual -eq $false -and 
                 $_.NdisPhysicalMedium -eq 14 
@@ -56,21 +70,31 @@ Try {
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
                 $NetInstanceId = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue
-                if ($null -ne $NetInstanceId -and ($EthernetGuids -contains $NetInstanceId)) {
-                    $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
-                    
-                    # Desactivar Coalescencia, Moderación de Interrupción y Control de Flujo únicamente en PCs de Escritorio con >8 hilos lógicos
-                    $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
-                    if ($TotalThreads -gt 8 -and -not $IsLaptop) {
-                        $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
+                if ($null -ne $NetInstanceId) {
+                    # 1. Aplicar optimizaciones clásicas de energía (EEE, Green Energy) solo a Ethernet
+                    if ($EthernetGuids -contains $NetInstanceId) {
+                        $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
+                        
+                        # Desactivar Coalescencia, Moderación de Interrupción y Control de Flujo únicamente en PCs de Escritorio con >8 hilos lógicos
+                        $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
+                        if ($TotalThreads -gt 8 -and -not $IsLaptop) {
+                            $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
+                        }
+
+                        $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
+                        foreach ($PKey in $PowerKeys) {
+                            if ($null -ne $adapterProps -and $null -ne $adapterProps.PSObject.Properties[$PKey]) {
+                                Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
+                                Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
+                            }
+                        }
                     }
 
-                    $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
-                    foreach ($PKey in $PowerKeys) {
-                        if ($null -ne $adapterProps -and $null -ne $adapterProps.PSObject.Properties[$PKey]) {
-                            Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
-                            Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
-                        }
+                    # 2. Desactivar el apagado del dispositivo para ahorrar energía (PnPCapabilities = 24)
+                    # Excepción: No aplicar si es Laptop y funciona con Batería.
+                    if ($ActiveGuids -contains $NetInstanceId -and -not $RunningOnBattery) {
+                        Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName "PnPCapabilities" -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
+                        Set-ItemProperty -Path $Adapter.PSPath -Name "PnPCapabilities" -Type DWord -Value 24 -Force | Out-Null
                     }
                 }
             }

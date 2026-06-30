@@ -91,7 +91,23 @@ Try {
             $wuauserv = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
             $originalStartType = $null
             $wasRunning = $false
+            $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\wuauserv"
             if ($null -ne $wuauserv) {
+                # Persistencia del respaldo del servicio wuauserv para recuperación robusta en reversión
+                if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
+                
+                # Respaldar tipo de inicio original si no existe backup previo
+                $StartProps = Get-ItemProperty -Path $SvcBackupPath -ErrorAction SilentlyContinue
+                if ($null -eq $StartProps -or $null -eq $StartProps.PSObject.Properties["Start"]) {
+                    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\wuauserv" -ValueName "Start" -BackupSubFolder "Services\wuauserv"
+                }
+
+                # Respaldar estado de ejecución original si no existe backup previo
+                if ($null -eq $StartProps -or $null -eq $StartProps.PSObject.Properties["WasRunning"]) {
+                    $WasRunningVal = if ($wuauserv.Status -eq "Running") { 1 } else { 0 }
+                    Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunningVal -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+
                 $CimSvc = Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
                 if ($null -ne $CimSvc) {
                     $originalStartType = $CimSvc.StartMode
@@ -109,7 +125,10 @@ Try {
             }
 
             dism.exe /online /cleanup-image /restorehealth | Out-Null
+            $DismExit = $LASTEXITCODE
+
             sfc.exe /scannow | Out-Null
+            $SfcExit = $LASTEXITCODE
 
             # Restaurar estado original del servicio Windows Update
             if ($null -ne $wuauserv) {
@@ -119,8 +138,23 @@ Try {
                 if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {
                     Set-Service -Name wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
                 }
+                
+                # En caso de éxito, podemos eliminar el backup local del servicio
+                if ($DismExit -eq 0 -and $SfcExit -eq 0) {
+                    Remove-Item -Path $SvcBackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                }
             }
-            Write-Output "OK: Almacen de componentes e integridad de sistema reparados."
+
+            if ($DismExit -eq 0 -and $SfcExit -eq 0) {
+                Write-Output "OK: Almacen de componentes e integridad de sistema reparados."
+            } else {
+                $FailParts = @()
+                if ($DismExit -ne 0) { $FailParts += "DISM (código $DismExit)" }
+                if ($SfcExit -ne 0) { $FailParts += "SFC (código $SfcExit)" }
+                $FailMsg = "Fallo en la reparacion del sistema: " + ($FailParts -join " y ") + "."
+                Write-Output "[WARNING] $FailMsg"
+                exit 2
+            }
         }
         "FlushNet" {
             ipconfig /release | Out-Null

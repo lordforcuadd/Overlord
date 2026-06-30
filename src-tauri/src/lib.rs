@@ -100,6 +100,7 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
         "09_energia" => include_str!("../scripts/09_energia.ps1"),
         "10_revertir" => include_str!("../scripts/10_revertir.ps1"),
         "11_game_hooks" => include_str!("../scripts/11_game_hooks.ps1"),
+        "12_defender_exclusions" => include_str!("../scripts/12_defender_exclusions.ps1"),
         "crear_respaldo" => include_str!("../scripts/crear_respaldo.ps1"),
         "quick_actions" => include_str!("../scripts/quick_actions.ps1"),
         "set_qol" => include_str!("../scripts/set_qol.ps1"),

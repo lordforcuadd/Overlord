@@ -36,6 +36,7 @@ export const PROFILE_CONFIGS: Record<string, string[]> = {
     "deepTelemetry",
     "powerProfiles",
     "gameHooks",
+    "defenderExclusions",
   ],
   "Programador & Competitivo": [
     "peripheralLatency",
@@ -46,14 +47,16 @@ export const PROFILE_CONFIGS: Record<string, string[]> = {
     "smartStorage",
     "powerProfiles",
     "gameHooks",
+    "defenderExclusions",
   ],
   Programador: ["debloat", "smartStorage", "generalPerformance"],
   "Home Office / Laptops": [
     "debloat",
     "smartStorage",
     "networkOptimized",
+    "defenderExclusions",
   ],
-  "Usuario Casual": ["debloat", "smartStorage"],
+  "Usuario Casual": ["debloat", "smartStorage", "defenderExclusions"],
 };
 
 export const tweaksMetadata: Record<string, TweakMetadata> = {
@@ -688,6 +691,30 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Forzado de pantalla completa exclusiva en archivos de configuración de juegos compatibles (como Unreal Engine).",
       "Eliminación de modificaciones IFEO estáticas en el registro de Windows para erradicar por completo falsos positivos.",
       "Aislamiento de persistencia de entorno mediante subllaves estructuradas con la ruta física completa del ejecutable.",
+    ],
+    registryMapping: [],
+  },
+  defenderExclusions: {
+    id: "defenderExclusions",
+    title: "Exclusiones de Windows Defender",
+    description:
+      "Añade las carpetas de instalación de tus juegos a la lista de exclusiones de Windows Defender para evitar micro-stutters causados por el escaneo en tiempo real.",
+    riesgo: "Seguro",
+    evidenciaImpacto: "Comprobado",
+    reversible: true,
+    metodoReversion:
+      "Eliminación exclusiva de las rutas del catálogo agregadas previamente por Overlord, conservando tus exclusiones manuales.",
+    hardwareRecomendado: "Cualquier PC (especialmente laptops y sistemas con CPUs limitadas).",
+    windowsVersion: "Windows 10 / Windows 11",
+    fuenteOficial:
+      "https://learn.microsoft.com/en-us/powershell/module/defender/add-mppreference",
+    scriptName: "12_defender_exclusions.ps1",
+    impactoRendimiento:
+      "Evita el consumo repentino de CPU y stutters por parte de Antimalware Service Executable (MsMpEng.exe) al leer los recursos del juego.",
+    details: [
+      "Resolución dinámica de las carpetas de instalación de todos tus juegos del catálogo.",
+      "Uso del cmdlet oficial Add-MpPreference de Windows Defender.",
+      "Persistencia de la lista de directorios agregados en la base de datos de Overlord para una reversión quirúrgica no destructiva.",
     ],
     registryMapping: [],
   },

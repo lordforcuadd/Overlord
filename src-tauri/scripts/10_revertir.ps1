@@ -234,6 +234,7 @@ Try {
         "WdiServiceHost"   = "Manual"
         "WdiSystemHost"    = "Manual"
         "WerSvc"           = "Manual"
+        "wuauserv"         = "Manual"
     }
     try {
         foreach ($Svc in $ServicesFallback.Keys) {
@@ -349,11 +350,14 @@ Try {
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl")
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl", "PnPCapabilities")
                 foreach ($PKey in $PowerKeys) {
                     if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
                         Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)" | Out-Null
                     }
+                }
+                if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
+                    Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName "PnPCapabilities" -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)" | Out-Null
                 }
             }
         }
@@ -706,6 +710,22 @@ Try {
                 }
             } catch {}
         }
+    }
+
+    # Revertir exclusiones de Windows Defender agregadas por Overlord
+    $DefenderBackup = "HKLM:\SOFTWARE\Overlord\Backup\DefenderExclusions"
+    if (Test-Path $DefenderBackup) {
+        $AddedExclusions = Get-SafeRegistryValue -Path $DefenderBackup -Name "AddedExclusions"
+        if (![string]::IsNullOrWhiteSpace($AddedExclusions)) {
+            $Paths = $AddedExclusions -split ";" | Where-Object { $_ -ne "" }
+            foreach ($Path in $Paths) {
+                if (Test-Path $Path) {
+                    Remove-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue | Out-Null
+                    Write-Host "    [-] Exclusion de Windows Defender removida: $Path"
+                }
+            }
+        }
+        Remove-Item -Path $DefenderBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 
     if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
