@@ -1,4 +1,3 @@
-import { PROFILE_CONFIGS } from "../data/tweaksMetadata";
 
 export function buildExpectedProfileState(
   profileMods: string[],
