@@ -195,7 +195,7 @@ const overlordSwalConfig = {
   },
 };
 
-const status = ref({
+const status = ref<Record<string, string>>({
   PurgeRAM: "idle",
   DeepClean: "idle",
   RepairOS: "idle",
@@ -233,7 +233,7 @@ const quickActions = [
   },
 ];
 
-const runAction = async (actionId) => {
+const runAction = async (actionId: string) => {
   if (isExecutingGlobal.value || store.isGlobalBusy || status.value[actionId] === "loading") return;
 
   // Diálogos de advertencia y confirmación antes de la ejecución de acciones críticas
