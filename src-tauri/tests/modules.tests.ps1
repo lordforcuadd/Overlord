@@ -350,6 +350,14 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                     $SetCalls = [regex]::Matches($Content, "SETACVALUEINDEX|SETDCVALUEINDEX").Count
                     $BackupCalls = [regex]::Matches($Content, "Backup-OverlordPowerSetting|Backup-OverlordRegistryValue|powercfg\s+/q").Count
                     ($BackupCalls -ge $SetCalls) | Should Be $true
+
+                    # Validar línea por línea que cada llamada a Backup-OverlordPowerSetting tenga el parámetro -BackupName
+                    $Lines = Get-Content -Path $File.FullName
+                    foreach ($Line in $Lines) {
+                        if ($Line -match "Backup-OverlordPowerSetting") {
+                            $Line | Should Match "-BackupName\s+[^-\s]+"
+                        }
+                    }
                 }
             }
         }
@@ -403,6 +411,15 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                 $LoggerName = $m.Groups[1].Value
                 ($RevertContent -match "\b$LoggerName\b") | Should Be $true
             }
+        }
+
+        It "Debe verificar la simetria de exclusiones de Windows Defender (AddedExclusions) entre aplicacion y reversion" {
+            $DefenderContent = Get-Content -Path (Join-Path $ScriptsPath "12_defender_exclusions.ps1") -Raw
+            # Verificar que escribe en AddedExclusions
+            ($DefenderContent -match "AddedExclusions") | Should Be $true
+            # Verificar que la reversion lee AddedExclusions y aplica Remove-MpPreference
+            ($RevertContent -match "AddedExclusions") | Should Be $true
+            ($RevertContent -match "Remove-MpPreference") | Should Be $true
         }
     }
 }

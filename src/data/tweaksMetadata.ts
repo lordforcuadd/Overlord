@@ -494,7 +494,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "smartStorage",
     title: "Almacenamiento Inteligente",
     description:
-      "Optimiza el sistema de archivos NTFS desactivando LastAccessUpdate y deshabilita el Inicio Rápido para evitar fugas de memoria.",
+      "Optimiza el sistema de archivos NTFS desactivando LastAccessUpdate y deshabilita el Inicio Rápido para evitar fugas de memoria. Nota: La detección de SSD de Overlord se basa en el disco donde está instalado Windows (C:), por lo que esta optimización se guiará por dicho estado, independientemente de si tienes bibliotecas de juegos secundarias en otros tipos de discos.",
     riesgo: "Seguro",
     evidenciaImpacto: "Comprobado",
     reversible: true,
@@ -699,7 +699,9 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     title: "Exclusiones de Windows Defender",
     description:
       "Añade las carpetas de instalación de tus juegos a la lista de exclusiones de Windows Defender para evitar micro-stutters causados por el escaneo en tiempo real.",
-    riesgo: "Seguro",
+    riesgo: "Balanceado",
+    warning:
+      "Esta optimización crea una excepción en el escaneo en tiempo real de Windows Defender para las carpetas de los juegos detectados. Esto mejora el rendimiento, pero significa que los archivos dentro de esas carpetas específicas no serán analizados.",
     evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:

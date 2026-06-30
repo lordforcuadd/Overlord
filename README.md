@@ -1,7 +1,7 @@
 <div align="center">
   <img src="overlord_icon.png" alt="Overlord Logo" width="120">
 
-# OVERLORD (v4.5.0)
+# OVERLORD (v4.6.0)
 
 **Suite Avanzada de Optimización, Privacidad y Reducción de Latencia de Bajo Nivel para Windows 10 y 11.**
 
@@ -25,11 +25,11 @@ Una suite de ingeniería orientada al rendimiento competitivo, depuración profu
 
 ## 🧠 Filosofía de Ingeniería y Arquitectura del Sistema
 
-A diferencia de las utilidades de optimización tradicionales, **Overlord v4.5.0** opera bajo auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Elimina por completo modificaciones destructivas, tweaks placebo y cambios que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel. Cada módulo verifica el resultado de cada escritura en registro mediante comprobaciones explícitas que lanzan excepciones ante cualquier fallo.
+A diferencia de las utilidades de optimización tradicionales, **Overlord v4.6.0** opera bajo auditorías de bajo nivel basadas en la documentación oficial de la arquitectura de Windows NT. Elimina por completo modificaciones destructivas, tweaks placebo y cambios que corrompan el subsistema de seguridad o generen inestabilidades en el planificador del Kernel. Cada módulo verifica el resultado de cada escritura en registro mediante comprobaciones explícitas que lanzan excepciones ante cualquier fallo.
 
 ### Pilares Fundamentales de la Arquitectura
 
-- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** En v4.5.0, los scripts de optimización principales nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`. Al terminar, no queda ningún artefacto en el sistema de archivos del usuario, eliminando vectores de secuestro de archivos (_File Hijacking_). La única excepción es el daemon de prioridad opcional en segundo plano, el cual, al requerir persistencia y ejecutarse al iniciar el sistema, guarda sus scripts y configuraciones en `%ProgramData%\Overlord\`. La distribución cuenta también con un instalador NSIS estándar para facilitar la instalación de la aplicación.
+- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** En v4.6.0, los scripts de optimización principales nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`. Al terminar, no queda ningún artefacto en el sistema de archivos del usuario, eliminando vectores de secuestro de archivos (_File Hijacking_). La única excepción es el daemon de prioridad opcional en segundo plano, el cual, al requerir persistencia y ejecutarse al iniciar el sistema, guarda sus scripts y configuraciones en `%ProgramData%\Overlord\`. La distribución cuenta también con un instalador NSIS estándar para facilitar la instalación de la aplicación.
 
 - **Codificador Base64 Nativo en Rust:** El executor implementa su propio codificador Base64 personalizado (`custom_base64_encode`) sin dependencias externas, operando directamente sobre los bytes UTF-16 del script unificado. Esto garantiza compatibilidad exacta con el decodificador `[System.Convert]::FromBase64String` de PowerShell sin depender de crates de terceros.
 
@@ -67,7 +67,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ---
 
-## 🛠️ Desglose Técnico de Módulos de Optimización (v4.5.0)
+## 🛠️ Desglose Técnico de Módulos de Optimización (v4.6.0)
 
 ### 1. Respuesta de Periféricos (`01_perifericos.ps1`)
 

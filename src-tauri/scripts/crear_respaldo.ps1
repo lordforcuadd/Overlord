@@ -9,7 +9,7 @@ Try {
     }
 
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
-    $AppVersion = if ($null -ne $Version) { $Version } else { "4.5.0" }
+    $AppVersion = if ($null -ne $Version) { $Version } else { "4.6.0" }
     $Description = "Overlord v$AppVersion - Punto Seguro"
 
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
