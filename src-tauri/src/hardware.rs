@@ -6,6 +6,8 @@ use std::os::windows::process::CommandExt;
 use sysinfo::System;
 use tokio::sync::OnceCell;
 
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct HardwareResponse {
@@ -59,7 +61,7 @@ pub async fn get_system_hardware() -> HardwareResponse {
         
         let mut ram_speed_val = None;
         let mut cmd = tokio::process::Command::new(&powershell_path);
-        cmd.creation_flags(0x08000000)
+        cmd.creation_flags(CREATE_NO_WINDOW)
            .args(&[
                "-NoProfile",
                "-Command",
@@ -193,7 +195,7 @@ pub async fn get_system_hardware() -> HardwareResponse {
                 // Fallback no-privilegiado vía PowerShell / Get-PhysicalDisk
                 let ps_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
                 let output = std::process::Command::new(&ps_path)
-                    .creation_flags(0x08000000)
+                    .creation_flags(CREATE_NO_WINDOW)
                     .args(&[
                         "-NoProfile",
                         "-Command",

@@ -3,6 +3,8 @@ use std::process::Stdio;
 use tokio::sync::Mutex;
 use tokio::io::AsyncWriteExt;
 
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 static EXECUTION_LOCK: Mutex<()> = Mutex::const_new(());
 
 fn parse_qol_params(game_list: &str) -> (String, String) {
@@ -98,7 +100,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
         powershell_path = sysnative_path;
     }
     let mut child = Command::new(&powershell_path)
-        .creation_flags(0x08000000)
+        .creation_flags(CREATE_NO_WINDOW)
         .kill_on_drop(true)
         .args(&[
             "-NoProfile",

@@ -262,8 +262,8 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                     if ($Text -match '-ValueName\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $ValueName = $Matches[1].Trim() }
                     if ($Text -match '-BackupSubFolder\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $SubFolder = $Matches[1].Trim() }
                     
-                    # Excluir subcarpetas de servicios y HibernateEnabled porque se restauran de forma personalizada
-                    if ($null -ne $ValueName -and $null -ne $SubFolder -and $SubFolder -notmatch '^Services\\' -and $ValueName -ne 'HibernateEnabled') {
+                    # Excluir subcarpetas de servicios, HibernateEnabled y PnPCapabilities porque se restauran de forma personalizada/en bucles
+                    if ($null -ne $ValueName -and $null -ne $SubFolder -and $SubFolder -notmatch '^Services\\' -and $ValueName -ne 'HibernateEnabled' -and $ValueName -ne 'PnPCapabilities') {
                         $EscapedVal = [regex]::Escape($ValueName)
                         $EscapedSub = [regex]::Escape($SubFolder)
                         
