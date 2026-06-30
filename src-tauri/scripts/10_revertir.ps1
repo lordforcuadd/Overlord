@@ -356,9 +356,7 @@ Try {
                         Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)" | Out-Null
                     }
                 }
-                if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
-                    Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName "PnPCapabilities" -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)" | Out-Null
-                }
+                # Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName "PnPCapabilities" -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
             }
         }
     }
