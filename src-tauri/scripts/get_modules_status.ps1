@@ -1,6 +1,7 @@
 param(
     [bool]$IsLaptop = $false,
-    [int]$RamGB = 8
+    [int]$RamGB = 8,
+    [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "SilentlyContinue"
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
@@ -88,21 +89,24 @@ if (Test-Path $ProfilePath) {
     $InitialRtoVal = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "InitialRto" -ErrorAction SilentlyContinue
     
     $CoalescingOk = $true
-    if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
-        $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-            $_.Status -eq "Up" -and $_.Virtual -eq $false -and $_.NdisPhysicalMedium -eq 14 
-        } | ForEach-Object { "$($_.InterfaceGuid)" }
-        
-        if ($ActiveGuids.Count -gt 0) {
-            $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
-            if (Test-Path $NetClassPath) {
-                $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
-                foreach ($Adapter in $NetAdapters) {
-                    if ($Adapter.PSChildName -match "^\d{4}$") {
-                        $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
-                        if ($null -ne $Props -and $ActiveGuids -contains $Props.NetCfgInstanceId) {
-                            if ($null -ne $Props."*PacketCoalescing" -and $Props."*PacketCoalescing" -ne "0") { $CoalescingOk = $false }
-                            if ($null -ne $Props.PacketCoalescing -and $Props.PacketCoalescing -ne "0") { $CoalescingOk = $false }
+    $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
+    if ($TotalThreads -gt 8 -and -not $IsLaptop) {
+        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+                $_.Status -eq "Up" -and $_.Virtual -eq $false -and $_.NdisPhysicalMedium -eq 14 
+            } | ForEach-Object { "$($_.InterfaceGuid)" }
+            
+            if ($ActiveGuids.Count -gt 0) {
+                $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+                if (Test-Path $NetClassPath) {
+                    $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
+                    foreach ($Adapter in $NetAdapters) {
+                        if ($Adapter.PSChildName -match "^\d{4}$") {
+                            $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
+                            if ($null -ne $Props -and $ActiveGuids -contains $Props.NetCfgInstanceId) {
+                                if ($null -ne $Props."*PacketCoalescing" -and $Props."*PacketCoalescing" -ne "0") { $CoalescingOk = $false }
+                                if ($null -ne $Props.PacketCoalescing -and $Props.PacketCoalescing -ne "0") { $CoalescingOk = $false }
+                            }
                         }
                     }
                 }
@@ -130,10 +134,35 @@ $GpuPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
 $GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
 $UserGameDVRPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\GameDVR"
 if (Test-Path $GpuPath) {
-    $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
     $AllowDVR = Get-ItemPropertyValue -Path $GameBarPath -Name "AllowGameDVR" -ErrorAction SilentlyContinue
     $AppCap = Get-ItemPropertyValue -Path $UserGameDVRPath -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue
-    if ($Hags -eq 2 -and $AllowDVR -eq 0 -and $AppCap -eq 0) {
+    
+    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
+    $WddmSupported = $false
+    if ($BuildNum -ge 19041) {
+        if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+            $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+            foreach ($Controller in $Controllers) {
+                $DriverVer = $Controller.DriverVersion
+                if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
+                    if ([int]$Matches[1] -ge 27) {
+                        $WddmSupported = $true
+                        break
+                    }
+                }
+            }
+        } else {
+            $WddmSupported = $true
+        }
+    }
+
+    $HagsOk = $true
+    if ($WddmSupported) {
+        $Hags = Get-ItemPropertyValue -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
+        if ($Hags -ne 2) { $HagsOk = $false }
+    }
+
+    if ($HagsOk -and $AllowDVR -eq 0 -and $AppCap -eq 0) {
         $Status['gpuDisplay'] = $true
     }
 }
@@ -184,7 +213,7 @@ if (Test-Path $NtfsPath) {
     
     $StorageOk = $false
     if (($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) -and $FastStart -eq 0 -and $Ntfs8dot3 -eq 1) {
-        if ($RamGB -ge 16) {
+        if ($IsSsd -and $RamGB -ge 16) {
             if ($NtfsMem -eq 2) { $StorageOk = $true }
         } else {
             $StorageOk = $true

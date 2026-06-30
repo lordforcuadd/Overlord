@@ -50,7 +50,7 @@ Try {
     
     if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue) -ne 1) { throw "Fallo al verificar NtfsDisableLastAccessUpdate" }
     if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -ErrorAction SilentlyContinue) -ne 1) { throw "Fallo al verificar NtfsDisable8dot3NameCreation" }
-    if ($RamGB -ge 16) {
+    if ($IsSsd -and $RamGB -ge 16) {
         if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar NtfsMemoryUsage" }
     }
     if ((Get-ItemPropertyValue -Path $FastStartPath -Name "HiberbootEnabled" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo al verificar HiberbootEnabled (Inicio Rapido)" }
