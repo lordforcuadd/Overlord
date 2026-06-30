@@ -504,18 +504,40 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     }
 
     let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
-    let common_epic_paths = [format!("{}\\Epic Games", program_files), "D:\\Epic Games".to_string()];
+    let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
+    let system_drive_letter = system_drive.chars().next().unwrap_or('C').to_ascii_uppercase();
+
+    let mut active_drives = vec![format!("{}:\\", system_drive_letter)];
+    for drive_char in b'D'..=b'Z' {
+        let drive_letter = drive_char as char;
+        if drive_letter != system_drive_letter {
+            let drive_path = format!("{}:\\", drive_letter);
+            if Path::new(&drive_path).exists() {
+                active_drives.push(drive_path);
+            }
+        }
+    }
+
+    let mut common_epic_paths = vec![format!("{}\\Epic Games", program_files)];
+    for drive in &active_drives {
+        let path = Path::new(drive).join("Epic Games");
+        if let Some(path_str) = path.to_str() {
+            common_epic_paths.push(path_str.to_string());
+        }
+    }
     for path in &common_epic_paths {
         for game in catalog.iter_mut() {
             if Path::new(path).join(&game.name).exists() { game.detected = true; }
         }
     }
 
-    let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
-    let xbox_default_paths = [
-        format!("{}\\XboxGames", system_drive),
-        "D:\\XboxGames".to_string(),
-    ];
+    let mut xbox_default_paths = Vec::new();
+    for drive in &active_drives {
+        let path = Path::new(drive).join("XboxGames");
+        if let Some(path_str) = path.to_str() {
+            xbox_default_paths.push(path_str.to_string());
+        }
+    }
     for path in &xbox_default_paths {
         if Path::new(path).exists() {
             for game in catalog.iter_mut() {
@@ -524,16 +546,18 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    let static_checks = [
-        ("VALORANT", format!("{}\\Riot Games\\VALORANT", system_drive)),
-        ("VALORANT", "D:\\Riot Games\\VALORANT".to_string()),
-        ("League of Legends", format!("{}\\Riot Games\\League of Legends", system_drive)),
-        ("League of Legends", "D:\\Riot Games\\League of Legends".to_string()),
-    ];
-    for (name, path) in &static_checks {
-        if Path::new(path).exists() {
-            for game in catalog.iter_mut() {
-                if game.name == *name { game.detected = true; }
+    for drive in &active_drives {
+        let riot_path = Path::new(drive).join("Riot Games");
+        if riot_path.exists() {
+            if riot_path.join("VALORANT").exists() {
+                for game in catalog.iter_mut() {
+                    if game.name == "VALORANT" { game.detected = true; }
+                }
+            }
+            if riot_path.join("League of Legends").exists() {
+                for game in catalog.iter_mut() {
+                    if game.name == "League of Legends" { game.detected = true; }
+                }
             }
         }
     }

@@ -78,17 +78,25 @@ fn validate_input_string(s: &str) -> Result<(), String> {
 
 async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
     validate_input_string(game_list)?;
-    let backup_module = include_str!("../scripts/backup_manager.psm1");
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
     let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str, is_hybrid, is_x3d, is_ssd);
     let script_clean = strip_param_block(script_raw);
 
-    let unified_script = format!(
-        "{}\n{}\n{}",
-        header,
-        backup_module,
-        script_clean
-    );
+    let unified_script = if action_id == "get_qol" || action_id == "get_modules_status" {
+        format!(
+            "{}\n{}",
+            header,
+            script_clean
+        )
+    } else {
+        let backup_module = include_str!("../scripts/backup_manager.psm1");
+        format!(
+            "{}\n{}\n{}",
+            header,
+            backup_module,
+            script_clean
+        )
+    };
 
     let b64_encoded = encode_utf16_base64(&unified_script);
 
