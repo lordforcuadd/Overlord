@@ -19,14 +19,6 @@ if ($null -ne $PSScriptRoot -and $PSScriptRoot -ne "") {
     $ManifestPath = "..\Cargo.toml"
 }
 
-Write-Host "--- DEBUG PATH INFO ---"
-Write-Host "PSScriptRoot: '$PSScriptRoot'"
-Write-Host "CWD: '$(Get-Location)'"
-Write-Host "MyInvocation Path: '$($MyInvocation.MyCommand.Path)'"
-Write-Host "Test-Path src-tauri/scripts: '$(Test-Path src-tauri/scripts)'"
-Write-Host "ScriptsDir: '$ScriptsDir'"
-Write-Host "ManifestPath: '$ManifestPath'"
-Write-Host "------------------------"
 
 $Version = "Unknown"
 if (Test-Path $ManifestPath) {
@@ -39,9 +31,6 @@ $global:OverlordScriptsPath = $ScriptsDir
 
 Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     BeforeAll {
-        Write-Host "--- BEFOREALL DEBUG ---"
-        Write-Host "BeforeAll global path: '$($global:OverlordScriptsPath)'"
-        Write-Host "------------------------"
         $GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
         $ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $MemoryManagerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"

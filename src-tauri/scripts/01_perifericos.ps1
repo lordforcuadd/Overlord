@@ -109,7 +109,7 @@ Try {
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $CurrentGuid = $Matches[1]
-            Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "2a8713cd-255e-4fc5-a639-12b87a5b3e8a" -SettingGuid "d874b2c9-943b-47dd-9190-25e0e3c95a12"
+            Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "2a8713cd-255e-4fc5-a639-12b87a5b3e8a" -SettingGuid "d874b2c9-943b-47dd-9190-25e0e3c95a12" -BackupName "Power_${CurrentGuid}_d874b2c9-943b-47dd-9190-25e0e3c95a12"
         }
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a8713cd-255e-4fc5-a639-12b87a5b3e8a d874b2c9-943b-47dd-9190-25e0e3c95a12 0 2>$null | Out-Null
         if ($CurrentGuid) {

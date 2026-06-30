@@ -4,16 +4,7 @@ param(
 )
 $ErrorActionPreference = "Continue"
 
-if (!(Get-Command Get-SafeRegistryValue -ErrorAction SilentlyContinue)) {
-    function Get-SafeRegistryValue {
-        param([string]$Path, [string]$Name)
-        $obj = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
-        if ($null -ne $obj -and $null -ne $obj.PSObject.Properties[$Name]) {
-            return $obj.$Name
-        }
-        return $null
-    }
-}
+
 
 function Invoke-OverlordSafeRestore {
     param(

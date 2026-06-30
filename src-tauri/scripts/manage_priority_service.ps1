@@ -78,6 +78,27 @@ while ($true) {
                         if ($null -ne $Procs -and $Procs.Count -gt 0) {
                             foreach ($Proc in $Procs) {
                                 try {
+                                    if ($ProcName -eq "javaw") {
+                                        $IsMinecraft = $false
+                                        try {
+                                            $Path = $Proc.MainModule.FileName
+                                            if ($Path -and ($Path.ToLower().Contains(".minecraft") -or $Path.ToLower().Contains("minecraft"))) {
+                                                $IsMinecraft = $true
+                                            }
+                                        } catch {}
+                                        if (-not $IsMinecraft) {
+                                            try {
+                                                $CimProc = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $($Proc.Id)" -ErrorAction SilentlyContinue
+                                                if ($CimProc -and $CimProc.CommandLine -and ($CimProc.CommandLine.ToLower().Contains(".minecraft") -or $CimProc.CommandLine.ToLower().Contains("minecraft") -or $CimProc.CommandLine.ToLower().Contains("tlauncher") -or $CimProc.CommandLine.ToLower().Contains("prism") -or $CimProc.CommandLine.ToLower().Contains("multimc"))) {
+                                                    $IsMinecraft = $true
+                                                }
+                                            } catch {}
+                                        }
+                                        if (-not $IsMinecraft) {
+                                            if ($null -ne $Proc) { $Proc.Dispose() }
+                                            continue
+                                        }
+                                    }
                                     if ($Proc.PriorityClass -ne 'High') {
                                         $Proc.PriorityClass = 'High'
                                         Write-DaemonLog "Establecida prioridad ALTA para el proceso: $($Proc.Name) (PID: $($Proc.Id))"

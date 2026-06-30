@@ -157,11 +157,12 @@ function Restore-OverlordRegistryValue {
 }
 
 function Backup-OverlordPowerSetting {
+    [CmdletBinding()]
     param(
-        [string]$SchemeGuid,
-        [string]$SubGroupGuid,
-        [string]$SettingGuid,
-        [string]$BackupName
+        [Parameter(Mandatory=$true)][string]$SchemeGuid,
+        [Parameter(Mandatory=$true)][string]$SubGroupGuid,
+        [Parameter(Mandatory=$true)][string]$SettingGuid,
+        [Parameter(Mandatory=$true)][string]$BackupName
     )
     
     $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"

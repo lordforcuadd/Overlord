@@ -31,7 +31,7 @@ Try {
     if ($IsRunningOnLaptop) {
         Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
         if ($null -ne $CurrentGuid) {
-            Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "94d3a615-a899-4ac5-ae2b-e4d8f634367f"
+            Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "94d3a615-a899-4ac5-ae2b-e4d8f634367f" -BackupName "Power_${CurrentGuid}_94d3a615-a899-4ac5-ae2b-e4d8f634367f"
             try { & powercfg /SETACVALUEINDEX $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 94d3a615-a899-4ac5-ae2b-e4d8f634367f 1 2>$null } catch {}
             try { & powercfg /setactive $CurrentGuid 2>$null } catch {}
         }
@@ -82,13 +82,13 @@ Try {
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $DesktopGuid = $Matches[1]
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "501a4d13-42af-4429-9fd1-a8218c268e20" -SettingGuid "ee12f906-d277-404b-b6da-e5fa1a576df5"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "2a737441-1930-4402-8d77-b2bea128a440" -SettingGuid "d4e00550-747f-4ddb-bf3e-9b6c97a522a4"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "0cc5b647-c1df-4637-891a-dec35c318583"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "ea0653f5-eab4-474c-8a0f-1ba102244432"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "0012ee47-9041-4b5d-9b77-535fba8b1442" -SettingGuid "6733a230-cd1a-4929-94d4-540b4ddecbeb"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "3668a66e-6856-4221-b530-747f2d53e4c6"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "be337238-0d82-4146-a960-4f3749d470c7"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "501a4d13-42af-4429-9fd1-a8218c268e20" -SettingGuid "ee12f906-d277-404b-b6da-e5fa1a576df5" -BackupName "Power_${DesktopGuid}_ee12f906-d277-404b-b6da-e5fa1a576df5"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "2a737441-1930-4402-8d77-b2bea128a440" -SettingGuid "d4e00550-747f-4ddb-bf3e-9b6c97a522a4" -BackupName "Power_${DesktopGuid}_d4e00550-747f-4ddb-bf3e-9b6c97a522a4"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "0cc5b647-c1df-4637-891a-dec35c318583" -BackupName "Power_${DesktopGuid}_0cc5b647-c1df-4637-891a-dec35c318583"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "ea0653f5-eab4-474c-8a0f-1ba102244432" -BackupName "Power_${DesktopGuid}_ea0653f5-eab4-474c-8a0f-1ba102244432"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "0012ee47-9041-4b5d-9b77-535fba8b1442" -SettingGuid "6733a230-cd1a-4929-94d4-540b4ddecbeb" -BackupName "Power_${DesktopGuid}_6733a230-cd1a-4929-94d4-540b4ddecbeb"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "3668a66e-6856-4221-b530-747f2d53e4c6" -BackupName "Power_${DesktopGuid}_3668a66e-6856-4221-b530-747f2d53e4c6"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "be337238-0d82-4146-a960-4f3749d470c7" -BackupName "Power_${DesktopGuid}_be337238-0d82-4146-a960-4f3749d470c7"
         }
 
         # Nota de rigor e inconsistencia: Las llamadas powercfg se envuelven en try/catch silencioso
