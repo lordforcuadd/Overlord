@@ -4,7 +4,33 @@ param(
     [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "SilentlyContinue"
-$HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
+$HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) {
+    $global:HKCU_Path
+} else {
+    $ResolvedSID = ""
+    try {
+        $ActiveProfile = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and $_.SID -match '^S-1-5-21-' } | Select-Object -First 1
+        if ($ActiveProfile) { $ResolvedSID = $ActiveProfile.SID }
+    } catch {}
+    if ([string]::IsNullOrWhiteSpace($ResolvedSID)) {
+        try {
+            $HKeyUsers = [Microsoft.Win32.Registry]::Users
+            foreach ($SubkeyName in $HKeyUsers.GetSubKeyNames()) {
+                if ($SubkeyName -match '^S-1-5-21-\d+-\d+-\d+-\d+$') {
+                    if (Test-Path "Registry::HKEY_USERS\$SubkeyName\Volatile Environment") {
+                        $ResolvedSID = $SubkeyName
+                        break
+                    }
+                }
+            }
+        } catch {}
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ResolvedSID)) {
+        "Registry::HKEY_USERS\$ResolvedSID"
+    } else {
+        "HKCU:"
+    }
+}
 
 $Status = @{
     peripheralLatency  = $false

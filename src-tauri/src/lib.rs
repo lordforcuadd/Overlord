@@ -46,8 +46,8 @@ fn check_backup_exists() -> bool {
 }
 
 #[tauri::command]
-async fn fetch_hardware() -> HardwareResponse {
-    get_system_hardware().await
+async fn fetch_hardware(force: Option<bool>) -> HardwareResponse {
+    get_system_hardware(force.unwrap_or(false)).await
 }
 
 #[tauri::command]
@@ -73,7 +73,7 @@ fn validate_game_list(s: &str) -> Result<(), String> {
 #[tauri::command]
 async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
     validate_game_list(&game_list)?;
-    let hw = get_system_hardware().await;
+    let hw = get_system_hardware(false).await;
     let is_hybrid = hw.is_hybrid;
     let is_x3d = hw.is_x3d;
     let is_ssd = hw.is_ssd;

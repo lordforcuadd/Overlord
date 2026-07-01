@@ -4,7 +4,7 @@ use winreg::enums::*;
 use winreg::RegKey;
 use std::os::windows::process::CommandExt;
 use sysinfo::System;
-use tokio::sync::OnceCell;
+use tokio::sync::RwLock;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -51,10 +51,24 @@ extern "system" {
     fn GetSystemPowerStatus(lpSystemPowerStatus: *mut SYSTEM_POWER_STATUS) -> i32;
 }
 
-static HARDWARE_CACHE: OnceCell<HardwareResponse> = OnceCell::const_new();
+static HARDWARE_CACHE: RwLock<Option<HardwareResponse>> = RwLock::const_new(None);
 
-pub async fn get_system_hardware() -> HardwareResponse {
-    HARDWARE_CACHE.get_or_init(|| async {
+pub async fn get_system_hardware(force_refresh: bool) -> HardwareResponse {
+    if !force_refresh {
+        let cache = HARDWARE_CACHE.read().await;
+        if let Some(ref hw) = *cache {
+            return hw.clone();
+        }
+    }
+
+    let hw = detect_system_hardware().await;
+
+    let mut cache = HARDWARE_CACHE.write().await;
+    *cache = Some(hw.clone());
+    hw
+}
+
+async fn detect_system_hardware() -> HardwareResponse {
         // 1. Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
         let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
@@ -271,7 +285,6 @@ pub async fn get_system_hardware() -> HardwareResponse {
                 is_ssd: false,
             }
         })
-    }).await.clone()
 }
 
 fn get_steam_library_paths() -> Vec<String> {
