@@ -283,13 +283,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
       const realStatus = JSON.parse(jsonStatus);
       Object.keys(realStatus).forEach((key) => {
         const moduleKey = key as keyof typeof store.modules;
-        if (realStatus[moduleKey]) {
-          cardStatus.value[moduleKey] = "success";
-          store.modules[moduleKey] = false;
-        } else {
-          cardStatus.value[moduleKey] = "idle";
-          store.modules[moduleKey] = false;
-        }
+        const isApplied = !!realStatus[moduleKey];
+        store.modules[moduleKey] = isApplied;
+        cardStatus.value[moduleKey] = isApplied ? "success" : "idle";
       });
 
       const { isLaptop, tier } = store.hardwareInfo;
