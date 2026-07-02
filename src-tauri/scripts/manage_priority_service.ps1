@@ -17,45 +17,7 @@ if ([string]::IsNullOrWhiteSpace($ProgData)) {
 $InstallDir = Join-Path $ProgData "Overlord"
 $DaemonScript = Join-Path $InstallDir "priority_monitor_daemon.ps1"
 $ConfigFile = Join-Path $InstallDir "games_to_optimize.txt"
-if (!(Get-Command Uninstall-OverlordPriorityDaemon -ErrorAction SilentlyContinue)) {
-    function Uninstall-OverlordPriorityDaemon {
-        $TaskName = "OverlordPriorityMonitor"
-        $ProgData = $env:ProgramData
-        if ([string]::IsNullOrWhiteSpace($ProgData)) {
-            $SysDrive = $env:SystemDrive
-            if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
-            $ProgData = Join-Path $SysDrive "ProgramData"
-        }
-        $InstallDir = Join-Path $ProgData "Overlord"
-        
-        $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-        if ($null -ne $ExistingTask) {
-            Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
-            Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
-        }
 
-        try {
-            $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
-            if ($null -eq $DaemonProcs -or @($DaemonProcs).Count -eq 0) {
-                $DaemonProcs = Get-WmiObject -Class Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
-            }
-            if ($null -ne $DaemonProcs) {
-                foreach ($P in $DaemonProcs) {
-                    $pidToKill = $null
-                    if ($P.PSObject.Properties['ProcessId']) { $pidToKill = $P.ProcessId }
-                    elseif ($P.PSObject.Properties['Handle']) { $pidToKill = $P.Handle }
-                    if ($null -ne $pidToKill) {
-                        Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue | Out-Null
-                    }
-                }
-            }
-        } catch {}
-
-        if (Test-Path $InstallDir) {
-            Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-    }
-}
 
 if ($Action -eq "install") {
     if (!(Test-Path $InstallDir)) {

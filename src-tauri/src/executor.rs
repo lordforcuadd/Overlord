@@ -82,17 +82,20 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str, is_hybrid, is_x3d, is_ssd);
     let script_clean = strip_param_block(script_raw);
 
+    let sid_resolver = include_str!("../scripts/sid_resolver.ps1");
     let unified_script = if action_id == "get_qol" || action_id == "get_modules_status" {
         format!(
-            "{}\n{}",
+            "{}\n{}\n{}",
             header,
+            sid_resolver,
             script_clean
         )
     } else {
         let backup_module = include_str!("../scripts/backup_manager.psm1");
         format!(
-            "{}\n{}\n{}",
+            "{}\n{}\n{}\n{}",
             header,
+            sid_resolver,
             backup_module,
             script_clean
         )

@@ -139,30 +139,30 @@ export const useOverlordStore = defineStore("overlord", {
 
         const isIntel = info.cpuVendor.toLowerCase().includes("intel");
         const isAmd = info.cpuVendor.toLowerCase().includes("amd");
-        const brand = info.cpuBrand;
+        const brandLower = info.cpuBrand.toLowerCase();
         const lowerGpu = info.gpu.toLowerCase();
 
         const isIntelHighCpu = isIntel && (
-          brand.includes("i9") || 
-          brand.includes("Ultra 9") || 
-          brand.includes("Ultra 7") || 
-          brand.includes("i7-12") || 
-          brand.includes("i7-13") || 
-          brand.includes("i7-14") || 
-          brand.includes("i7 12") || 
-          brand.includes("i7 13") || 
-          brand.includes("i7 14")
+          brandLower.includes("i9") || 
+          brandLower.includes("ultra 9") || 
+          brandLower.includes("ultra 7") || 
+          brandLower.includes("i7-12") || 
+          brandLower.includes("i7-13") || 
+          brandLower.includes("i7-14") || 
+          brandLower.includes("i7 12") || 
+          brandLower.includes("i7 13") || 
+          brandLower.includes("i7 14")
         );
 
         const isAmdHighCpu = isAmd && (
           info.isX3d ||
-          brand.includes("Ryzen 9") ||
-          brand.includes("Ryzen 7 7") ||
-          brand.includes("Ryzen 7 8") ||
-          brand.includes("Ryzen 7 9") ||
-          brand.includes("Ryzen 5 7") ||
-          brand.includes("Ryzen 5 8") ||
-          brand.includes("Ryzen 5 9")
+          brandLower.includes("ryzen 9") ||
+          brandLower.includes("ryzen 7 7") ||
+          brandLower.includes("ryzen 7 8") ||
+          brandLower.includes("ryzen 7 9") ||
+          brandLower.includes("ryzen 5 7") ||
+          brandLower.includes("ryzen 5 8") ||
+          brandLower.includes("ryzen 5 9")
         );
 
         if (

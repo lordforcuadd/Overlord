@@ -14,7 +14,8 @@ export function buildExpectedProfileState(
     deepTelemetry: false,
     powerProfiles: false,
     gameHooks: false,
-    disableMitigations: false
+    disableMitigations: false,
+    defenderExclusions: false
   };
 
   profileMods.forEach((mod) => {

@@ -64,9 +64,22 @@ La sección de desinstalación (`uninstall`) del daemon de prioridad de juegos d
 
 Al restaurar ajustes de energía que inicialmente estaban ausentes (guardados con el marcador `_ABSENT_`), `10_revertir.ps1` solo eliminaba la propiedad específica `ACSettingIndex` / `DCSettingIndex` usando `Remove-ItemProperty`, pero dejaba la subclave del GUID del ajuste de energía vacía en el registro como un elemento huérfano. Para mantener la simetría matemática 1:1 estricta, la reversión ahora elimina la subclave completa si ya no contiene propiedades asociadas y no existía originalmente.
 
+### 17. Claves de módulos huérfanas al agregar nuevos componentes (Falta de reactividad en perfiles)
+
+Al agregar un nuevo módulo (como `defenderExclusions`), este debe ser registrado explícitamente en el estado inicial de `modules` dentro de `overlordStore.ts` y en la plantilla de claves esperadas de `buildExpectedProfileState` en `profileLogic.ts`. De lo contrario, al aplicar perfiles de optimización que no contengan dicho módulo, el toggle correspondiente no se reseteará a `false`, quedando permanentemente activo.
+
+### 18. Sensibilidad a mayúsculas/minúsculas al clasificar la gama de CPU (`cpuBrand`)
+
+Comparar el nombre comercial del procesador (`cpuBrand`) directamente contra cadenas de texto con capitalizaciones específicas (ej. "Ryzen 9", "Ultra 9") causa que fallos en caliente de WMI de Windows (o diferencias del sistema operativo) que retornen la marca en otra capitalización fallen en clasificar el equipo como Gama Alta, desactivando accidentalmente optimizaciones como `disableMitigations`. Es mandatorio normalizar `cpuBrand` a minúsculas antes de evaluar.
+
+### 19. Duplicación de lógica de resolución de SID de usuario
+
+La resolución de SID del usuario interactivo y la construcción de `$HKCU_Path` deben centralizarse en un script único (`sid_resolver.ps1`) que el executor en Rust inyecta al inicio de todo payload de ejecución de PowerShell. Delegar en un script dot-sourced/inyectado evita tener tres niveles de fallbacks diferentes y divergentes entre scripts de lectura y escritura.
+
 ---
 
 ## Cómo usar este archivo
 
-Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 16 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
+Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 19 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
+
 
