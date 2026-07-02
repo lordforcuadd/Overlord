@@ -575,5 +575,31 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
+    // Detección dinámica de Minecraft (Launcher oficial, CurseForge, Prism, Modrinth, TLauncher)
+    for game in catalog.iter_mut() {
+        if game.name == "Minecraft" {
+            let appdata = std::env::var("APPDATA").unwrap_or_default();
+            let localappdata = std::env::var("LOCALAPPDATA").unwrap_or_default();
+            let userprofile = std::env::var("USERPROFILE").unwrap_or_default();
+            
+            let mc_paths = [
+                Path::new(&userprofile).join("curseforge").join("minecraft"),
+                Path::new(&appdata).join(".minecraft"),
+                Path::new(&appdata).join("PrismLauncher"),
+                Path::new(&localappdata).join("CurseForge"),
+                Path::new(&localappdata).join("ModrinthApp"),
+                Path::new(&userprofile).join(".modrinth"),
+                Path::new(&localappdata).join("Packages").join("Microsoft.4297127D64ECE_8wekyb3d8bbwe"),
+            ];
+            
+            for path in &mc_paths {
+                if !path.as_os_str().is_empty() && path.exists() {
+                    game.detected = true;
+                    break;
+                }
+            }
+        }
+    }
+
     catalog
 }

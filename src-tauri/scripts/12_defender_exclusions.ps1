@@ -150,6 +150,46 @@ try {
         $RealExePath = $null
         # Intentar obtener ruta previamente resuelta en backup de GameHooks por consistencia total
         $ExeName = if ($Game -notlike "*.exe") { "$Game.exe" } else { $Game }
+
+        if ($ExeName -eq "javaw.exe") {
+            # Búsqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
+            $JavaPaths = @(
+                (Join-Path $env:USERPROFILE "curseforge\minecraft\Install"),
+                (Join-Path $env:APPDATA ".minecraft"),
+                (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe\LocalCache\Local"),
+                (Join-Path $env:LOCALAPPDATA "PrismLauncher"),
+                (Join-Path $env:APPDATA "PrismLauncher"),
+                "C:\Program Files (x86)\Minecraft Launcher",
+                "C:\Program Files\Java"
+            )
+            foreach ($Root in $JavaPaths) {
+                if (Test-Path $Root) {
+                    $FoundFile = Find-FileFaster -Path $Root -Filter "javaw.exe" -MaxDepth 6
+                    if ($FoundFile) {
+                        $RealExePath = $FoundFile.FullName
+                        break
+                    }
+                }
+            }
+
+            # Agregar exclusión de la carpeta de instancias de Minecraft por seguridad/latencia
+            $InstancePaths = @(
+                (Join-Path $env:USERPROFILE "curseforge\minecraft\Instances"),
+                (Join-Path $env:APPDATA ".minecraft"),
+                (Join-Path $env:LOCALAPPDATA "PrismLauncher\instances"),
+                (Join-Path $env:APPDATA "PrismLauncher\instances"),
+                (Join-Path $env:LOCALAPPDATA "ModrinthApp\profiles")
+            )
+            foreach ($InstPath in $InstancePaths) {
+                if (Test-Path $InstPath) {
+                    $ResolvedInst = [System.IO.Path]::GetFullPath($InstPath).TrimEnd('\')
+                    if (!$ExcludedPaths.Contains($ResolvedInst)) {
+                        $ExcludedPaths.Add($ResolvedInst)
+                    }
+                }
+            }
+        }
+
         $GameBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks\$ExeName"
         if (Test-Path $GameBackupPath) {
             $RegPath = Get-ItemPropertyValue -Path $GameBackupPath -Name "Path" -ErrorAction SilentlyContinue
