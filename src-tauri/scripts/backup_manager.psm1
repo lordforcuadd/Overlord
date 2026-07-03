@@ -158,3 +158,27 @@ function Uninstall-OverlordPriorityDaemon {
         Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 }
+
+function Find-FileFaster {
+    param(
+        [string]$Path,
+        [string]$Filter,
+        [int]$MaxDepth = 3
+    )
+    if (!(Test-Path $Path)) { return $null }
+    try {
+        $files = [System.IO.Directory]::GetFiles($Path, $Filter)
+        if ($files.Count -gt 0) {
+            return [System.IO.FileInfo]::new($files[0])
+        }
+    } catch {}
+    if ($MaxDepth -le 0) { return $null }
+    try {
+        $subdirs = [System.IO.Directory]::GetDirectories($Path)
+        foreach ($dir in $subdirs) {
+            $found = Find-FileFaster -Path $dir -Filter $Filter -MaxDepth ($MaxDepth - 1)
+            if ($found) { return $found }
+        }
+    } catch {}
+    return $null
+}
