@@ -30,7 +30,7 @@ Este archivo es la memoria persistente entre sesiones de Antigravity, que no rec
 
 ### 7. Rutas absolutas de entorno de desarrollo local compiladas en producción
 
-`lib.rs` tenía `fetch_hardware()` y `log_from_js()` escribiendo a `c:/laragon/www/Overlord/...` — la ruta del entorno de desarrollo local del propio desarrollador (Laragon), ejecutándose (y fallando silenciosamente) en la máquina de cada usuario final. Ya corregido. Vigilar que no reaparezcan rutas con `laragon`, nombres de usuario del desarrollador, o cualquier ruta absoluta de un entorno de desarrollo en archivos `.rs`.
+`lib.rs` tenía `fetch_hardware()` and `log_from_js()` escribiendo a `c:/laragon/www/Overlord/...` — la ruta del entorno de desarrollo local del propio desarrollador (Laragon), ejecutándose (y fallando silenciosamente) en la máquina de cada usuario final. Ya corregido. Vigilar que no reaparezcan rutas con `laragon`, nombres de usuario del desarrollador, o cualquier ruta absoluta de un entorno de desarrollo en archivos `.rs`.
 
 ### 8. Documentación describiendo funciones que el código ya no implementa
 
@@ -76,10 +76,60 @@ Comparar el nombre comercial del procesador (`cpuBrand`) directamente contra cad
 
 La resolución de SID del usuario interactivo y la construcción de `$HKCU_Path` deben centralizarse en un script único (`sid_resolver.ps1`) que el executor en Rust inyecta al inicio de todo payload de ejecución de PowerShell. Delegar en un script dot-sourced/inyectado evita tener tres niveles de fallbacks diferentes y divergentes entre scripts de lectura y escritura.
 
+### 20. Uso de constantes mágicas en la creación de procesos en Rust
+
+Utilizar literales numéricos como `0x08000000` en lugar de una constante autoexplicativa en Rust para definir flags de creación de procesos (`CREATE_NO_WINDOW`). Se corrigió declarando de forma explícita `const CREATE_NO_WINDOW: u32 = 0x0800_0000` en `executor.rs` y `hardware.rs` para alinearse a la legibilidad y mantenimiento del código.
+
+### 21. Declaración de variables y parámetros obsoletos no consumidos
+
+Mantener firmas obsoletas en scripts PowerShell (como la variable `[string]$Arguments` en `shutdown.ps1`) que nunca son leídas ni procesadas en el cuerpo. Esto introduce confusión y ruido en el linter estático de código.
+
+### 22. Rutas e instalaciones de juego hardcodeadas en el backend
+
+Realizar búsquedas estáticas de instalaciones de juegos apuntando directamente a unidades específicas (como `"D:\\Epic Games"` o `"D:\\XboxGames"`). Si el usuario cambia las letras de unidad o las monta de otra forma, la detección falla. Se corrigió escaneando dinámicamente el listado de unidades montadas del sistema (de la `C:` a la `Z:`) usando la API de Rust.
+
+### 23. Caché estática del sistema de hardware no invalidable
+
+El uso de `OnceCell` para almacenar el inventario de hardware de la máquina provocaba que cambios en caliente (eGPU, RAM conectada por Thunderbolt) no se reflejaran en la UI hasta que el usuario reiniciara físicamente la aplicación. Se solucionó migrando a un `RwLock<Option<HardwareResponse>>` que admite refresco e invalidación explícita mediante la bandera `force_refresh`.
+
+### 24. Carga inútil de dependencias de escritura en consultas rápidas de lectura
+
+Concatenar el script completo de soporte de backups `backup_manager.psm1` (~10KB) en comandos asíncronos y rápidos de lectura como `get_qol` y `get_modules_status` sobrecarga el canal de stdin. Se corrigió implementando carga condicional de dependencias según la bandera `is_readonly` en `executor.rs`.
+
+### 25. Redundancia de buscadores recursivos de archivos (`Find-FileFaster`)
+
+Duplicar la declaración e implementación local de la función recursiva `Find-FileFaster` en múltiples scripts de optimización. Se centralizó la lógica en el archivo global `backup_manager.psm1` para evitar código redundante y divergente en el mantenimiento de scripts.
+
+### 26. Verificación de existencia del registro como proxy de tarea activa en Rust
+
+La existencia de una clave en el registro `TaskCache\Tree\OverlordPriorityMonitor` solo denota que la tarea existe en el programador, no que está activa. Si el usuario la deshabilita manualmente, el monitor en Rust se apagaba en silencio pensando que la tarea lo respaldaba. Se corrigió consultando directamente la propiedad `.State` mediante `Get-ScheduledTask` para verificar de forma inequívoca el estado activo (`Ready` o `Running`).
+
+### 27. Rollback genérico inseguro en fallo del orquestador (`useOrchestrator.ts`)
+
+En caso de que una optimización fallara a mitad de camino, la UI ejecutaba el script genérico `10_revertir.ps1` completo de golpe. Esto deshacía optimizaciones aplicadas con éxito por el usuario en sesiones anteriores. Se corrigió reemplazando la reversión masiva por un rollback selectivo en orden inverso sobre `modulosExitosos` de la sesión actual.
+
+### 28. Bloqueo de hilos de Tokio con `std::sync::Mutex` en contexto asíncrono
+
+El uso de exclusiones mutuas síncronas (`std::sync::Mutex`) dentro de funciones asíncronas de Rust en Tauri (`lib.rs`) bloqueaba el runtime thread al esperar por canales `oneshot`. Se solucionó migrando a `tokio::sync::Mutex` para asegurar un comportamiento asíncrono no bloqueante.
+
+### 29. Serialización global innecesaria de scripts de lectura y escritura (`EXECUTION_LOCK`)
+
+Tener un único lock exclusivo global (`EXECUTION_LOCK`) serializaba comandos rápidos e independientes como `get_modules_status.ps1` y `crear_respaldo`. Se rediseñó el executor en Rust para permitir que los scripts de solo lectura se ejecuten concurrentemente, evitando retrasos en la respuesta de la UI.
+
+### 30. Supresión de stderr sin control del código de salida en `powercfg`
+
+El redireccionamiento `2>$null` en llamadas de cambio de plan de energía en portátiles (`09_energia.ps1`) ocultaba errores críticos si el plan no se podía establecer. Se corrigió agregando la verificación del código de salida `$LASTEXITCODE` después de cada invocación para abortar de manera controlada.
+
+### 31. Fuga de servicios del sistema por interrupción abrupta de scripts de larga duración
+
+La ejecución de comandos de diagnóstico (`quick_actions.ps1`) puede tomar mucho tiempo y ser interrumpida por el timeout del backend de Rust (1200s), dejando el servicio de Windows Update (`wuauserv`) iniciado de manera persistente. Se envolvió la lógica en bloques `try/finally` para asegurar que el estado del servicio se restaure incondicionalmente al valor original de inicio.
+
+### 32. Detección incompleta de instancias y ejecutables de Minecraft moddeados
+
+La lógica de exclusiones y prioridades de juego solo buscaba la carpeta original Vanilla `%APPDATA%\.minecraft`, omitiendo directorios donde corren instancias independientes de CurseForge, Prism Launcher, Modrinth o TLauncher. Se amplió el escaneo dinámico en Rust para incluir estas rutas moddeadas y resolver dinámicamente los binarios de `javaw.exe`.
+
 ---
 
 ## Cómo usar este archivo
 
-Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 19 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
-
-
+Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 33 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
