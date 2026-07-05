@@ -12,6 +12,9 @@ Try {
     $AppVersion = if ($null -ne $Version) { $Version } else { "4.6.0" }
     $Description = "Overlord v$AppVersion - Punto Seguro"
 
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage"
+
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
     Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue

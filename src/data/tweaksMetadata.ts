@@ -521,7 +521,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
         path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem",
         valueName: "NtfsDisableLastAccessUpdate",
         valueType: "REG_DWORD",
-        fallbackValue: 0,
+        fallbackValue: 2,
       },
       {
         hive: "HKEY_LOCAL_MACHINE",

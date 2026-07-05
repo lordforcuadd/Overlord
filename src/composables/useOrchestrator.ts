@@ -173,6 +173,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
         return;
       }
 
+      await syncModulesStatus();
+
       if (modulosActivos.length > 0) {
         const result = await Swal.fire({
           title: "SISTEMA OPTIMIZADO",

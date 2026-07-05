@@ -148,7 +148,7 @@ elseif ($Action -eq "uninstall") {
 }
 elseif ($Action -eq "status") {
     $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    if ($null -ne $ExistingTask) {
+    if ($null -ne $ExistingTask -and ($ExistingTask.State -eq "Ready" -or $ExistingTask.State -eq "Running")) {
         Write-Output "installed"
     } else {
         Write-Output "uninstalled"

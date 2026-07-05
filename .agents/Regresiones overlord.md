@@ -104,9 +104,9 @@ Duplicar la declaración e implementación local de la función recursiva `Find-
 
 La existencia de una clave en el registro `TaskCache\Tree\OverlordPriorityMonitor` solo denota que la tarea existe en el programador, no que está activa. Si el usuario la deshabilita manualmente, el monitor en Rust se apagaba en silencio pensando que la tarea lo respaldaba. Se corrigió consultando directamente la propiedad `.State` mediante `Get-ScheduledTask` para verificar de forma inequívoca el estado activo (`Ready` o `Running`).
 
-### 27. Rollback genérico inseguro en fallo del orquestador (`useOrchestrator.ts`)
+### 27. Reversión completa de seguridad ante fallos en lugar de rollback selectivo
 
-En caso de que una optimización fallara a mitad de camino, la UI ejecutaba el script genérico `10_revertir.ps1` completo de golpe. Esto deshacía optimizaciones aplicadas con éxito por el usuario en sesiones anteriores. Se corrigió reemplazando la reversión masiva por un rollback selectivo en orden inverso sobre `modulosExitosos` de la sesión actual.
+En caso de que una optimización falle a mitad de camino, el orquestador ejecuta una reversión completa de seguridad llamando a `10_revertir.ps1` en lugar de una reversión selectiva parcial. Esto constituye un diseño deliberado para evitar dejar al sistema operativo del usuario en un estado inestable híbrido (Frankenstein). La documentación debe reflejar con honestidad esta reversión total.
 
 ### 28. Bloqueo de hilos de Tokio con `std::sync::Mutex` en contexto asíncrono
 

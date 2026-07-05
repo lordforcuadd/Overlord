@@ -318,4 +318,12 @@ mod tests {
         let script = "# Copyright Overlord\n<# Some description #>\nparam(\n    [string]$ActionId\n)\nGet-Process";
         assert_eq!(strip_param_block(script), "Get-Process");
     }
+
+    #[test]
+    fn test_custom_base64_encode() {
+        assert_eq!(custom_base64_encode(b"any carnal w"), "YW55IGNhcm5hbCB3");
+        assert_eq!(custom_base64_encode(b"any carnal we"), "YW55IGNhcm5hbCB3ZQ==");
+        assert_eq!(custom_base64_encode(b"any carnal wen"), "YW55IGNhcm5hbCB3ZW4=");
+        assert_eq!(custom_base64_encode(b""), "");
+    }
 }

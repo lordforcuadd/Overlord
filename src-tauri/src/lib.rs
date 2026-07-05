@@ -429,9 +429,7 @@ fn stop_game_priority_monitor() -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn log_from_js(msg: String) {
-    println!("[JS LOG]: {}", msg);
+fn write_to_overlord_log(msg: &str) {
     let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
     let log_path = std::path::Path::new(&program_data).join("OverlordSuite").join("logs").join("overlord_errors.log");
     if let Some(parent) = log_path.parent() {
@@ -447,6 +445,12 @@ fn log_from_js(msg: String) {
         use std::io::Write;
         let _ = writeln!(file, "{}", msg);
     }
+}
+
+#[tauri::command]
+fn log_from_js(msg: String) {
+    println!("[JS LOG]: {}", msg);
+    write_to_overlord_log(&msg);
 }
 
 #[tauri::command]
