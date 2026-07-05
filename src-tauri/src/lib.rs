@@ -467,25 +467,10 @@ fn read_overlord_log() -> Result<String, String> {
 #[cfg_attr(mobile, tauri::command)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
-    // Configurar custom panic hook para registrar pánicos nativos de Rust
     std::panic::set_hook(Box::new(|info| {
         let msg = format!("RUST PANIC: {:?}", info);
         eprintln!("{}", msg);
-        let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
-        let log_path = std::path::Path::new(&program_data).join("OverlordSuite").join("logs").join("overlord_errors.log");
-        if let Some(parent) = log_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        if let Ok(metadata) = std::fs::metadata(&log_path) {
-            if metadata.len() > 100_000 {
-                let old_log_path = log_path.with_extension("old.log");
-                let _ = std::fs::rename(&log_path, &old_log_path);
-            }
-        }
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
-            use std::io::Write;
-            let _ = writeln!(file, "{}", msg);
-        }
+        write_to_overlord_log(&msg);
     }));
 
     tauri::Builder::default()
