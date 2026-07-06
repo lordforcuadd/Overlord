@@ -194,9 +194,26 @@ const handleServiceToggle = async (event: Event) => {
     return;
   }
 
-  isServiceLoading.value = true;
-  try {
-    await store.togglePriorityService(isChecked);
+    if (isChecked) {
+      const confirm = await Swal.fire({
+        title: "¿Instalar Servicio de Fondo?",
+        html: "<p>Esta acción instalará un <b>proceso persistente</b> (Daemon) en Windows que seguirá ejecutándose incluso después de cerrar Overlord.</p><p class='mt-2'>Su función es monitorear e inyectar prioridad alta a los juegos en tiempo real de forma autónoma.</p>",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, instalar e iniciar",
+        cancelButtonText: "Cancelar",
+        ...overlordSwalConfig,
+      });
+
+      if (!confirm.isConfirmed) {
+        target.checked = false;
+        return;
+      }
+    }
+
+    isServiceLoading.value = true;
+    try {
+      await store.togglePriorityService(isChecked);
   } catch (err) {
     console.error("Fallo al alternar el servicio de prioridades:", err);
     // Revertir el estado visual en caso de error

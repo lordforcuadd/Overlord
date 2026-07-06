@@ -8,10 +8,10 @@ Try {
             # Papelera de reciclaje
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue | Out-Null
 
-            # Compactación del almacén de componentes DISM
+            # CompactaciÃ³n del almacÃ©n de componentes DISM
             Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
 
-            # Purga directa de Caché de Shaders (DirectX, NVIDIA, AMD, Intel)
+            # Purga directa de CachÃ© de Shaders (DirectX, NVIDIA, AMD, Intel)
             $ShaderPaths = @(
                 "$env:localappdata\D3DSCache",
                 "$env:localappdata\Microsoft\Direct3D",
@@ -42,7 +42,7 @@ Try {
                 # Nota: Omitimos "Update Cleanup" por lentitud extrema e irrelevancia en el rendimiento de juegos
             }
 
-            # Ejecución y control de finalización de cleanmgr.exe (sagerun)
+            # EjecuciÃ³n y control de finalizaciÃ³n de cleanmgr.exe (sagerun)
             $CleanProcess = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -WindowStyle Hidden -PassThru -ErrorAction SilentlyContinue
             if ($CleanProcess) {
                 $Timeout = 60 # Ampliado a 1 minuto (60 segundos)
@@ -52,13 +52,13 @@ Try {
                     Start-Sleep -Seconds $Interval
                     $Waited += $Interval
                 }
-                # Forzar detención si queda colgado o excede el timeout de limpieza rápida
+                # Forzar detenciÃ³n si queda colgado o excede el timeout de limpieza rÃ¡pida
                 if (-not $CleanProcess.HasExited) {
                     Stop-Process -InputObject $CleanProcess -Force -ErrorAction SilentlyContinue
                 }
             }
 
-            # Limpiar los flags temporales creados para evitar polución del registro
+            # Limpiar los flags temporales creados para evitar poluciÃ³n del registro
             if (Test-Path $VolumeCaches) {
                 $Caches = Get-ChildItem -Path $VolumeCaches -ErrorAction SilentlyContinue
                 foreach ($Cache in $Caches) {
@@ -66,7 +66,7 @@ Try {
                 }
             }
             
-            # Vaciado ultra-rápido multihilo con Robocopy (ideal para sistemas con años sin limpiar)
+            # Vaciado ultra-rÃ¡pido multihilo con Robocopy (ideal para sistemas con aÃ±os sin limpiar)
             $EmptyDir = Join-Path $env:temp "OverlordEmptyDir"
             if (!(Test-Path $EmptyDir)) {
                 New-Item -Path $EmptyDir -ItemType Directory -Force | Out-Null
@@ -93,7 +93,7 @@ Try {
             $wasRunning = $false
             $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\wuauserv"
             if ($null -ne $wuauserv) {
-                # Persistencia del respaldo del servicio wuauserv para recuperación robusta en reversión
+                # Persistencia del respaldo del servicio wuauserv para recuperaciÃ³n robusta en reversiÃ³n
                 if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
                 
                 # Respaldar tipo de inicio original si no existe backup previo
@@ -102,7 +102,7 @@ Try {
                     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\wuauserv" -ValueName "Start" -BackupSubFolder "Services\wuauserv"
                 }
 
-                # Respaldar estado de ejecución original si no existe backup previo
+                # Respaldar estado de ejecuciÃ³n original si no existe backup previo
                 if ($null -eq $StartProps -or $null -eq $StartProps.PSObject.Properties["WasRunning"]) {
                     $WasRunningVal = if ($wuauserv.Status -eq "Running") { 1 } else { 0 }
                     Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunningVal -Force -ErrorAction SilentlyContinue | Out-Null
@@ -124,24 +124,26 @@ Try {
                 }
             }
 
-            dism.exe /online /cleanup-image /restorehealth | Out-Null
-            $DismExit = $LASTEXITCODE
-
-            sfc.exe /scannow | Out-Null
-            $SfcExit = $LASTEXITCODE
-
-            # Restaurar estado original del servicio Windows Update
-            if ($null -ne $wuauserv) {
-                if (-not $wasRunning) {
-                    Stop-Service -Name wuauserv -Force -ErrorAction SilentlyContinue
-                }
-                if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {
-                    Set-Service -Name wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
-                }
-                
-                # En caso de éxito, podemos eliminar el backup local del servicio
-                if ($DismExit -eq 0 -and $SfcExit -eq 0) {
-                    Remove-Item -Path $SvcBackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+            try {
+                dism.exe /online /cleanup-image /restorehealth | Out-Null
+                $DismExit = $LASTEXITCODE
+    
+                sfc.exe /scannow | Out-Null
+                $SfcExit = $LASTEXITCODE
+            } finally {
+                # Restaurar estado original del servicio Windows Update incondicionalmente
+                if ($null -ne $wuauserv) {
+                    if (-not $wasRunning) {
+                        Stop-Service -Name wuauserv -Force -ErrorAction SilentlyContinue
+                    }
+                    if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {
+                        Set-Service -Name wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
+                    }
+                    
+                    # En caso de Ã©xito, podemos eliminar el backup local del servicio
+                    if ($DismExit -eq 0 -and $SfcExit -eq 0) {
+                        Remove-Item -Path $SvcBackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
                 }
             }
 
@@ -149,8 +151,8 @@ Try {
                 Write-Output "OK: Almacen de componentes e integridad de sistema reparados."
             } else {
                 $FailParts = @()
-                if ($DismExit -ne 0) { $FailParts += "DISM (código $DismExit)" }
-                if ($SfcExit -ne 0) { $FailParts += "SFC (código $SfcExit)" }
+                if ($DismExit -ne 0) { $FailParts += "DISM (cÃ³digo $DismExit)" }
+                if ($SfcExit -ne 0) { $FailParts += "SFC (cÃ³digo $SfcExit)" }
                 $FailMsg = "Fallo en la reparacion del sistema: " + ($FailParts -join " y ") + "."
                 Write-Output "[WARNING] $FailMsg"
                 exit 2

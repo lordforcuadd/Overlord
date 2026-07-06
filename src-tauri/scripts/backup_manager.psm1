@@ -1,4 +1,4 @@
-# $HKCU_Path ya está resuelto e inyectado globalmente por sid_resolver.ps1
+# $HKCU_Path ya estÃ¡ resuelto e inyectado globalmente por sid_resolver.ps1
 if (-not (Get-Variable -Name 'HKCU_Path' -Scope 'Global' -ErrorAction SilentlyContinue)) {
     $global:HKCU_Path = "HKCU:"
 }
@@ -21,7 +21,7 @@ function Backup-OverlordRegistryValue {
     )
     
     try {
-        # Redirigir HKCU de forma dinámica
+        # Redirigir HKCU de forma dinÃ¡mica
         if ($TargetKey -match "^HKCU:") {
             $TargetKey = $TargetKey -replace '^HKCU:', $global:HKCU_Path
         }
@@ -52,7 +52,7 @@ function Backup-OverlordRegistryValue {
             }
         }
     } catch {
-        Write-Warning "No se pudo realizar el respaldo del valor de registro $ValueName en $TargetKey : $_"
+        throw "Fallo critico de seguridad: No se pudo realizar el respaldo del valor de registro $ValueName en $TargetKey : $_"
     }
 }
 
@@ -65,7 +65,7 @@ function Restore-OverlordRegistryValue {
     )
     
     try {
-        # Redirigir HKCU de forma dinámica
+        # Redirigir HKCU de forma dinÃ¡mica
         if ($TargetKey -match "^HKCU:") {
             $TargetKey = $TargetKey -replace '^HKCU:', $global:HKCU_Path
         }
@@ -78,15 +78,22 @@ function Restore-OverlordRegistryValue {
             if ($null -ne $BackupValue) {
                 if ($BackupValue -eq '_ABSENT_') {
                      Remove-ItemProperty -Path $TargetKey -Name $ValueName -ErrorAction SilentlyContinue | Out-Null
+                     if ($null -ne (Get-SafeRegistryValue -Path $TargetKey -Name $ValueName)) {
+                         throw "Windows bloqueo la eliminacion (Restore) de $ValueName"
+                     }
                 } else {
                     if (!(Test-Path $TargetKey)) { New-Item -Path $TargetKey -Force | Out-Null }
                     $Type = if ($SavedKind) { $SavedKind } else { "DWord" }
                     Set-ItemProperty -Path $TargetKey -Name $ValueName -Type $Type -Value $BackupValue -Force | Out-Null
+                    $ChkVal = Get-SafeRegistryValue -Path $TargetKey -Name $ValueName
+                    if ($null -eq $ChkVal -or $ChkVal.ToString() -ne $BackupValue.ToString()) {
+                        throw "Windows bloqueo la restauracion del valor $ValueName"
+                    }
                 }
             }
         }
     } catch {
-        Write-Warning "No se pudo restaurar el valor de registro $ValueName en $TargetKey : $_"
+        Write-Error "[-] Fallo critico de reversion simetrica: No se pudo restaurar el valor $ValueName en $TargetKey : $_"
     }
 }
 
@@ -135,7 +142,7 @@ function Uninstall-OverlordPriorityDaemon {
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
     }
 
-    # Matar de forma explicita procesos PowerShell huérfanos del daemon (WMI/CIM compatible con PS 5.1)
+    # Matar de forma explicita procesos PowerShell huÃ©rfanos del daemon (WMI/CIM compatible con PS 5.1)
     try {
         $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
         if ($null -eq $DaemonProcs -or @($DaemonProcs).Count -eq 0) {
@@ -153,7 +160,7 @@ function Uninstall-OverlordPriorityDaemon {
         }
     } catch {}
 
-    # Limpieza de la carpeta raíz del daemon en ProgramData
+    # Limpieza de la carpeta raÃ­z del daemon en ProgramData
     if (Test-Path $InstallDir) {
         Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }

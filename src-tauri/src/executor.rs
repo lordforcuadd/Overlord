@@ -69,7 +69,7 @@ fn encode_utf16_base64(script: &str) -> String {
 
 fn validate_input_string(s: &str) -> Result<(), String> {
     for c in s.chars() {
-        if !c.is_alphanumeric() && c != '.' && c != '-' && c != '_' && c != ',' && c != ':' && !c.is_whitespace() {
+        if !c.is_alphanumeric() && c != '.' && c != '-' && c != '_' && c != ',' && c != ':' && c != '&' && c != '\'' && c != '+' && !c.is_whitespace() {
             return Err(format!("Caracter no permitido en el input: '{}'", c));
         }
     }

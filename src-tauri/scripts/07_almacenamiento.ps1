@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
-    Write-Host "[*] Iniciando mantenimiento y optimización de almacenamiento..."
+    Write-Host "[*] Iniciando mantenimiento y optimizaciÃ³n de almacenamiento..."
 
     if ($IsSsd) {
         Write-Host "[+] Unidad SSD detectada. Optimizando parametros de lectura/escritura NTFS y cache..." -ForegroundColor Green
@@ -35,7 +35,7 @@ Try {
     # Desactivar nombres cortos MS-DOS 8.3
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -Type DWord -Value 1 -Force | Out-Null
 
-    # Optimizar caché de metadatos NTFS adaptativamente (solo en SSD rápidos)
+    # Optimizar cachÃ© de metadatos NTFS adaptativamente (solo en SSD rÃ¡pidos)
     if ($IsSsd -and $RamGB -ge 16) {
         Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value 2 -Force | Out-Null
     }
@@ -43,6 +43,7 @@ Try {
     if ($IsSsd) {
         # Asegurar soporte TRIM activo en SSD (DisableDeleteNotify = 0 significa TRIM habilitado)
         Set-ItemProperty -Path $NtfsPath -Name "DisableDeleteNotify" -Type DWord -Value 0 -Force | Out-Null
+        if ((Get-ItemPropertyValue -Path $NtfsPath -Name "DisableDeleteNotify" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo al verificar DisableDeleteNotify (TRIM)" }
     }
     
     # Desactivar Inicio Rapido de Windows (previene fugas de memoria y bloqueos de drivers)
@@ -59,9 +60,10 @@ Try {
         $HibernateRegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
             Backup-OverlordRegistryValue -TargetKey $HibernateRegPath -ValueName "HibernateEnabled" -BackupSubFolder "Storage"
         powercfg.exe /hibernate off | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "powercfg fallo al desactivar la hibernacion (Codigo: $LASTEXITCODE)" }
     }
 
-    # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
+    # La compactaciÃ³n de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
     try {
         # El objeto COM Microsoft.Update.Installer.IsBusy es local, por lo que verificamos procesos activos
@@ -79,11 +81,11 @@ Try {
                 Start-Service wuauserv -ErrorAction SilentlyContinue
             }
         } else {
-            # TiWorker o TrustedInstaller están activos. Borrar solo temporales no bloqueados sin apagar el servicio.
+            # TiWorker o TrustedInstaller estÃ¡n activos. Borrar solo temporales no bloqueados sin apagar el servicio.
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
     } catch {
-        # Evitamos apagar wuauserv por seguridad. Se borran únicamente los temporales no bloqueados.
+        # Evitamos apagar wuauserv por seguridad. Se borran Ãºnicamente los temporales no bloqueados.
         Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     }
 

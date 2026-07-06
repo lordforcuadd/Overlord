@@ -1,8 +1,8 @@
-# sid_resolver.ps1 — Resolución unificada y robusta de SID y HKCU_Path
+# sid_resolver.ps1 â€” ResoluciÃ³n unificada y robusta de SID y HKCU_Path
 $UserSID = ""
 $Username = $null
 
-# Fallback 1: Buscar dueño de explorer.exe mediante CIM
+# Fallback 1: Buscar dueÃ±o de explorer.exe mediante CIM
 try {
     $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($Explorer) {

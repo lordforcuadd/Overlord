@@ -82,7 +82,7 @@ Try {
                                         }
                                     }
                                     
-                                    # Revertir prioridad de interrupción
+                                    # Revertir prioridad de interrupciÃ³n
                                     $priorityRegID = "PCI_${venId}_${devId}_DevicePriority"
                                     $savedPriority = if ($null -ne $msiProps -and $null -ne $msiProps.PSObject.Properties[$priorityRegID]) { $msiProps.$priorityRegID } else { $null }
                                     if ($null -ne $savedPriority) {
@@ -96,7 +96,7 @@ Try {
                                     }
                                 }
                             } catch {
-                                Write-Warning "No se pudieron revertir los parametros MSI para el dispositivo ${deviceRegID}: $_"
+                                Write-Error "No se pudieron revertir los parametros MSI para el dispositivo ${deviceRegID}: $_"
                             }
                         }
 
@@ -126,7 +126,7 @@ Try {
                                     }
                                 }
                             } catch {
-                                Write-Warning "No se pudieron revertir los parametros de Afinidad de Red para el dispositivo ${deviceRegID}: $_"
+                                Write-Error "No se pudieron revertir los parametros de Afinidad de Red para el dispositivo ${deviceRegID}: $_"
                             }
                         }
                         $devKey.Close()
@@ -269,13 +269,13 @@ Try {
             }
         }
     } catch {
-        Write-Warning "No se pudo restaurar el estado de los servicios: $_"
+        Write-Error "No se pudo restaurar el estado de los servicios: $_"
     }
 
     try {
         Get-NetFirewallRule -DisplayName "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
     } catch {
-        Write-Warning "No se pudieron remover las reglas del Firewall de Windows: $_"
+        Write-Error "No se pudieron remover las reglas del Firewall de Windows: $_"
     }
 
     $Tasks = @(
@@ -453,7 +453,7 @@ Try {
                             Set-NetAdapterRss -Name $Adapter.Name -Profile ClosestStatic -ErrorAction SilentlyContinue | Out-Null
                         }
                     } catch {
-                        Write-Warning "No se pudo restaurar la configuracion del adaptador de red $($Adapter.Name): $_"
+                        Write-Error "No se pudo restaurar la configuracion del adaptador de red $($Adapter.Name): $_"
                     }
                 }
             }
@@ -487,7 +487,7 @@ Try {
             }
         }
     } catch {
-        Write-Warning "No se pudo restaurar MMAgent: $_"
+        Write-Error "No se pudo restaurar MMAgent: $_"
     }
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -ValueName "HwSchMode" -BackupSubFolder "GPU" -DefaultValue 2
@@ -554,7 +554,7 @@ Try {
                                     Remove-Item -Path $SettingPath -Force -ErrorAction SilentlyContinue | Out-Null
                                 }
                                 
-                                # También verificar si la clave de subgrupo queda vacía
+                                # TambiÃ©n verificar si la clave de subgrupo queda vacÃ­a
                                 $SubGroupPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid"
                                 if (Test-Path $SubGroupPath) {
                                     $subKey = Get-Item -Path $SubGroupPath -ErrorAction SilentlyContinue
@@ -748,7 +748,7 @@ Try {
 
     if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
 
-    # Eliminar la clave padre principal si queda vacía tras la reversión para no dejar huella
+    # Eliminar la clave padre principal si queda vacÃ­a tras la reversiÃ³n para no dejar huella
     $OverlordKey = "HKLM:\SOFTWARE\Overlord"
     if (Test-Path $OverlordKey) {
         $Subkeys = Get-ChildItem -Path $OverlordKey -ErrorAction SilentlyContinue

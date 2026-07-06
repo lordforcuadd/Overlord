@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
-    Write-Host "[*] Aplicando optimizaciones visuales y calibración de GPU de Grado de Producción..."
+    Write-Host "[*] Aplicando optimizaciones visuales y calibraciÃ³n de GPU de Grado de ProducciÃ³n..."
 
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
@@ -29,7 +29,7 @@ Try {
                 }
             }
         } else {
-            # Fallback defensivo si no está CIM disponible pero el SO es moderno
+            # Fallback defensivo si no estÃ¡ CIM disponible pero el SO es moderno
             $WddmSupported = $true
         }
     }
@@ -65,6 +65,6 @@ Try {
 
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo GPU: $_"
+    Write-Error "[-] Error crÃ­tico en MÃ³dulo GPU: $_"
     exit 1
 }

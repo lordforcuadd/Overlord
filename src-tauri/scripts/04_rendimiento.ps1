@@ -14,7 +14,7 @@ Try {
     $StorePath = "$HKCU_Path\System\GameConfigStore"
     Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
 
-    # Guardar backup de MMAgent de forma dinámica y configurar adaptativamente
+    # Guardar backup de MMAgent de forma dinÃ¡mica y configurar adaptativamente
     try {
         if (Get-Command Get-MMAgent -ErrorAction SilentlyContinue) {
             $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
@@ -38,16 +38,20 @@ Try {
             if ($RamGB -ge 32) {
                 Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
                 Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+                $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
+                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $true -or $chkAgent.PageCombining -eq $true)) { throw "El SO bloqueÃ³ la directiva MMAgent de compresiÃ³n de RAM" }
             } else {
                 Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
                 Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+                $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
+                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $false -or $chkAgent.PageCombining -eq $false)) { throw "El SO bloqueÃ³ la directiva MMAgent de compresiÃ³n de RAM" }
             }
         }
     } catch {
-        Write-Warning "No se pudo consultar o configurar MMAgent: $_"
+        throw "El SO bloqueÃ³ la comprobaciÃ³n o configuraciÃ³n de MMAgent: $_"
     }
 
-    # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a través del módulo independiente disableMitigations por seguridad.
+    # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a travÃ©s del mÃ³dulo independiente disableMitigations por seguridad.
 
     $GamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
     if (Test-Path $GamesPath) {
@@ -62,7 +66,7 @@ Try {
         Set-ItemProperty -Path $GamesPath -Name "GPU Priority" -Type DWord -Value 8 -Force | Out-Null
         Set-ItemProperty -Path $GamesPath -Name "Clock Rate" -Type DWord -Value 10 -Force | Out-Null
 
-        # Verificación de MMCSS
+        # VerificaciÃ³n de MMCSS
         if ((Get-ItemPropertyValue -Path $GamesPath -Name "Scheduling Category" -ErrorAction SilentlyContinue) -ne "High") { throw "Fallo de verificacion en MMCSS Scheduling Category" }
         if ((Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue) -ne 6) { throw "Fallo de verificacion en MMCSS Priority" }
     }

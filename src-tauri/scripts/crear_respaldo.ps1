@@ -9,7 +9,7 @@ Try {
     }
 
     Write-Host "[*] Iniciando protocolo de seguridad: Punto de Restauracion..."
-    $AppVersion = if ($null -ne $Version) { $Version } else { "4.6.0" }
+    $AppVersion = if (-not [string]::IsNullOrWhiteSpace($Version)) { $Version } else { "Release" }
     $Description = "Overlord v$AppVersion - Punto Seguro"
 
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage"
@@ -31,7 +31,7 @@ Try {
 
     try {
         Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
-        Write-Host "[+] Punto de restauración creado con exito. El sistema se encuentra asegurado."
+        Write-Host "[+] Punto de restauraciÃ³n creado con exito. El sistema se encuentra asegurado."
         exit 0
     } catch {
         Write-Output "[WARNING] No se pudo crear el Punto de Restauracion de Windows (servicio VSS inactivo o SO modificado): $_"

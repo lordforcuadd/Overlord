@@ -11,7 +11,7 @@ $ReleaseData = $null
 try {
     $ReleaseData = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing -ErrorAction Stop
 } catch {
-    Write-Host "[-] Advertencia: No se pudo conectar con la API de GitHub para buscar actualizaciones: $_" -ForegroundColor Yellow
+    Write-Host "[-] Advertencia: No se pudo conectar con la API de GitHub (posible Rate-Limit): $_" -ForegroundColor Yellow
 }
 
 $Version = "latest"
@@ -36,7 +36,8 @@ if ($null -ne $ReleaseData -and $null -ne $ReleaseData.assets) {
     $HashAsset = $ReleaseData.assets | Where-Object { $_.name -eq "Overlord.exe.sha256" } | Select-Object -First 1
 }
 
-$DownloadUrl = if ($null -ne $Asset) { $Asset.browser_download_url } else { $null }
+$DownloadUrl = if ($null -ne $Asset) { $Asset.browser_download_url } elseif ($null -eq $ReleaseData) { "https://github.com/$Repo/releases/latest/download/Overlord.exe" } else { $null }
+$HashDownloadUrl = if ($null -ne $HashAsset) { $HashAsset.browser_download_url } elseif ($null -eq $ReleaseData) { "https://github.com/$Repo/releases/latest/download/Overlord.exe.sha256" } else { $null }
 $FileName = if ($null -ne $Asset) { $Asset.name } else { "Overlord.exe" }
 
 $ProgData = $env:ProgramData
@@ -95,11 +96,11 @@ if ($null -ne $DownloadUrl) {
         Write-Host "[-] Error critico: Fallo la descarga de la suite Overlord: $_" -ForegroundColor Red
     }
     
-    if ($ExecutionPermitted -and $null -ne $HashAsset) {
+    if ($ExecutionPermitted -and $null -ne $HashDownloadUrl) {
         $ExecutionPermitted = $false
         try {
             Write-Host "[*] Descargando firma digital SHA256 de verificacion..." -ForegroundColor Gray
-            Invoke-WebRequest -Uri $HashAsset.browser_download_url -OutFile $HashPath -UseBasicParsing -ErrorAction Stop
+            Invoke-WebRequest -Uri $HashDownloadUrl -OutFile $HashPath -UseBasicParsing -ErrorAction Stop
             
             if (Test-Path $HashPath) {
                 $RawHashContent = (Get-Content $HashPath -Raw -ErrorAction Stop).Trim()
@@ -130,7 +131,7 @@ if ($null -ne $DownloadUrl) {
             Write-Host "[-] Error al verificar la firma SHA256: $_. Abortando ejecucion por seguridad." -ForegroundColor Red
             $ExecutionPermitted = $false
         }
-    } elseif ($null -eq $HashAsset -and $null -ne $DownloadUrl) {
+    } elseif ($null -eq $HashDownloadUrl -and $null -ne $DownloadUrl) {
         Write-Host "[-] ERROR CRÍTICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad." -ForegroundColor Red
         $ExecutionPermitted = $false
     }

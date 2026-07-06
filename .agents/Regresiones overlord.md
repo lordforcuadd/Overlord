@@ -133,3 +133,7 @@ La lógica de exclusiones y prioridades de juego solo buscaba la carpeta origina
 ## Cómo usar este archivo
 
 Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 33 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
+
+### 33. Corrupción de macros de Rust (include_str!) por cambio silencioso de codificación en PowerShell
+
+Al modificar archivos .ps1 mediante Set-Content u otras herramientas desde Windows PowerShell 5.1, la codificación por defecto se cambia a Windows-1252 o UTF-8 con BOM. Esto rompe instantáneamente la compilación del backend en Rust, ya que macros como include_str! exigen archivos estrictamente en UTF-8 puro (sin BOM). Se corrigió iterando sobre los archivos modificados e inyectando un objeto [System.Text.UTF8Encoding] False para forzar la escritura en UTF-8 sin BOM, asegurando compatibilidad con el compilador de Rust.

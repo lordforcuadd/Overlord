@@ -27,7 +27,7 @@ try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    $Games = $GameList -split "," | ForEach-Object { $_.Trim() }
+    $Games = $GameList -split "," | ForEach-Object { $_.Trim().ToLower() }
 
     $EngineConfigPatterns = @(
         @{
@@ -63,7 +63,7 @@ try {
         }
     } catch {}
 
-    # Buscar rutas de Steam en el Registro dinámicamente
+    # Buscar rutas de Steam en el Registro dinÃ¡micamente
     $steamProps = Get-ItemProperty -Path "$HKCU_Path\Software\Valve\Steam" -ErrorAction SilentlyContinue
     $SteamPathReg = if ($null -ne $steamProps) { $steamProps.SteamPath } else { $null }
     if ($SteamPathReg) { $LauncherRoots += Join-Path $SteamPathReg "steamapps\common" }
@@ -71,12 +71,12 @@ try {
     $SteamPathReg2 = if ($null -ne $steamProps2) { $steamProps2.InstallPath } else { $null }
     if ($SteamPathReg2) { $LauncherRoots += Join-Path $SteamPathReg2 "steamapps\common" }
 
-    # Buscar rutas de Epic Games en el Registro dinámicamente
+    # Buscar rutas de Epic Games en el Registro dinÃ¡micamente
     $epicProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\EpicGames\Unreal Engine" -ErrorAction SilentlyContinue
     $EpicPathReg = if ($null -ne $epicProps) { $epicProps.INSTALLDIR } else { $null }
     if ($EpicPathReg) { $LauncherRoots += $EpicPathReg }
 
-    # Buscar librerías adicionales de Steam en libraryfolders.vdf
+    # Buscar librerÃ­as adicionales de Steam en libraryfolders.vdf
     if ($SteamPathReg -and (Test-Path (Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"))) {
         try {
             $VdfPath = Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"
@@ -194,7 +194,7 @@ try {
                         $ini = Find-FileFaster -Path $ConfigFolder -Filter $engine.FileName -MaxDepth 3
                     }
                     if ($ini -and ($engine.Name -eq "Unreal")) {
-                        # Comprobar si el proceso del juego está activo
+                        # Comprobar si el proceso del juego estÃ¡ activo
                         $RunningProc = Get-Process -Name $GameBaseName -ErrorAction SilentlyContinue
                         if ($null -ne $RunningProc) {
                             Write-Warning "El juego $GameBaseName esta en ejecucion. Se omitira la modificacion de GameUserSettings.ini para evitar conflictos de escritura."
@@ -222,7 +222,7 @@ try {
                                 }
                             }
                             if (-not $foundKey) {
-                                # Si no existía en el archivo, guardamos _ABSENT_ para la reversión simétrica
+                                # Si no existÃ­a en el archivo, guardamos _ABSENT_ para la reversiÃ³n simÃ©trica
                                 $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
                                 if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_$key"]) {
                                     Set-ItemProperty -Path $GameBackupPath -Name "Original_$key" -Value "_ABSENT_" -Force | Out-Null
@@ -238,88 +238,47 @@ try {
                         }
 
                         # Construir el nuevo contenido
-                        $newContent = [System.Collections.Generic.List[string]]::new()
+                        # Construir el nuevo contenido (Refactorizado sin boolean-spaghetti)
+                        $iniText = $content -join "`r`n"
                         $sectionHeader = "[/Script/Engine.GameUserSettings]"
-                        $hasSection = $false
-                        $inSection = $false
-                        
-                        foreach ($line in $content) {
-                            if ($line -match "^\s*\[/Script/Engine\.GameUserSettings\]") {
-                                $hasSection = $true
-                                break
-                            }
-                        }
-
-                        $keysToWrite = [System.Collections.Generic.Dictionary[string, bool]]::new()
-                        foreach ($key in $engine.FullscreenKey) {
-                            $keysToWrite.Add($key, $true)
-                        }
-
                         $changed = $false
 
-                        if (-not $hasSection) {
-                            foreach ($line in $content) {
-                                $newContent.Add($line)
-                            }
-                            $newContent.Add("")
-                            $newContent.Add($sectionHeader)
+                        if ($iniText -notmatch "\[/Script/Engine\.GameUserSettings\]") {
+                            $iniText += "`r`n`r`n$sectionHeader`r`n"
                             foreach ($key in $engine.FullscreenKey) {
-                                $newContent.Add("$key=0")
+                                $iniText += "$key=0`r`n"
                             }
                             $changed = $true
                         } else {
-                            foreach ($line in $content) {
-                                if ($line -match "^\s*\[") {
-                                    if ($inSection) {
-                                        foreach ($key in $keysToWrite.Keys) {
-                                            if ($keysToWrite[$key]) {
-                                                $newContent.Add("$key=0")
-                                                $changed = $true
-                                            }
-                                        }
-                                        $keysToWrite = [System.Collections.Generic.Dictionary[string, bool]]::new()
-                                    }
-                                    if ($line -match "^\s*\[/Script/Engine\.GameUserSettings\]") {
-                                        $inSection = $true
-                                    } else {
-                                        $inSection = $false
-                                    }
-                                    $newContent.Add($line)
-                                    continue
-                                }
-
-                                if ($inSection) {
-                                    $matchedKey = $null
-                                    foreach ($key in $keysToWrite.Keys) {
-                                        if ($line -match "^\s*$key\s*=") {
-                                            $matchedKey = $key
-                                            break
-                                        }
-                                    }
-                                    if ($null -ne $matchedKey) {
-                                        if ($line.Trim() -notmatch "^\s*$matchedKey\s*=\s*0\s*$") {
-                                            $newContent.Add("$matchedKey=0")
+                            # Extraer la seccion objetivo
+                            $pattern = "(?s)(\[/Script/Engine\.GameUserSettings\]\r?\n)(.*?)(?=\r?\n\[|$)"
+                            if ($iniText -match $pattern) {
+                                $sectionHead = $Matches[1]
+                                $sectionBody = $Matches[2]
+                                
+                                foreach ($key in $engine.FullscreenKey) {
+                                    if ($sectionBody -match "(?m)^\s*$key\s*=.*$") {
+                                        # Si existe, reemplazar el valor si no es 0
+                                        if ($sectionBody -notmatch "(?m)^\s*$key\s*=\s*0\s*$") {
+                                            $sectionBody = $sectionBody -replace "(?m)^(\s*$key\s*=).*$", "`$10"
                                             $changed = $true
-                                        } else {
-                                            $newContent.Add($line)
                                         }
-                                        $keysToWrite.Remove($matchedKey)
                                     } else {
-                                        $newContent.Add($line)
-                                    }
-                                } else {
-                                    $newContent.Add($line)
-                                }
-                            }
-                            if ($inSection) {
-                                foreach ($key in $keysToWrite.Keys) {
-                                    if ($keysToWrite[$key]) {
-                                        $newContent.Add("$key=0")
+                                        # Si no existe, agregarlo al final de la seccion
+                                        $sectionBody += "`r`n$key=0"
                                         $changed = $true
                                     }
                                 }
+                                
+                                if ($changed) {
+                                    # Limpiar posibles saltos de linea multiples
+                                    $sectionBody = $sectionBody -replace "\r?\n{3,}", "`r`n`r`n"
+                                    $iniText = $iniText -replace $pattern, "$sectionHead$sectionBody"
+                                }
                             }
                         }
+                        
+                        $newContent = $iniText -split "`r`n"
 
                         if ($changed) {
                             Set-Content -Path $ini.FullName -Value $newContent -Force
@@ -347,7 +306,7 @@ try {
                 Copy-Item -Path $OldIfeo -Destination $IfeoBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                 Remove-Item -Path $OldIfeo -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
             } else {
-                # Guardar marcador de ausente para saber que no existía originalmente
+                # Guardar marcador de ausente para saber que no existÃ­a originalmente
                 if (!(Test-Path (Split-Path $IfeoBackup -Parent))) {
                     New-Item -Path (Split-Path $IfeoBackup -Parent) -Force | Out-Null
                 }
@@ -361,7 +320,7 @@ try {
             $RealExePath = $null
 
             if ($ExeName -eq "javaw.exe") {
-                # Búsqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
+                # BÃºsqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
                 $JavaPaths = @(
                     (Join-Path $env:USERPROFILE "curseforge\minecraft\Install"),
                     (Join-Path $env:APPDATA ".minecraft"),
@@ -496,6 +455,8 @@ try {
 
                 if ($FinalFlagsValue) {
                     Set-ItemProperty -Path $LayersPath -Name $RealExePath -Type String -Value $FinalFlagsValue -Force | Out-Null
+                    $chkFlags = Get-ItemPropertyValue -Path $LayersPath -Name $RealExePath -ErrorAction SilentlyContinue
+                    if ($null -eq $chkFlags -or $chkFlags.ToString() -ne $FinalFlagsValue) { throw "Bloqueado al escribir AppCompatFlags para $RealExePath" }
                 } else {
                     Remove-ItemProperty -Path $LayersPath -Name $RealExePath -ErrorAction SilentlyContinue | Out-Null
                 }
@@ -523,6 +484,6 @@ try {
     Write-Host "[+] Protocolo de Game Hooks completado."
     exit 0
 } catch {
-    Write-Error "[-] Error critico global en Módulo de Game Hooks: $_"
+    Write-Error "[-] Error critico global en MÃ³dulo de Game Hooks: $_"
     exit 1
 }

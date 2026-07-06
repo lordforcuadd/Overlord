@@ -268,19 +268,22 @@ if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and (
 
 $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
 $PowerSchemePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes"
+$PowerThrottlingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
+$ThrottleVal = Get-ItemPropertyValue -Path $PowerThrottlingPath -Name "PowerThrottlingOff" -ErrorAction SilentlyContinue
+
 if (Test-Path $PowerSchemePath) {
     $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
     $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
     $CustomPlanGuid = if ($null -ne $powerProps -and $null -ne $powerProps.PSObject.Properties["CustomPowerPlan"]) { $powerProps.CustomPowerPlan } else { $null }
     
-    if ($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) {
+    if (($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) -and $ThrottleVal -eq 1) {
         $Status['powerProfiles'] = $true
     } elseif ($IsLaptop) {
         $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
         $SettingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$ActivePlan\54533251-82be-4824-96c1-47b60b740d00\94d3a615-a899-4ac5-ae2b-e4d8f634367f"
         if (Test-Path $SettingPath) {
             $AcVal = Get-ItemPropertyValue -Path $SettingPath -Name "ACSettingIndex" -ErrorAction SilentlyContinue
-            if ($AcVal -eq 1) {
+            if ($AcVal -eq 1 -and $ThrottleVal -eq 1) {
                 $Status['powerProfiles'] = $true
             }
         }
@@ -321,14 +324,12 @@ if (Test-Path $ConfigPath) {
     }
 }
 
-# 2. Fallback al backup si el paso anterior no dio positivo
-if ($Status['gameHooks'] -ne $true -and (Test-Path $GameHooksBackup)) {
-    $SubKeys = Get-ChildItem -Path $GameHooksBackup -ErrorAction SilentlyContinue
-    foreach ($Key in $SubKeys) {
-        $PathVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "Path" -ErrorAction SilentlyContinue
-        if (![string]::IsNullOrWhiteSpace($PathVal)) {
-            $CurrentFlags = Get-ItemPropertyValue -Path $LayersPath -Name $PathVal -ErrorAction SilentlyContinue
-            if ($CurrentFlags -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
+# 2. Fallback sin usar carpetas de backup: escanear AppCompatFlags\Layers por si hay algun flag activo
+if ($Status['gameHooks'] -ne $true -and (Test-Path $LayersPath)) {
+    $LayersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
+    if ($null -ne $LayersProps) {
+        foreach ($Prop in $LayersProps.PSObject.Properties) {
+            if ($Prop.Name -match "\.exe$" -and $Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
                 $Status['gameHooks'] = $true
                 break
             }

@@ -37,7 +37,7 @@ Try {
                 Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
                 Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
             } catch {
-                Write-Warning "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
+                throw "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
             }
         }
     }
@@ -52,7 +52,7 @@ Try {
             }
         }
 
-        # Obtener adaptadores físicos activos (Ethernet y Wi-Fi)
+        # Obtener adaptadores fÃ­sicos activos (Ethernet y Wi-Fi)
         $ActiveGuids = @()
         $EthernetGuids = @()
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
@@ -71,11 +71,11 @@ Try {
             if ($Adapter.PSChildName -match "^\d{4}$") {
                 $NetInstanceId = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue
                 if ($null -ne $NetInstanceId) {
-                    # 1. Aplicar optimizaciones clásicas de energía (EEE, Green Energy) solo a Ethernet
+                    # 1. Aplicar optimizaciones clÃ¡sicas de energÃ­a (EEE, Green Energy) solo a Ethernet
                     if ($EthernetGuids -contains $NetInstanceId) {
                         $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
                         
-                        # Desactivar Coalescencia, Moderación de Interrupción y Control de Flujo únicamente en PCs de Escritorio con >8 hilos lógicos
+                        # Desactivar Coalescencia, ModeraciÃ³n de InterrupciÃ³n y Control de Flujo Ãºnicamente en PCs de Escritorio con >8 hilos lÃ³gicos
                         $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
                         if (-not $IsLaptop -or $TotalThreads -gt 8) {
                             $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
@@ -86,15 +86,22 @@ Try {
                             if ($null -ne $adapterProps -and $null -ne $adapterProps.PSObject.Properties[$PKey]) {
                                 Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
                                 Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
+                                $checkVal = Get-ItemPropertyValue -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
+                                if ($checkVal -ne "0") {
+                                    throw "Fallo de validacion: No se pudo establecer $PKey en 0 para el adaptador $($Adapter.PSChildName)"
+                                }
                             }
                         }
                     }
 
-                    # 2. Desactivar el apagado del dispositivo para ahorrar energía (PnPCapabilities = 24)
-                    # Excepción: No aplicar si es Laptop y funciona con Batería.
+                    # 2. Desactivar el apagado del dispositivo para ahorrar energÃ­a (PnPCapabilities = 24)
+                    # ExcepciÃ³n: No aplicar si es Laptop y funciona con BaterÃ­a.
                     if ($ActiveGuids -contains $NetInstanceId -and -not $RunningOnBattery) {
                         Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName "PnPCapabilities" -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
                         Set-ItemProperty -Path $Adapter.PSPath -Name "PnPCapabilities" -Type DWord -Value 24 -Force | Out-Null
+                        if ((Get-ItemPropertyValue -Path $Adapter.PSPath -Name "PnPCapabilities" -ErrorAction SilentlyContinue) -ne 24) {
+                            throw "Fallo de validacion: No se pudo establecer PnPCapabilities para el adaptador $($Adapter.PSChildName)"
+                        }
                     }
                 }
             }
@@ -164,7 +171,7 @@ Try {
                     Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
                     Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
                 } catch {
-                    Write-Warning "No se pudieron aplicar las optimizaciones de red para el adaptador $($Adapter.Name): $_"
+                    throw "No se pudieron aplicar las optimizaciones de red para el adaptador $($Adapter.Name): $_"
                 }
             }
         }

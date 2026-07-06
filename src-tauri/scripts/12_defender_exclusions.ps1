@@ -15,7 +15,7 @@ try {
 
     Write-Host "[*] Aplicando exclusiones en Windows Defender..."
 
-    # Reutilizar el buscador rápido de 11_game_hooks.ps1
+    # Reutilizar el buscador rÃ¡pido de 11_game_hooks.ps1
 
 
     $SysDrive = $env:SystemDrive
@@ -130,7 +130,7 @@ try {
         $ExeName = if ($Game -notlike "*.exe") { "$Game.exe" } else { $Game }
 
         if ($ExeName -eq "javaw.exe") {
-            # Búsqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
+            # BÃºsqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
             $JavaPaths = @(
                 (Join-Path $env:USERPROFILE "curseforge\minecraft\Install"),
                 (Join-Path $env:APPDATA ".minecraft"),
@@ -150,7 +150,7 @@ try {
                 }
             }
 
-            # Agregar exclusión de la carpeta de instancias de Minecraft por seguridad/latencia
+            # Agregar exclusiÃ³n de la carpeta de instancias de Minecraft por seguridad/latencia
             $InstancePaths = @(
                 (Join-Path $env:USERPROFILE "curseforge\minecraft\Instances"),
                 (Join-Path $env:APPDATA ".minecraft"),
@@ -176,7 +176,7 @@ try {
             }
         }
 
-        # Si no existía backup de GameHooks, resolver la ruta con la misma lógica
+        # Si no existÃ­a backup de GameHooks, resolver la ruta con la misma lÃ³gica
         if ([string]::IsNullOrWhiteSpace($RealExePath)) {
             $GameBaseName = $ExeName -replace '\.exe$',''
             $shortName = ($GameBaseName -split '-|_')[0]
@@ -264,11 +264,11 @@ try {
         exit 0
     }
 
-    # Mecanismo de Respaldo Quirúrgico: registrar qué rutas fueron agregadas por Overlord
+    # Mecanismo de Respaldo QuirÃºrgico: registrar quÃ© rutas fueron agregadas por Overlord
     $BackupKey = "HKLM:\SOFTWARE\Overlord\Backup\DefenderExclusions"
     if (!(Test-Path $BackupKey)) { New-Item -Path $BackupKey -Force | Out-Null }
     
-    # Cargar rutas previamente excluidas por Overlord para no sobreescribir si ya existían
+    # Cargar rutas previamente excluidas por Overlord para no sobreescribir si ya existÃ­an
     $PrevPaths = @()
     $BackupProps = Get-ItemProperty -Path $BackupKey -ErrorAction SilentlyContinue
     if ($null -ne $BackupProps -and $null -ne $BackupProps.PSObject.Properties["AddedExclusions"]) {
@@ -292,12 +292,16 @@ try {
     
     foreach ($Dir in $ExcludedPaths) {
         $DirLower = $Dir.ToLower()
-        # Solo agregar a Windows Defender si no está ya en las exclusiones globales de Defender
+        # Solo agregar a Windows Defender si no estÃ¡ ya en las exclusiones globales de Defender
         if (-not $CurrentExclusionsList.Contains($DirLower)) {
             Add-MpPreference -ExclusionPath $Dir -ErrorAction SilentlyContinue
+            $VerifyExclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
+            if ($null -eq $VerifyExclusions -or $VerifyExclusions -notcontains $Dir) {
+                throw "Defender bloqueÃ³ la adiciÃ³n de la exclusiÃ³n para $Dir"
+            }
             Write-Host "    [+] Ruta excluida en Windows Defender: $Dir"
             
-            # Registrar en nuestro backup que Overlord gestiona esta exclusión
+            # Registrar en nuestro backup que Overlord gestiona esta exclusiÃ³n
             if (-not $NewAddedPaths.Contains($Dir)) {
                 $NewAddedPaths.Add($Dir)
             }

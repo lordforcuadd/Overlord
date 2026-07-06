@@ -26,20 +26,20 @@ Try {
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
-    # Mapeo inteligente multi-núcleo compatible con RSS (evita Core 0, evita hilos HT hermanos y evita E-cores al final)
+    # Mapeo inteligente multi-nÃºcleo compatible con RSS (evita Core 0, evita hilos HT hermanos y evita E-cores al final)
     # Establece DevicePolicy = 4 (SpecifiedProcessors) para que Windows use RSS en el conjunto de cores asignados.
     $DevicePolicyValue = 4 # SpecifiedProcessors
     [uint64]$NetBitmask = 0
 
     if ($IsHybrid) {
-        # CPU híbrida (Intel P-Core/E-Core): Afinar interrupciones a P-Cores físicos (hilos lógicos 4 y 6)
+        # CPU hÃ­brida (Intel P-Core/E-Core): Afinar interrupciones a P-Cores fÃ­sicos (hilos lÃ³gicos 4 y 6)
         # evitando los E-Cores situados en la parte alta del rango de procesadores
         $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
     } elseif ($IsX3d) {
-        # CPU AMD Ryzen 3D V-Cache: Direccionar a los cores físicos de alto rendimiento y caché 3D en CCD0 (hilos lógicos 4 y 6)
+        # CPU AMD Ryzen 3D V-Cache: Direccionar a los cores fÃ­sicos de alto rendimiento y cachÃ© 3D en CCD0 (hilos lÃ³gicos 4 y 6)
         $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
     } else {
-        # CPU estándar: Usar asignación adaptativa por hilos lógicos totales
+        # CPU estÃ¡ndar: Usar asignaciÃ³n adaptativa por hilos lÃ³gicos totales
         if ($TotalCores -ge 12) {
             $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
         } elseif ($TotalCores -ge 8) {
@@ -86,12 +86,16 @@ Try {
                                         
                                         $affinityKey.SetValue("DevicePolicy", $DevicePolicyValue, [Microsoft.Win32.RegistryValueKind]::DWord)
                                         $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
+                                        
+                                        if ($affinityKey.GetValue("DevicePolicy") -ne $DevicePolicyValue) {
+                                            throw "El SO bloqueÃ³ DevicePolicy para el dispositivo PCI: $devId"
+                                        }
                                         $affinityKey.Close()
                                     }
                                     $paramKey.Close()
                                 }
                             } catch {
-                                Write-Warning "No se pudo configurar la afinidad de red para el dispositivo PCI $devId (sin permisos): $_"
+                                throw "El SO bloqueÃ³ la configuraciÃ³n de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
                             }
                         }
                         

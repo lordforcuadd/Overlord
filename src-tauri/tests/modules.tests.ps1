@@ -164,7 +164,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     }
 
     Context "Modulo 04, 05 y 07 - Kernel, Almacenamiento y Pipelines Graficos" {
-        It "Debe validar esquemas HwSchMode de programación por hardware de GPU" -Skip:($env:CI -eq "true") {
+        It "Debe validar esquemas HwSchMode de programaciÃ³n por hardware de GPU" -Skip:($env:CI -eq "true") {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
             if (Test-Path $Path) {
                 $Hags = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).HwSchMode
@@ -309,7 +309,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                 if ($Text -match '-ValueName\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $ValueName = $Matches[1].Trim() }
                 if ($Text -match '-BackupSubFolder\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $SubFolder = $Matches[1].Trim() }
                 
-                # Omitir los parámetros genéricos del helper definidos en la firma de Invoke-OverlordSafeRestore
+                # Omitir los parÃ¡metros genÃ©ricos del helper definidos en la firma de Invoke-OverlordSafeRestore
                 if ($null -ne $ValueName -and $null -ne $SubFolder -and $ValueName -ne '$ValueName' -and $SubFolder -ne '$BackupSubFolder') {
                     $EscapedVal = [regex]::Escape($ValueName)
                     $EscapedSub = [regex]::Escape($SubFolder)
@@ -351,7 +351,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                     $BackupCalls = [regex]::Matches($Content, "Backup-OverlordPowerSetting|Backup-OverlordRegistryValue|powercfg\s+/q").Count
                     ($BackupCalls -ge $SetCalls) | Should Be $true
 
-                    # Validar línea por línea que cada llamada a Backup-OverlordPowerSetting tenga el parámetro -BackupName
+                    # Validar lÃ­nea por lÃ­nea que cada llamada a Backup-OverlordPowerSetting tenga el parÃ¡metro -BackupName
                     $Lines = Get-Content -Path $File.FullName
                     foreach ($Line in $Lines) {
                         if ($Line -match "Backup-OverlordPowerSetting") {
@@ -369,9 +369,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $TestPathCalls = [regex]::Matches($StatusContent, 'Test-Path\s+\$(\w+Backup\w*|\w*Backup\w*)')
             foreach ($Call in $TestPathCalls) {
                 $VarName = $Call.Groups[1].Value
-                if ($VarName -ne "GameHooksBackup") {
-                    throw "Se detecto un Test-Path sobre la variable de backup `$$VarName` en get_modules_status.ps1, lo cual viola la Regla 8 de AGENTS.md"
-                }
+                throw "Se detecto un Test-Path sobre la variable de backup `$$VarName` en get_modules_status.ps1, lo cual viola la Regla 8 de AGENTS.md"
             }
             
             # Rutas de backup literales

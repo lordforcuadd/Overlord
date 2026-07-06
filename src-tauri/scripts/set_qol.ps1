@@ -96,6 +96,12 @@ function Set-RegistryValue($subPath, $name, $type, $val) {
         $fullPath = Join-Path $base $subPath
         if (!(Test-Path $fullPath)) { New-Item -Path $fullPath -Force | Out-Null }
         Set-ItemProperty -Path $fullPath -Name $name -Type $type -Value $val -Force | Out-Null
+        
+        # VerificaciÃ³n estricta (Cero Complacencia)
+        $actualVal = Get-ItemPropertyValue -Path $fullPath -Name $name -ErrorAction SilentlyContinue
+        if ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString()) {
+            throw "El sistema interceptÃ³ el cambio o bloqueÃ³ la escritura del registro en $fullPath\$name"
+        }
     }
 }
 
@@ -189,6 +195,8 @@ switch ($ToggleName) {
             $ErrorActionPreference = "Stop"
             if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
             Set-ItemProperty -Path $Path -Name "NoLockScreen" -Type DWord -Value $Value -Force | Out-Null
+            $actual = Get-ItemPropertyValue -Path $Path -Name "NoLockScreen" -ErrorAction SilentlyContinue
+            if ($null -eq $actual -or $actual.ToString() -ne $Value.ToString()) { throw "Bloqueado por el SO" }
         } catch {
             Write-Error "[-] Error al escribir la directiva NoLockScreen en HKLM: $_"
             exit 1
@@ -273,7 +281,7 @@ switch ($ToggleName) {
         }
         if ($Value -eq 1) {
             if ($CurrentFlags -eq "59") {
-                # Ya está optimizado y con teclas filtro desactivadas. No tocar para no romper latencia de periféricos.
+                # Ya estÃ¡ optimizado y con teclas filtro desactivadas. No tocar para no romper latencia de perifÃ©ricos.
             } else {
                 Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" "122"
             }
@@ -295,6 +303,8 @@ switch ($ToggleName) {
             $ErrorActionPreference = "Stop"
             if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
             Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
+            $actual = Get-ItemPropertyValue -Path $Path -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue
+            if ($null -eq $actual -or $actual.ToString() -ne $Value.ToString()) { throw "Bloqueado por el SO" }
         } catch {
             Write-Error "[-] Error al desactivar Copilot en HKLM: $_"
             exit 1
@@ -434,7 +444,7 @@ switch ($ToggleName) {
         
         $dvrVal = if ($Value -eq 1) { 0 } else { 1 }
         
-        # Evitar sobreescribir con 1 si otro módulo de rendimiento/GPU ya optimizó y respaldó la clave
+        # Evitar sobreescribir con 1 si otro mÃ³dulo de rendimiento/GPU ya optimizÃ³ y respaldÃ³ la clave
         if ($Value -eq 0) {
             $HasGpuBackup = Test-Path "HKLM:\SOFTWARE\Overlord\Backup\GPU"
             $HasPerfBackup = Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Performance"
@@ -458,7 +468,7 @@ switch ($ToggleName) {
                 Set-ItemProperty -Path $policyPath -Name "value" -Type DWord -Value $dvrVal -Force | Out-Null
             }
         } catch {
-            Write-Warning "[-] No se pudo modificar AllowGameDVR en HKLM: $_"
+            throw "[-] No se pudo modificar AllowGameDVR en HKLM: $_"
         } finally {
             $ErrorActionPreference = $OldEAP
         }

@@ -49,7 +49,7 @@ Try {
         throw "Fallo al asegurar la desactivacion de Windows Error Reporting"
     }
 
-    # Evitar reinicios automáticos de Windows Update con sesión iniciada
+    # Evitar reinicios automÃ¡ticos de Windows Update con sesiÃ³n iniciada
     $WUpPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
     if (!(Test-Path $WUpPath)) { New-Item -Path $WUpPath -Force | Out-Null }
     Backup-OverlordRegistryValue -TargetKey $WUpPath -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry"
@@ -75,7 +75,7 @@ Try {
             }
         }
     } catch {
-        Write-Warning "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc esté deshabilitado): $_"
+        throw "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc estÃ© deshabilitado): $_"
     }
 
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"
