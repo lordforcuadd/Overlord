@@ -171,6 +171,7 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Swal from "sweetalert2";
+import { overlordSwalConfig } from "../utils/swalConfig";
 import { useOverlordStore } from "../stores/overlordStore";
 import { getImpactClass } from "../utils/styleHelpers";
 

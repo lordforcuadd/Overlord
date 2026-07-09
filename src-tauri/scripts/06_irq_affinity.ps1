@@ -24,23 +24,10 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
-    # Mapeo inteligente multi-núcleo compatible con RSS (evita Core 0)
-    # Establece DevicePolicy = 4 (SpecifiedProcessors) para que Windows use RSS en el conjunto de cores asignados.
-    $DevicePolicyValue = 4 # SpecifiedProcessors
+    # Para asegurar máxima compatibilidad con cualquier topología (Intel Hybrid, AMD X3D, 4-cores)
+    # dejamos que el sistema operativo balancee de forma nativa (IrqPolicyMachineDefault)
+    $DevicePolicyValue = 0 # IrqPolicyMachineDefault
     [uint64]$NetBitmask = 0
-
-    if ($TotalCores -ge 8) {
-        # Evitar Core 0. Balancear en el segundo núcleo físico (asumiendo SMT, índices 2 y 3)
-        $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 3)
-    } elseif ($TotalCores -ge 4) {
-        # Evitar Core 0. Usar índice 2.
-        $NetBitmask = ([uint64]1 -shl 2)
-    } else {
-        # Para procesadores pequeños, dejar que el sistema operativo balancee de forma nativa
-        $DevicePolicyValue = 0 # IrqPolicyMachineDefault
-        $NetBitmask = 0
-    }
 
     $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)
 

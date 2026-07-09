@@ -270,6 +270,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import Swal from "sweetalert2";
+import { overlordSwalConfig } from "./utils/swalConfig";
 import BenchmarkPanel from "./components/BenchmarkPanel.vue";
 import { useOverlordStore } from "./stores/overlordStore";
 import { useOrchestrator } from "./composables/useOrchestrator";

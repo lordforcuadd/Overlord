@@ -85,9 +85,15 @@ Try {
                         foreach ($PKey in $PowerKeys) {
                             if ($null -ne $adapterProps -and $null -ne $adapterProps.PSObject.Properties[$PKey]) {
                                 Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
-                                Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
+                                if ($PKey -eq "*PacketCoalescing" -or $PKey -eq "PacketCoalescing") {
+                                    if (-not $IsLaptop) {
+                                        Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
+                                    }
+                                } else {
+                                    Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
+                                }
                                 $checkVal = Get-ItemPropertyValue -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
-                                if ($checkVal -ne "0") {
+                                if ($checkVal -ne "0" -and -not ($IsLaptop -and ($PKey -eq "*PacketCoalescing" -or $PKey -eq "PacketCoalescing"))) {
                                     throw "Fallo de validacion: No se pudo establecer $PKey en 0 para el adaptador $($Adapter.PSChildName)"
                                 }
                             }

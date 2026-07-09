@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import Swal from "sweetalert2";
+import { overlordSwalConfig } from "../utils/swalConfig";
 import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata } from "../data/tweaksMetadata";
 import ModuleCard from "./ModuleCard.vue";
