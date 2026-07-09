@@ -96,3 +96,23 @@ function Get-LauncherRoots {
 
     return $LauncherRoots
 }
+
+function Get-JavaRoots {
+    $SysDrive = $env:SystemDrive
+    if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
+    $ProgramFiles = $env:ProgramFiles
+    if ([string]::IsNullOrWhiteSpace($ProgramFiles)) { $ProgramFiles = Join-Path $SysDrive "Program Files" }
+    $ProgramFilesx86 = ${env:ProgramFiles(x86)}
+    if ([string]::IsNullOrWhiteSpace($ProgramFilesx86)) { $ProgramFilesx86 = Join-Path $SysDrive "Program Files (x86)" }
+
+    $JavaRoots = @(
+        (Join-Path $env:USERPROFILE "curseforge\minecraft\Install"),
+        (Join-Path $env:APPDATA ".minecraft"),
+        (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe\LocalCache\Local"),
+        (Join-Path $env:LOCALAPPDATA "PrismLauncher"),
+        (Join-Path $env:APPDATA "PrismLauncher"),
+        (Join-Path $ProgramFilesx86 "Minecraft Launcher"),
+        (Join-Path $ProgramFiles "Java")
+    )
+    return $JavaRoots
+}

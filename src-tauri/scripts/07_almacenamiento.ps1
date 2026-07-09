@@ -66,7 +66,7 @@ Try {
     try {
         # El objeto COM Microsoft.Update.Installer.IsBusy es local, por lo que verificamos procesos activos
         # de instaladores en caliente (TiWorker, TrustedInstaller) que denotan parches activos.
-        $IsUpdating = (Get-Process -Name "TiWorker", "TrustedInstaller" -ErrorAction SilentlyContinue) -ne $null
+        $IsUpdating = @(Get-Process -Name "TiWorker", "TrustedInstaller" -ErrorAction SilentlyContinue).Count -gt 0
         $WuauservSvc = Get-Service -Name "wuauserv" -ErrorAction SilentlyContinue
         $IsServiceRunning = $null -ne $WuauservSvc -and $WuauservSvc.Status -eq "Running"
 

@@ -45,15 +45,7 @@ try {
 
         if ($ExeName -eq "javaw.exe") {
             # BÃºsqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
-            $JavaPaths = @(
-                (Join-Path $env:USERPROFILE "curseforge\minecraft\Install"),
-                (Join-Path $env:APPDATA ".minecraft"),
-                (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe\LocalCache\Local"),
-                (Join-Path $env:LOCALAPPDATA "PrismLauncher"),
-                (Join-Path $env:APPDATA "PrismLauncher"),
-                "C:\Program Files (x86)\Minecraft Launcher",
-                "C:\Program Files\Java"
-            )
+            $JavaPaths = Get-JavaRoots
             foreach ($Root in $JavaPaths) {
                 if (Test-Path $Root) {
                     $FoundFile = Find-FileFaster -Path $Root -Filter "javaw.exe" -MaxDepth 6

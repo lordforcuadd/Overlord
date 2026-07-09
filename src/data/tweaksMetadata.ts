@@ -1,11 +1,3 @@
-export interface RegistryValueMapping {
-  hive: "HKEY_LOCAL_MACHINE" | "HKEY_CURRENT_USER";
-  path: string;
-  valueName: string;
-  valueType: "REG_DWORD" | "REG_SZ" | "REG_BINARY" | "REG_MULTI_SZ";
-  fallbackValue: string | number | boolean | null;
-}
-
 export interface TweakMetadata {
   id: string;
   title: string;
@@ -21,7 +13,6 @@ export interface TweakMetadata {
   impactoRendimiento: string;
   warning?: string;
   details: string[];
-  registryMapping: RegistryValueMapping[];
 }
 
 export const PROFILE_CONFIGS: Record<string, string[]> = {
@@ -87,85 +78,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Optimización de la latencia y repetición del teclado (FilterKeys con retraso a 200ms y repetición a 15ms).",
       "Desactivación del USB Selective Suspend para mantener energizados los puertos HID de forma continua.",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\PriorityControl",
-        valueName: "Win32PrioritySeparation",
-        valueType: "REG_DWORD",
-        fallbackValue: 2,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Mouse",
-        valueName: "MouseSpeed",
-        valueType: "REG_SZ",
-        fallbackValue: "1",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Mouse",
-        valueName: "MouseThreshold1",
-        valueType: "REG_SZ",
-        fallbackValue: "6",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Mouse",
-        valueName: "MouseThreshold2",
-        valueType: "REG_SZ",
-        fallbackValue: "10",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\Keyboard Response",
-        valueName: "Flags",
-        valueType: "REG_SZ",
-        fallbackValue: "126",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\Keyboard Response",
-        valueName: "AutoRepeatDelay",
-        valueType: "REG_SZ",
-        fallbackValue: "1000",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\Keyboard Response",
-        valueName: "AutoRepeatRate",
-        valueType: "REG_SZ",
-        fallbackValue: "500",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\Keyboard Response",
-        valueName: "DelayBeforeAcceptance",
-        valueType: "REG_SZ",
-        fallbackValue: "1000",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\Keyboard Response",
-        valueName: "BounceTime",
-        valueType: "REG_SZ",
-        fallbackValue: "0",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\StickyKeys",
-        valueName: "Flags",
-        valueType: "REG_SZ",
-        fallbackValue: "510",
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Control Panel\\Accessibility\\ToggleKeys",
-        valueName: "Flags",
-        valueType: "REG_SZ",
-        fallbackValue: "62",
-      },
-    ],
   },
   debloat: {
     id: "debloat",
@@ -195,64 +107,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Deshabilitación de permisos UWP en segundo plano (GlobalUserDisabled = 1) para apps inactivas.",
       "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, SensorService, TrkWks, RemoteRegistry).",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
-        valueName: "AllowTelemetry",
-        valueType: "REG_DWORD",
-        fallbackValue: 3,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Microsoft\\Windows\\CurrentVersion\\Search",
-        valueName: "BingSearchEnabled",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Microsoft\\Windows\\CurrentVersion\\Search",
-        valueName: "CortanaConsent",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications",
-        valueName: "GlobalUserDisabled",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Edge",
-        valueName: "StartupBoostEnabled",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Edge",
-        valueName: "BackgroundModeEnabled",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Policies\\Microsoft\\Windows\\WindowsCopilot",
-        valueName: "TurnOffWindowsCopilot",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot",
-        valueName: "TurnOffWindowsCopilot",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-    ],
   },
   networkOptimized: {
     id: "networkOptimized",
@@ -281,29 +135,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Configuración del perfil RSS a Closest para minimizar fallos de caché L3 de la CPU al procesar interrupciones.",
       "Desactivación de modos de ahorro Ethernet (EEE, Green Energy) y coalescencia de paquetes, control de flujo y moderación de interrupciones (adaptativo en escritorio con >8 hilos lógicos).",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
-        valueName: "NetworkThrottlingIndex",
-        valueType: "REG_DWORD",
-        fallbackValue: 10,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
-        valueName: "SystemResponsiveness",
-        valueType: "REG_DWORD",
-        fallbackValue: 20,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
-        valueName: "InitialRto",
-        valueType: "REG_DWORD",
-        fallbackValue: 3000,
-      },
-    ],
   },
   generalPerformance: {
     id: "generalPerformance",
@@ -330,50 +161,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "System\\GameConfigStore",
-        valueName: "GameDVR_Enabled",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "Scheduling Category",
-        valueType: "REG_SZ",
-        fallbackValue: "Medium",
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "SFIO Priority",
-        valueType: "REG_SZ",
-        fallbackValue: "Normal",
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "Priority",
-        valueType: "REG_DWORD",
-        fallbackValue: 2,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "GPU Priority",
-        valueType: "REG_DWORD",
-        fallbackValue: 8,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games",
-        valueName: "Clock Rate",
-        valueType: "REG_DWORD",
-        fallbackValue: 10,
-      },
-    ],
   },
   disableMitigations: {
     id: "disableMitigations",
@@ -399,22 +186,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Inhabilitación de mitigaciones de speculative execution (Spectre/Meltdown).",
       "Restauración del rendimiento perdido por parches de seguridad de kernel.",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
-        valueName: "FeatureSettingsOverride",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
-        valueName: "FeatureSettingsOverrideMask",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
-    ],
   },
   gpuDisplay: {
     id: "gpuDisplay",
@@ -438,29 +209,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Establece HwSchMode a 2 para activar la programación de GPU acelerada por hardware (HAGS).",
       "Desactivación de GameBarPresenceWriter a nivel de directivas de usuario para prevenir congelamientos temporales.",
       "Desactivación del grabador de aplicaciones AppCaptureEnabled para liberar ciclos del codificador de vídeo.",
-    ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
-        valueName: "HwSchMode",
-        valueType: "REG_DWORD",
-        fallbackValue: 2,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR",
-        valueName: "AllowGameDVR",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
-        valueName: "AppCaptureEnabled",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
     ],
   },
   irqAffinity: {
@@ -488,7 +236,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Asignación multi-núcleo selectiva en dos cores físicos independientes (SpecifiedProcessors) para conservar RSS y ancho de banda en descargas.",
       "Selección automática de hilos P-Core optimizados (4 y 6 en CPUs >=12 hilos, o 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT).",
     ],
-    registryMapping: [],
   },
   smartStorage: {
     id: "smartStorage",
@@ -514,36 +261,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Optimización adaptativa de la caché de metadatos NTFS (NtfsMemoryUsage = 2) en sistemas con >= 16 GB de RAM.",
       "Desactivación completa de la hibernación y remoción del archivo fantasma persistente Hiberfil.sys (en desktops).",
       "Desactivación de Inicio Rápido (HiberbootEnabled = 0) para forzar un apagado limpio del kernel de Windows.",
-    ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem",
-        valueName: "NtfsDisableLastAccessUpdate",
-        valueType: "REG_DWORD",
-        fallbackValue: 2,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem",
-        valueName: "NtfsDisable8dot3NameCreation",
-        valueType: "REG_DWORD",
-        fallbackValue: 2,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem",
-        valueName: "NtfsMemoryUsage",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power",
-        valueName: "HiberbootEnabled",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
     ],
   },
   deepTelemetry: {
@@ -573,64 +290,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
       "Bloqueo total de Windows Recall y captura de actividad local de Inteligencia Artificial (Windows AI).",
     ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\System",
-        valueName: "PublishUserActivities",
-        valueType: "REG_DWORD",
-        fallbackValue: 1,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting",
-        valueName: "Disabled",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
-        valueName: "TurnOffUserCameraCapture",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
-        valueName: "DisableAIDataAnalysis",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
-        valueName: "TurnOffUserCameraCapture",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_CURRENT_USER",
-        path: "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
-        valueName: "DisableAIDataAnalysis",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
-        valueName: "AllowRecallEnablement",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
-        valueName: "NoAutoRebootWithLoggedOnUsers",
-        valueType: "REG_DWORD",
-        fallbackValue: null,
-      },
-    ],
   },
   powerProfiles: {
     id: "powerProfiles",
@@ -655,15 +314,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Ajuste del estacionamiento de núcleos (Core Parking) al 100% para evitar caídas y fluctuaciones de frecuencias.",
       "Optimización de la preferencia de rendimiento energético (EPP = 0) y CPU Boost (Agresivo) en desktops.",
       "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación global de Power Throttling en desktops.",
-    ],
-    registryMapping: [
-      {
-        hive: "HKEY_LOCAL_MACHINE",
-        path: "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling",
-        valueName: "PowerThrottlingOff",
-        valueType: "REG_DWORD",
-        fallbackValue: 0,
-      },
     ],
   },
   gameHooks: {
@@ -692,7 +342,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Eliminación de modificaciones IFEO estáticas en el registro de Windows para erradicar por completo falsos positivos.",
       "Aislamiento de persistencia de entorno mediante subllaves estructuradas con la ruta física completa del ejecutable.",
     ],
-    registryMapping: [],
   },
   defenderExclusions: {
     id: "defenderExclusions",
@@ -718,6 +367,5 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Uso del cmdlet oficial Add-MpPreference de Windows Defender.",
       "Persistencia de la lista de directorios agregados en la base de datos de Overlord para una reversión quirúrgica no destructiva.",
     ],
-    registryMapping: [],
   },
 };
