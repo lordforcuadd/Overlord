@@ -23,9 +23,6 @@ Try {
     $AllProvisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
 
     foreach ($App in $Apps) {
-        if ($App -match "Xbox" -or $App -match "XboxIdentityProvider" -or $App -match "WindowsStore") {
-            continue
-        }
         try {
             Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
             $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue

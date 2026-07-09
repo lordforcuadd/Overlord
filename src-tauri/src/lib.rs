@@ -2,9 +2,11 @@
 mod executor;
 mod hardware;
 mod memory;
+mod games;
 
 use executor::{execute_script_in_memory, execute_script_in_memory_readonly};
-use hardware::{get_system_hardware, collect_installed_games, HardwareResponse, ScanGamesResponse};
+use hardware::{get_system_hardware, HardwareResponse};
+use games::{collect_installed_games, ScanGamesResponse};
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
 use tauri::{State, Manager};
 use std::time::{Instant, Duration};

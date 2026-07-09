@@ -1,7 +1,4 @@
-param(
-    [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8
-)
+# 09_energia.ps1
 $ErrorActionPreference = "Stop"
 
 Try {

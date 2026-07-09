@@ -18,74 +18,8 @@ if ($AdminToggles -contains $ToggleName -and -not $isAdmin) {
     exit 1
 }
 
-$FullUsername = $null
-try {
-    $FullUsername = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
-} catch {}
-
-if ([string]::IsNullOrWhiteSpace($FullUsername)) {
-    try {
-        $FullUsername = (Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UserName -First 1)
-    } catch {}
-}
-
-if ([string]::IsNullOrWhiteSpace($FullUsername)) {
-    $FullUsername = "$env:USERDOMAIN\$env:USERNAME"
-}
-
-$LeafUsername = $FullUsername
-if ($FullUsername -match '\\(.+)$') { $LeafUsername = $Matches[1] }
-
-$UserSID = ""
-if (-not [string]::IsNullOrWhiteSpace($FullUsername)) {
-    try {
-        $NtAccount = New-Object System.Security.Principal.NTAccount($FullUsername)
-        $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
-    } catch {
-        try {
-            $NtAccount = New-Object System.Security.Principal.NTAccount($LeafUsername)
-            $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
-        } catch {
-            try {
-                $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $LeafUsername }).SID
-            } catch {}
-        }
-    }
-}
-
-if ([string]::IsNullOrWhiteSpace($UserSID)) {
-    try {
-        $Explorer = Get-CimInstance -ClassName Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($Explorer) {
-            $Owner = Invoke-CimMethod -InputObject $Explorer -MethodName GetOwner -ErrorAction SilentlyContinue
-            $NtAccount = if (-not [string]::IsNullOrWhiteSpace($Owner.Domain)) {
-                New-Object System.Security.Principal.NTAccount($Owner.Domain, $Owner.User)
-            } else {
-                New-Object System.Security.Principal.NTAccount($Owner.User)
-            }
-            $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
-        }
-    } catch {}
-}
-
-if ([string]::IsNullOrWhiteSpace($UserSID)) {
-    try {
-        $HKeyUsers = [Microsoft.Win32.Registry]::Users
-        foreach ($SubkeyName in $HKeyUsers.GetSubKeyNames()) {
-            if ($SubkeyName -match '^S-1-5-21-\d+-\d+-\d+-\d+$') {
-                $VolatileKey = "Registry::HKEY_USERS\$SubkeyName\Volatile Environment"
-                if (Test-Path $VolatileKey) {
-                    $UserSID = $SubkeyName
-                    break
-                }
-            }
-        }
-    } catch {}
-}
-
-$Targets = @()
-if (-not [string]::IsNullOrWhiteSpace($UserSID)) { $Targets += "Registry::HKEY_USERS\$UserSID" }
-$Targets += "HKCU:"
+$HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
+$Targets = @($HKCU_Path)
 
 $NormalizedInput = $IsEnabledStr.ToLower().Replace("$", "").Trim()
 $Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
@@ -277,7 +211,7 @@ switch ($ToggleName) {
             }
         }
         foreach ($base in $Targets) {
-            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Accessibility\Keyboard Response") -ValueName "Flags" -BackupSubFolder "QoL\FilterKeys"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Accessibility\Keyboard Response") -ValueName "Flags" -BackupSubFolder "Accessibility"
         }
         if ($Value -eq 1) {
             if ($CurrentFlags -eq "59") {

@@ -30,15 +30,17 @@ Try {
             # Configurar perfiles para cleanmgr (DirectX Shader Cache y temporales)
             $VolumeCaches = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
             if (Test-Path $VolumeCaches) {
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\ActiveX Cache" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Downloaded Program Files" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Internet Cache Files" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Old Chkdsk Files" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Previous Installations" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Setup Log Files" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Temporary Files" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\DirectX Shader Cache" /v StateFlags0001 /t REG_DWORD /d 2 /f | Out-Null
-                
+                $CacheKeys = @(
+                    "ActiveX Cache", "Downloaded Program Files", "Internet Cache Files",
+                    "Old Chkdsk Files", "Previous Installations", "Setup Log Files",
+                    "Temporary Files", "DirectX Shader Cache"
+                )
+                foreach ($Key in $CacheKeys) {
+                    $FullPath = Join-Path $VolumeCaches $Key
+                    if (Test-Path $FullPath) {
+                        Set-ItemProperty -Path $FullPath -Name "StateFlags0001" -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                }
                 # Nota: Omitimos "Update Cleanup" por lentitud extrema e irrelevancia en el rendimiento de juegos
             }
 
@@ -111,9 +113,6 @@ Try {
                 $CimSvc = Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
                 if ($null -ne $CimSvc) {
                     $originalStartType = $CimSvc.StartMode
-                } else {
-                    $WmiSvc = Get-WmiObject -Class Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
-                    if ($null -ne $WmiSvc) { $originalStartType = $WmiSvc.StartMode }
                 }
                 $wasRunning = ($wuauserv.Status -eq 'Running')
                 if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {

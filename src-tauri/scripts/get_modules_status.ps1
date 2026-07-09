@@ -4,6 +4,7 @@ param(
     [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "SilentlyContinue"
+$WIN32_PRIORITY_SEP = 26
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 
 $Status = @{
@@ -29,7 +30,7 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
     $Delay = Get-ItemPropertyValue -Path $KeyRespPath -Name "AutoRepeatDelay" -ErrorAction SilentlyContinue
     $Rate = Get-ItemPropertyValue -Path $KeyRespPath -Name "AutoRepeatRate" -ErrorAction SilentlyContinue
     $Priority = Get-ItemPropertyValue -Path $PriorityPath -Name "Win32PrioritySeparation" -ErrorAction SilentlyContinue
-    if ($Speed -eq "0" -and $Delay -eq "200" -and $Rate -eq "15" -and $Priority -eq 26) {
+    if ($Speed -eq "0" -and $Delay -eq "200" -and $Rate -eq "15" -and $Priority -eq $WIN32_PRIORITY_SEP) {
         $Status['peripheralLatency'] = $true
     }
 }
@@ -290,46 +291,16 @@ if (Test-Path $PowerSchemePath) {
     }
 }
 
-$GameHooksBackup = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks"
 $LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
 
-# 1. Comprobar juegos configurados en games_to_optimize.txt si existe
-$ProgData = $env:ProgramData
-if ([string]::IsNullOrWhiteSpace($ProgData)) { 
-    $SysDrive = $env:SystemDrive
-    if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
-    $ProgData = Join-Path $SysDrive "ProgramData"
-}
-$ConfigPath = Join-Path $ProgData "Overlord\games_to_optimize.txt"
-
-if (Test-Path $ConfigPath) {
-    $GamesContent = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
-    if ($GamesContent) {
-        $GamesList = $GamesContent -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
-        if ($GamesList -and (Test-Path $LayersPath)) {
-            $Layers = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
-            if ($null -ne $Layers) {
-                foreach ($Prop in $Layers.PSObject.Properties) {
-                    if ($Prop.Name -match "\.exe$" -and $Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
-                        $ExeName = Split-Path $Prop.Name -Leaf
-                        $CleanExe = $ExeName.ToLower() -replace '\.exe$', ''
-                        if ($GamesList -contains $CleanExe) {
-                            $Status['gameHooks'] = $true
-                            break
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-# 2. Fallback sin usar carpetas de backup: escanear AppCompatFlags\Layers por si hay algun flag activo
-if ($Status['gameHooks'] -ne $true -and (Test-Path $LayersPath)) {
+# Verificar estado activo de GameHooks leyendo directamente los flags reales en el registro
+if (Test-Path $LayersPath) {
     $LayersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
     if ($null -ne $LayersProps) {
         foreach ($Prop in $LayersProps.PSObject.Properties) {
-            if ($Prop.Name -match "\.exe$" -and $Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
+            # Si hay un .exe con override de DPI o fullscreen optimizations deshabilitado, 
+            # asumimos que el módulo gameHooks (o al menos un juego de su catálogo) está activo.
+            if ($Prop.Name -match "\.exe$" -and ($Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -or $Prop.Value -match "DISABLEDXMAXIMIZEDWINDOWEDMODE")) {
                 $Status['gameHooks'] = $true
                 break
             }

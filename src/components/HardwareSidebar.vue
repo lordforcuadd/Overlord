@@ -135,7 +135,7 @@
         <div class="text-right">
           <span class="text-white font-bold text-sm">
             {{
-              store.hardwareInfo.ramGb
+              store.hardwareInfo.ramGb !== undefined && store.hardwareInfo.ramGb > 0
                 ? `${store.hardwareInfo.ramGb} GB`
                 : "..."
             }}

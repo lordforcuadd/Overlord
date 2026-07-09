@@ -2,8 +2,7 @@ param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8,
     [bool]$IsHybrid = $false,
-    [bool]$IsX3d = $false,
-    [bool]$IsSsd = $false
+    [bool]$IsX3d = $false
 )
 $ErrorActionPreference = "Stop"
 
@@ -26,28 +25,21 @@ Try {
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
     $TotalCores = [int]$env:NUMBER_OF_PROCESSORS
-    # Mapeo inteligente multi-nÃºcleo compatible con RSS (evita Core 0, evita hilos HT hermanos y evita E-cores al final)
+    # Mapeo inteligente multi-núcleo compatible con RSS (evita Core 0)
     # Establece DevicePolicy = 4 (SpecifiedProcessors) para que Windows use RSS en el conjunto de cores asignados.
     $DevicePolicyValue = 4 # SpecifiedProcessors
     [uint64]$NetBitmask = 0
 
-    if ($IsHybrid) {
-        # CPU hÃ­brida (Intel P-Core/E-Core): Afinar interrupciones a P-Cores fÃ­sicos (hilos lÃ³gicos 4 y 6)
-        # evitando los E-Cores situados en la parte alta del rango de procesadores
-        $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
-    } elseif ($IsX3d) {
-        # CPU AMD Ryzen 3D V-Cache: Direccionar a los cores fÃ­sicos de alto rendimiento y cachÃ© 3D en CCD0 (hilos lÃ³gicos 4 y 6)
-        $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
+    if ($TotalCores -ge 8) {
+        # Evitar Core 0. Balancear en el segundo núcleo físico (asumiendo SMT, índices 2 y 3)
+        $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 3)
+    } elseif ($TotalCores -ge 4) {
+        # Evitar Core 0. Usar índice 2.
+        $NetBitmask = ([uint64]1 -shl 2)
     } else {
-        # CPU estÃ¡ndar: Usar asignaciÃ³n adaptativa por hilos lÃ³gicos totales
-        if ($TotalCores -ge 12) {
-            $NetBitmask = ([uint64]1 -shl 4) -bor ([uint64]1 -shl 6)
-        } elseif ($TotalCores -ge 8) {
-            $NetBitmask = ([uint64]1 -shl 2) -bor ([uint64]1 -shl 4)
-        } else {
-            $DevicePolicyValue = 2
-            $NetBitmask = [uint64]1 -shl 2
-        }
+        # Para procesadores pequeños, dejar que el sistema operativo balancee de forma nativa
+        $DevicePolicyValue = 0 # IrqPolicyMachineDefault
+        $NetBitmask = 0
     }
 
     $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)

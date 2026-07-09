@@ -92,11 +92,13 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
         )
     } else {
         let backup_module = include_str!("../scripts/backup_manager.psm1");
+        let game_locator_module = include_str!("../scripts/game_locator.psm1");
         format!(
-            "{}\n{}\n{}\n{}",
+            "{}\n{}\n{}\n{}\n{}",
             header,
             sid_resolver,
             backup_module,
+            game_locator_module,
             script_clean
         )
     };
@@ -131,16 +133,22 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
         stdin.write_all(b64_encoded.as_bytes()).await.map_err(|e| format!("Error al escribir en stdin: {}", e))?;
     } 
 
+    const TIMEOUT_REPAIR_OS: u64 = 1200;
+    const TIMEOUT_BASE: u64 = 300;
+    const TIMEOUT_PER_GAME: u64 = 30;
+    const TIMEOUT_HDD_PENALTY: u64 = 120;
+    const TIMEOUT_MIN_HOOKS: u64 = 600;
+
     let mut timeout_secs = if game_list == "RepairOS" {
-        1200
+        TIMEOUT_REPAIR_OS
     } else {
         let num_games = if game_list.is_empty() { 0 } else { game_list.split(',').filter(|s| !s.trim().is_empty()).count() };
         let is_hdd = if is_ssd { 0 } else { 1 };
-        300 + (num_games as u64 * 30) + (is_hdd * 120)
+        TIMEOUT_BASE + (num_games as u64 * TIMEOUT_PER_GAME) + (is_hdd * TIMEOUT_HDD_PENALTY)
     };
 
-    if (action_id == "11_game_hooks" || action_id == "12_defender_exclusions") && timeout_secs < 600 {
-        timeout_secs = 600;
+    if (action_id == "11_game_hooks" || action_id == "12_defender_exclusions") && timeout_secs < TIMEOUT_MIN_HOOKS {
+        timeout_secs = TIMEOUT_MIN_HOOKS;
     }
 
     let mut stdout = child.stdout.take().ok_or("No se pudo obtener stdout de PowerShell".to_string())?;

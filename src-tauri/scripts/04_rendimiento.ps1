@@ -1,7 +1,6 @@
 param(
     [bool]$IsLaptop = $false, 
-    [int]$RamGB = 8,
-    [bool]$IsSsd = $false
+    [int]$RamGB = 8
 )
 $ErrorActionPreference = "Stop"
 
@@ -71,7 +70,6 @@ Try {
         if ((Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue) -ne 6) { throw "Fallo de verificacion en MMCSS Priority" }
     }
 
-    $StorePath = "$HKCU_Path\System\GameConfigStore"
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }
     Set-ItemProperty -Path $StorePath -Name "GameDVR_Enabled" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemPropertyValue -Path $StorePath -Name "GameDVR_Enabled" -ErrorAction SilentlyContinue) -ne 0) { 

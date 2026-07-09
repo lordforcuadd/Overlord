@@ -101,7 +101,7 @@ export const useOverlordStore = defineStore("overlord", {
     isMonitorRunning: false,
     isPriorityServiceInstalled: false,
     priorityServiceSelected: false,
-    telemetryInterval: null as any,
+    telemetryInterval: null as ReturnType<typeof setInterval> | null,
     isInitialized: false,
     isBenchmarkTesting: false,
   }),

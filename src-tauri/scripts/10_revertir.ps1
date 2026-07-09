@@ -188,7 +188,6 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-353696Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-353694Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
 
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "QoL\FilterKeys" -DefaultValue "126" -DefaultType "String"
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "ShowCopilotButton" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue 0
@@ -735,10 +734,8 @@ Try {
         if (![string]::IsNullOrWhiteSpace($AddedExclusions)) {
             $Paths = $AddedExclusions -split ";" | Where-Object { $_ -ne "" }
             foreach ($Path in $Paths) {
-                if (Test-Path $Path) {
-                    Remove-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue | Out-Null
-                    Write-Host "    [-] Exclusion de Windows Defender removida: $Path"
-                }
+                Remove-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue | Out-Null
+                Write-Host "    [-] Exclusion de Windows Defender removida: $Path"
             }
         }
         Remove-Item -Path $DefenderBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
@@ -746,7 +743,14 @@ Try {
 
     Write-Host "[+] Reversion completa de Overlord finalizada con exito."
 
-    if (Test-Path $BackupPath) { Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
+    if (Test-Path $BackupPath) {
+        $RemainingFiles = Get-ChildItem -Path $BackupPath -Recurse -ErrorAction SilentlyContinue
+        if ($null -eq $RemainingFiles -or @($RemainingFiles).Count -eq 0) {
+            Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        } else {
+            Write-Warning "No se borraron todos los respaldos, la carpeta $BackupPath no est vaca."
+        }
+    }
 
     # Eliminar la clave padre principal si queda vacÃ­a tras la reversiÃ³n para no dejar huella
     $OverlordKey = "HKLM:\SOFTWARE\Overlord"

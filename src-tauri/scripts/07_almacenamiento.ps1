@@ -1,8 +1,6 @@
 param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8,
-    [bool]$IsHybrid = $false,
-    [bool]$IsX3d = $false,
     [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "Stop"

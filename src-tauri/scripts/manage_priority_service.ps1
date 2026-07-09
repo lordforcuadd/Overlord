@@ -39,7 +39,11 @@ if ($Action -eq "install") {
     $Acl.AddAccessRule($UsersRule)
     try { $Acl.AddAccessRule($UsersRule2) } catch {}
     
-    Set-Acl -Path $InstallDir -AclObject $Acl | Out-Null
+    try {
+        Set-Acl -Path $InstallDir -AclObject $Acl -ErrorAction Stop
+    } catch {
+        throw "No se pudo aplicar ACL de seguridad a $InstallDir : $_"
+    }
 
     $GameList | Out-File -FilePath $ConfigFile -Encoding utf8 -Force
 
@@ -67,6 +71,10 @@ function Write-DaemonLog {
 Write-DaemonLog "Iniciando daemon de prioridad de juegos..."
 
 while ($true) {
+    if (-not (Test-Path $ConfigPath)) {
+        Write-DaemonLog "Archivo de configuracion eliminado. Deteniendo daemon."
+        exit 0
+    }
     try {
         $Games = Get-Content -Path $ConfigPath -ErrorAction Stop
         if ($Games) {

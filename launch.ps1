@@ -140,7 +140,7 @@ if ($null -ne $DownloadUrl) {
     if (Test-Path $ExePath) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
-        if ($null -ne $Signature -and $Signature.Status -eq "Valid") {
+        if ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Subject -match "CN=Overlord") {
             Write-Host "[+] Binario local validado mediante firma digital." -ForegroundColor Green
             $ExecutionPermitted = $true
         } else {
