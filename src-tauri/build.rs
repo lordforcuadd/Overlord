@@ -28,7 +28,7 @@ fn main() {
 "#, level));
 
     if let Err(e) = tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows)) {
-        println!("cargo:warning=Error crÃ­tico al compilar integraciÃ³n Tauri: {}", e);
+        println!("cargo:warning=Error crítico al compilar integración Tauri: {}", e);
         std::process::exit(1);
     }
 }

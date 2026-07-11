@@ -105,7 +105,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
 
     let b64_encoded = encode_utf16_base64(&unified_script);
 
-    let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); Invoke-Expression $script }";
+    let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); [scriptblock]::Create($script).InvokeReturnAsIs() }";
     let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
     let mut powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
     let sysnative_path = format!("{}\\Sysnative\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);

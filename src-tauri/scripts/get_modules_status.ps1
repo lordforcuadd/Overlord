@@ -313,7 +313,7 @@ if (Test-Path $LayersPath) {
 $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 if (Test-Path $MemPath) {
     $Override = Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue
-    if ($Override -eq 3 -or $Override -eq 8259) {
+    if ($Override -eq 8259) {
         $Status['disableMitigations'] = $true
     }
 }

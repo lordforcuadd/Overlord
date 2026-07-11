@@ -67,14 +67,15 @@ Try {
                                         $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
                                         
                                         if ($affinityKey.GetValue("DevicePolicy") -ne $DevicePolicyValue) {
-                                            throw "El SO bloqueÃ³ DevicePolicy para el dispositivo PCI: $devId"
+                                            throw "El SO bloqueó DevicePolicy para el dispositivo PCI: $devId"
                                         }
-                                        $affinityKey.Close()
                                     }
-                                    $paramKey.Close()
                                 }
                             } catch {
-                                throw "El SO bloqueÃ³ la configuraciÃ³n de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
+                                throw "El SO bloqueó la configuración de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
+                            } finally {
+                                if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
+                                if ($null -ne $paramKey) { $paramKey.Close(); $paramKey = $null }
                             }
                         }
                         

@@ -140,10 +140,9 @@ if ($null -ne $DownloadUrl) {
     if (Test-Path $ExePath) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
-        # NOTA DE SEGURIDAD: Validar por CN permite suplantación si el atacante falsifica un certificado con el mismo nombre.
-        # En producción se debe usar el Thumbprint exacto del certificado del desarrollador: -and $Signature.SignerCertificate.Thumbprint -eq "ABC123..."
-        if ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Subject -match "CN=Overlord") {
-            Write-Host "[+] Binario local validado mediante firma digital." -ForegroundColor Green
+        $ValidThumbprint = "YOUR_CERTIFICATE_THUMBPRINT_HERE_REPLACE_ME"
+        if ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Thumbprint -eq $ValidThumbprint) {
+            Write-Host "[+] Binario local validado mediante firma digital estricta (Thumbprint)." -ForegroundColor Green
             $ExecutionPermitted = $true
         } else {
             Write-Host "[-] ERROR CRÍTICO: El binario local no posee una firma digital válida o está corrupto/manipulado. Abortando por seguridad." -ForegroundColor Red
