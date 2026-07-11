@@ -1,5 +1,4 @@
 param(
-    [bool]$IsLaptop = $false, 
     [int]$RamGB = 8
 )
 $ErrorActionPreference = "Stop"
@@ -12,7 +11,7 @@ Try {
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
 
     # Validar soporte WDDM >= 2.7 (introducido en Windows Build 19041) para evitar pantallas negras en GPU legacy
-    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
+    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuild" -ErrorAction SilentlyContinue)
     $WddmSupported = $false
     
     if ($BuildNum -ge 19041) {

@@ -193,7 +193,14 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                                 let full_game_path = Path::new(path).join(&dir_name);
                                 if full_game_path.exists() {
                                     for game in catalog.iter_mut() {
-                                        if dir_name.to_lowercase().contains(&game.name.to_lowercase()) || game.name.to_lowercase().contains(&dir_name.to_lowercase()) {
+                                        let game_lower = game.name.to_lowercase();
+                                        let dir_lower = dir_name.to_lowercase();
+                                        let matches = if game_lower == "rust" {
+                                            dir_lower == "rust"
+                                        } else {
+                                            dir_lower.contains(&game_lower) || game_lower.contains(&dir_lower)
+                                        };
+                                        if matches {
                                             game.detected = true;
                                         }
                                     }

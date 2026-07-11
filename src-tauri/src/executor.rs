@@ -118,6 +118,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
         .args(&[
             "-NoProfile",
             "-NonInteractive",
+            // NOTA: Bypass es intencional porque el script se pasa completo via stdin en memoria sin tocar disco
             "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden",
             "-Command", bootstrap_cmd,

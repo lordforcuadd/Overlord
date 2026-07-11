@@ -61,13 +61,17 @@ Try {
             Backup-OverlordRegistryValue -TargetKey $GamesPath -ValueName "Clock Rate" -BackupSubFolder "Performance"
         Set-ItemProperty -Path $GamesPath -Name "Scheduling Category" -Type String -Value "High" -Force | Out-Null
         Set-ItemProperty -Path $GamesPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
-        Set-ItemProperty -Path $GamesPath -Name "Priority" -Type DWord -Value 6 -Force | Out-Null
-        Set-ItemProperty -Path $GamesPath -Name "GPU Priority" -Type DWord -Value 8 -Force | Out-Null
-        Set-ItemProperty -Path $GamesPath -Name "Clock Rate" -Type DWord -Value 10 -Force | Out-Null
+        $PRIORITY_HIGH_6 = 6
+        $GPU_PRIORITY_8 = 8
+        $CLOCK_RATE_100_PERCENT = 10
+
+        Set-ItemProperty -Path $GamesPath -Name "Priority" -Type DWord -Value $PRIORITY_HIGH_6 -Force | Out-Null
+        Set-ItemProperty -Path $GamesPath -Name "GPU Priority" -Type DWord -Value $GPU_PRIORITY_8 -Force | Out-Null
+        Set-ItemProperty -Path $GamesPath -Name "Clock Rate" -Type DWord -Value $CLOCK_RATE_100_PERCENT -Force | Out-Null
 
         # VerificaciÃ³n de MMCSS
         if ((Get-ItemPropertyValue -Path $GamesPath -Name "Scheduling Category" -ErrorAction SilentlyContinue) -ne "High") { throw "Fallo de verificacion en MMCSS Scheduling Category" }
-        if ((Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue) -ne 6) { throw "Fallo de verificacion en MMCSS Priority" }
+        if ((Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue) -ne $PRIORITY_HIGH_6) { throw "Fallo de verificacion en MMCSS Priority" }
     }
 
     if (!(Test-Path $StorePath)) { New-Item -Path $StorePath -Force | Out-Null }

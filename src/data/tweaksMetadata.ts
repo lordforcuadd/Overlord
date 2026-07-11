@@ -131,7 +131,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Prioridad de CPU dedicada (SystemResponsiveness = 10) para evitar que hilos del kernel estrangulen el hilo del juego.",
       "Optimización del tiempo de retransmisión TCP (InitialRto = 2000ms) para recuperación ultrarrápida de pérdidas de paquetes.",
       "Desactivación del algoritmo de Nagle (TcpNoDelay = 1 y TcpAckFrequency = 1) en las interfaces de red activas.",
-      "Desactivación de Large Send Offload (LSO) y Receive Segment Coalescing (RSC) en adaptadores de red para eliminar jitter.",
+      "Desactivación de Large Send Offload (LSO) y Receive Segment Coalescing (RSC) en adaptadores de red para eliminar jitter (Advertencia: puede reducir el ancho de banda pico en transferencias masivas).",
       "Configuración del perfil RSS a Closest para minimizar fallos de caché L3 de la CPU al procesar interrupciones.",
       "Desactivación de modos de ahorro Ethernet (EEE, Green Energy) y coalescencia de paquetes, control de flujo y moderación de interrupciones (adaptativo en escritorio con >8 hilos lógicos).",
     ],
@@ -339,7 +339,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Inyección de invalidación de escalado de PPP (High DPI) para eliminar la latencia por reescalado de pantalla.",
       "Forzado de pantalla completa exclusiva en archivos de configuración de juegos compatibles (como Unreal Engine).",
-      "Eliminación de modificaciones IFEO estáticas en el registro de Windows para erradicar por completo falsos positivos.",
+      "Limpieza quirúrgica de modificaciones IFEO inyectadas previamente por Overlord, preservando de forma 100% segura los hooks legítimos de Anti-Cheats (Vanguard, EAC).",
       "Aislamiento de persistencia de entorno mediante subllaves estructuradas con la ruta física completa del ejecutable.",
     ],
   },

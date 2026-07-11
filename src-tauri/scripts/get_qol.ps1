@@ -26,9 +26,10 @@ function Get-RegistryValue($basePath, $subPath, $name, $expectedValue) {
     return $false
 }
 
+$globalBuildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
+
 function Test-ClassicMenuEnabled {
-    $buildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
-    if ($buildVer -lt 26000) {
+    if ($globalBuildVer -lt 26000) {
         foreach ($base in $Targets) {
             $path = Join-Path $base "Software\Classes\CLSID\{e56a902a-a584-450e-9022-d7902bc4e017}\InprocServer32"
             if (Test-Path $path) { return $true }
@@ -43,8 +44,6 @@ function Test-ClassicMenuEnabled {
     if (Get-Process "StartAllBack" -ErrorAction SilentlyContinue) { return $true }
     return $false
 }
-
-$buildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
 
 $Qol = @{
     darkMode           = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme" 0
@@ -68,7 +67,7 @@ $Qol = @{
     disableRecall      = ((Get-RegistryValue $null "Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1) -and (Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1))
     detailedBSoD       = Get-RegistryValue "HKLM:" "SYSTEM\CurrentControlSet\Control\CrashControl" "DisplayParameters" 1
     disableOneDrive    = Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" 1
-    windowsBuild       = $buildVer
+    windowsBuild       = $globalBuildVer
 }
 
 ConvertTo-Json $Qol -Compress

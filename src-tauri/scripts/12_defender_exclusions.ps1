@@ -88,70 +88,7 @@ try {
             $shortName = ($GameBaseName -split '-|_')[0]
             $TranslatedName = if ($FolderTranslationTable.ContainsKey($shortName)) { $FolderTranslationTable[$shortName] } else { $null }
 
-            $AppPathRegistry = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$ExeName"
-            $RegProps = Get-ItemProperty -Path $AppPathRegistry -ErrorAction SilentlyContinue
-            $RawRegistryValue = if ($RegProps) { $RegProps.'(Default)' } else { $null }
-
-            if (![string]::IsNullOrWhiteSpace($RawRegistryValue)) {
-                try {
-                    $CleanedPath = $RawRegistryValue -replace '^"|"$',''
-                    if ($CleanedPath -match '([a-zA-Z]:\\[^"]+\.exe)') {
-                        $CleanedPath = $Matches[1]
-                    }
-                    $ResolvedPath = [System.IO.Path]::GetFullPath($CleanedPath)
-                    if (Test-Path $ResolvedPath -PathType Leaf) {
-                        $RealExePath = $ResolvedPath
-                    }
-                } catch {}
-            }
-
-            if ([string]::IsNullOrWhiteSpace($RealExePath)) {
-                $DeepHints = [System.Collections.Generic.List[string]]::new()
-                $DeepHints.AddRange([string[]]@(
-                    (Join-Path $ProgramFilesx86 "Overwatch\_retail_\$ExeName"),
-                    (Join-Path $ProgramFiles "Overwatch\_retail_\$ExeName"),
-                    (Join-Path $ProgramFilesx86 "Battle.net\$ExeName")
-                ))
-                try {
-                    $FixedDrives = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq 'Fixed' } | ForEach-Object { $_.Name }
-                    foreach ($Drive in $FixedDrives) {
-                        $DeepHints.Add((Join-Path $Drive "Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName"))
-                        $DeepHints.Add((Join-Path $Drive "Riot Games\League of Legends\$ExeName"))
-                        $DeepHints.Add((Join-Path $Drive "Riot Games\League of Legends\Game\$ExeName"))
-                    }
-                } catch {
-                    $DeepHints.Add((Join-Path $SysDrive "Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName"))
-                    $DeepHints.Add((Join-Path $SysDrive "Riot Games\League of Legends\$ExeName"))
-                }
-                foreach ($Hint in $DeepHints) {
-                    if (Test-Path $Hint -PathType Leaf) {
-                        $RealExePath = $Hint
-                        break
-                    }
-                }
-            }
-
-            if ([string]::IsNullOrWhiteSpace($RealExePath)) {
-                foreach ($Root in $LauncherRoots) {
-                    if (Test-Path $Root) {
-                        $candidates = @()
-                        if ($TranslatedName) { $candidates += $TranslatedName }
-                        $candidates += $GameBaseName, $shortName
-                        
-                        foreach ($cand in $candidates) {
-                            $targetFolder = Join-Path $Root $cand
-                            if (Test-Path $targetFolder) {
-                                $FoundFile = Find-FileFaster -Path $targetFolder -Filter $ExeName -MaxDepth 3
-                                if ($FoundFile) {
-                                    $RealExePath = $FoundFile.FullName
-                                    break
-                                }
-                            }
-                        }
-                        if (![string]::IsNullOrWhiteSpace($RealExePath)) { break }
-                    }
-                }
-            }
+            $RealExePath = Resolve-GameExePath -ExeName $ExeName
         }
 
         if (![string]::IsNullOrWhiteSpace($RealExePath) -and (Test-Path $RealExePath -PathType Leaf)) {

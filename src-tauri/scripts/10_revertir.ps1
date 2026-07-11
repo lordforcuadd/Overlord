@@ -10,9 +10,7 @@ function Invoke-OverlordSafeRestore {
     param(
         [string]$TargetKey,
         [string]$ValueName,
-        [string]$BackupSubFolder,
-        $DefaultValue,
-        [string]$DefaultType = "DWord"
+        [string]$BackupSubFolder
     )
     if ($TargetKey -match "^HKCU:") {
         $HKCU_RestorePath = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
@@ -449,7 +447,7 @@ Try {
                         } else {
                             Enable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
                             Enable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
-                            Set-NetAdapterRss -Name $Adapter.Name -Profile ClosestStatic -ErrorAction SilentlyContinue | Out-Null
+                            Set-NetAdapterRss -Name $Adapter.Name -Profile NUMAStatic -ErrorAction SilentlyContinue | Out-Null
                         }
                     } catch {
                         Write-Error "No se pudo restaurar la configuracion del adaptador de red $($Adapter.Name): $_"

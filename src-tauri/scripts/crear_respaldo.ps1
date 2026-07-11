@@ -31,7 +31,7 @@ Try {
 
     try {
         Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
-        Write-Host "[+] Punto de restauraciÃ³n creado con exito. El sistema se encuentra asegurado."
+        Write-Host "[+] Punto de restauración creado con exito. El sistema se encuentra asegurado."
         exit 0
     } catch {
         Write-Output "[WARNING] No se pudo crear el Punto de Restauracion de Windows (servicio VSS inactivo o SO modificado): $_"

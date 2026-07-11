@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+$ToggleName = $ToggleName.Trim().Replace("'", "").Replace('"', "")
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -23,7 +24,6 @@ $Targets = @($HKCU_Path)
 
 $NormalizedInput = $IsEnabledStr.ToLower().Replace("$", "").Trim()
 $Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
-$ToggleName = $ToggleName.Trim().Replace("'", "").Replace('"', "")
 
 function Set-RegistryValue($subPath, $name, $type, $val) {
     foreach ($base in $Targets) {
@@ -331,7 +331,11 @@ switch ($ToggleName) {
             } finally {
                 $ErrorActionPreference = $OldEAP
             }
-            Start-Process "ms-windows-store://pdp/?productid=9wzdncrfj1p3"
+            if (-not (Get-Command "OneDrive.exe" -ErrorAction SilentlyContinue)) {
+                Start-Process -FilePath "winget" -ArgumentList "install Microsoft.OneDrive -e --silent" -Wait -NoNewWindow
+            } else {
+                Start-Process "ms-windows-store://pdp/?productid=9wzdncrfj1p3"
+            }
         }
     }
     "disableWidgets" {

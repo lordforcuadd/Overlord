@@ -316,7 +316,7 @@ export const useOverlordStore = defineStore("overlord", {
 
         this.benchmarks[fase].networkLatency = 999;
         this.benchmarks[fase].dnsResolution = 999;
-        this.benchmarks[fase].measured = true;
+        this.benchmarks[fase].measured = false;
       } finally {
         this.isBenchmarkTesting = false;
         this.setGlobalBusy(false);

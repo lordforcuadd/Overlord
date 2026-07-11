@@ -27,14 +27,7 @@
 
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       <button
-        v-for="profile in [
-          'Competitivo',
-          'Programador & Competitivo',
-          'Programador',
-          'Home Office / Laptops',
-          'Usuario Casual',
-          'Personalizado',
-        ]"
+        v-for="profile in profiles"
         :key="profile"
         @click="store.applyProfile(profile)"
         :disabled="store.isGlobalBusy"
@@ -96,4 +89,12 @@
 <script setup lang="ts">
 import { useOverlordStore } from "../stores/overlordStore";
 const store = useOverlordStore();
+const profiles = [
+  'Competitivo',
+  'Programador & Competitivo',
+  'Programador',
+  'Home Office / Laptops',
+  'Usuario Casual',
+  'Personalizado',
+];
 </script>
