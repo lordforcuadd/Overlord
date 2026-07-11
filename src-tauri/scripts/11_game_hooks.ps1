@@ -254,7 +254,7 @@ try {
                         $RealExePath = $ResolvedPath
                     }
                 } catch {
-                    Write-Warning "No se pudo resolver la ruta del registro para $ExeName: $_"
+                    Write-Warning "No se pudo resolver la ruta del registro para ${ExeName}: $_"
                 }
             }
 

@@ -209,7 +209,7 @@ try {
                     $NewAddedPaths.Add($Dir)
                 }
             } catch {
-                throw "Defender bloqueó la adición de la exclusión para $Dir: $_"
+                throw "Defender bloqueó la adición de la exclusión para ${Dir}: $_"
             }
         } else {
             Write-Host "    [*] La ruta ya estaba excluida en Windows Defender: $Dir"

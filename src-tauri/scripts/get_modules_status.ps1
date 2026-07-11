@@ -114,6 +114,8 @@ if (Test-Path $ProfilePath) {
                 }
             }
         }
+    }
+
     $PnpOk = $true
     $RunningOnBattery = $false
     if ($IsLaptop) {

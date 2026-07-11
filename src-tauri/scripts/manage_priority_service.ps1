@@ -120,7 +120,7 @@ while ($true) {
                             }
                         }
                     } catch {
-                        Write-DaemonLog "Error buscando procesos para $ProcName: $_"
+                        Write-DaemonLog "Error buscando procesos para `${ProcName}: $_"
                     }
                 }
             }
