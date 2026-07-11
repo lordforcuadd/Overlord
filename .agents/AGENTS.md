@@ -99,3 +99,16 @@ DespuÃ©s de cualquier cambio:
 - `get_modules_status.ps1` no contiene el patrÃ³n `Test-Path $XBackup` combinado con una condiciÃ³n de laptop/desktop sin verificar tambiÃ©n un valor real del sistema.
 
 Si este bloque de Pester falla, la tarea no estÃ¡ completa, sin importar quÃ© tan limpio se vea el resto del diff. Pega la salida completa de `Invoke-Pester` como evidencia antes de reportar cualquier tarea como terminada.
+
+## 14. Validación Sintáctica de PowerShell Obligatoria
+
+Antes de dar por terminada cualquier modificación a scripts de PowerShell (.ps1, .psm1), es obligatorio ejecutar el parser oficial de PowerShell para verificar que no haya errores de sintaxis (paréntesis faltantes, problemas de scope con variables dentro de strings como $Var:, etc.). 
+Ejecuta el siguiente comando en la raíz del proyecto y asegúrate de que no devuelva errores:
+`powershell
+Get-ChildItem -Recurse -Include *.ps1,*.psm1 | ForEach-Object {
+    $errors = $null; $tokens = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) { Write-Host "FALLA: $($_.Name)"; $errors | ForEach-Object { Write-Host " $_" } }
+}
+`
+Si se modifica un daemon o script embebido (here-strings), se debe extraer a un archivo temporal y validarlo con el mismo parser.
