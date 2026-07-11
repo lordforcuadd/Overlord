@@ -200,16 +200,16 @@ try {
         $DirLower = $Dir.ToLower()
         # Solo agregar a Windows Defender si no estÃ¡ ya en las exclusiones globales de Defender
         if (-not $CurrentExclusionsList.Contains($DirLower)) {
-            Add-MpPreference -ExclusionPath $Dir -ErrorAction SilentlyContinue
-            $VerifyExclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
-            if ($null -eq $VerifyExclusions -or $VerifyExclusions -notcontains $Dir) {
-                throw "Defender bloqueÃ³ la adiciÃ³n de la exclusiÃ³n para $Dir"
-            }
-            Write-Host "    [+] Ruta excluida en Windows Defender: $Dir"
-            
-            # Registrar en nuestro backup que Overlord gestiona esta exclusiÃ³n
-            if (-not $NewAddedPaths.Contains($Dir)) {
-                $NewAddedPaths.Add($Dir)
+            try {
+                Add-MpPreference -ExclusionPath $Dir -ErrorAction Stop
+                Write-Host "    [+] Ruta excluida en Windows Defender: $Dir"
+                
+                # Registrar en nuestro backup que Overlord gestiona esta exclusión
+                if (-not $NewAddedPaths.Contains($Dir)) {
+                    $NewAddedPaths.Add($Dir)
+                }
+            } catch {
+                throw "Defender bloqueó la adición de la exclusión para $Dir: $_"
             }
         } else {
             Write-Host "    [*] La ruta ya estaba excluida en Windows Defender: $Dir"

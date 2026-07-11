@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 Try {
-    switch ($ActionId) {
+    switch ($GameList) {
         "DeepClean" {
             # Papelera de reciclaje
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue | Out-Null

@@ -86,7 +86,7 @@ function Restore-OverlordRegistryValue {
                     $Type = if ($SavedKind) { $SavedKind } else { "DWord" }
                     Set-ItemProperty -Path $TargetKey -Name $ValueName -Type $Type -Value $BackupValue -Force | Out-Null
                     $ChkVal = Get-SafeRegistryValue -Path $TargetKey -Name $ValueName
-                    if ($null -eq $ChkVal -or $ChkVal.ToString() -ne $BackupValue.ToString()) {
+                    if ($null -eq $ChkVal -or ([string]::Join(',', $ChkVal) -ne [string]::Join(',', $BackupValue))) {
                         throw "Windows bloqueo la restauracion del valor $ValueName"
                     }
                 }

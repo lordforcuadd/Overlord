@@ -314,7 +314,15 @@ fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
 
 fn is_priority_daemon_active() -> bool {
     use std::os::windows::process::CommandExt;
-    if let Ok(output) = std::process::Command::new("powershell")
+      
+    let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+    let mut powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+    let sysnative_path = format!("{}\\Sysnative\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+    if std::path::Path::new(&sysnative_path).exists() {
+        powershell_path = sysnative_path;
+    }
+
+    if let Ok(output) = std::process::Command::new(&powershell_path)
         .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
         .args(&[
             "-NoProfile",

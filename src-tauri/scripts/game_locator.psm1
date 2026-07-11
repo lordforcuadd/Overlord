@@ -33,15 +33,15 @@ function Get-LauncherRoots {
     # Buscar rutas de Steam en el Registro
     $steamProps = Get-ItemProperty -Path "$global:HKCU_Path\Software\Valve\Steam" -ErrorAction SilentlyContinue
     $SteamPathReg = if ($null -ne $steamProps) { $steamProps.SteamPath } else { $null }
-    if ($SteamPathReg) { $LauncherRoots += Join-Path $SteamPathReg "steamapps\common" }
+    if ($SteamPathReg) { $LauncherRoots.Add(Join-Path $SteamPathReg "steamapps\common" })
     $steamProps2 = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Valve\Steam" -ErrorAction SilentlyContinue
     $SteamPathReg2 = if ($null -ne $steamProps2) { $steamProps2.InstallPath } else { $null }
-    if ($SteamPathReg2) { $LauncherRoots += Join-Path $SteamPathReg2 "steamapps\common" }
+    if ($SteamPathReg2) { $LauncherRoots.Add(Join-Path $SteamPathReg2 "steamapps\common" })
 
     # Buscar rutas de Epic Games en el Registro
     $epicProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\EpicGames\Unreal Engine" -ErrorAction SilentlyContinue
     $EpicPathReg = if ($null -ne $epicProps) { $epicProps.INSTALLDIR } else { $null }
-    if ($EpicPathReg) { $LauncherRoots += $EpicPathReg }
+    if ($EpicPathReg) { $LauncherRoots.Add($EpicPathReg })
 
     # Buscar librerias adicionales de Steam en libraryfolders.vdf
     if ($SteamPathReg -and (Test-Path (Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"))) {
@@ -91,7 +91,7 @@ function Get-LauncherRoots {
         (Join-Path $ProgramFiles "Ubisoft")
     )
     foreach ($Root in $DefaultRoots) {
-        if (!($LauncherRoots -contains $Root)) { $LauncherRoots += $Root }
+        if (!($LauncherRoots -contains $Root)) { $LauncherRoots.Add($Root })
     }
 
     return $LauncherRoots
