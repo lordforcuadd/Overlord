@@ -140,7 +140,7 @@ if ($null -ne $DownloadUrl) {
     if (Test-Path $ExePath) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
-        $ValidThumbprint = "YOUR_CERTIFICATE_THUMBPRINT_HERE_REPLACE_ME"
+        $ValidThumbprint = "4338BFA2A57459BEB3B43FB141E6BDB75C8A808A"
         if ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Thumbprint -eq $ValidThumbprint) {
             Write-Host "[+] Binario local validado mediante firma digital estricta (Thumbprint)." -ForegroundColor Green
             $ExecutionPermitted = $true

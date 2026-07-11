@@ -51,3 +51,14 @@ src-tauri/gen/
 
 release_binaries/
 scratch/
+
+# ========================
+# CERTIFICADOS Y CLAVES Criptográficas
+# ========================
+*.pfx
+*.p12
+*.cer
+*.crt
+*.pem
+*.key
+
