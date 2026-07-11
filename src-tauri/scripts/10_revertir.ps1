@@ -447,7 +447,7 @@ Try {
                         } else {
                             Enable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
                             Enable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
-                            Set-NetAdapterRss -Name $Adapter.Name -Profile NUMAStatic -ErrorAction SilentlyContinue | Out-Null
+                            Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
                         }
                     } catch {
                         Write-Error "No se pudo restaurar la configuracion del adaptador de red $($Adapter.Name): $_"
