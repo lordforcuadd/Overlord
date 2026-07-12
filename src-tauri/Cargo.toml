@@ -25,13 +25,13 @@ serde_json = "1"
 sysinfo = "0.30"
 winreg = "0.52"
 tokio = { version = "1", features = ["full"] }
-windows-sys = { version = "0.52", features = ["Win32_System_Threading", "Win32_Foundation", "Win32_Security"] }
+windows-sys = { version = "0.52", features = ["Win32_System_Threading", "Win32_Foundation", "Win32_Security", "Win32_System_JobObjects"] }
 
 [profile.release]
 panic = "abort"      # Quita el unwinding de errores (ahorra espacio)
 codegen-units = 1    # Compilación más lenta, pero más optimizada
 lto = true           # Link Time Optimization (crucial para binarios pequeños)
-opt-level = "s"      # Optimiza para tamaño ('z' o 's')
+opt-level = 3        # Optimiza para velocidad extrema de CPU
 strip = true         # Elimina los símbolos de debug de C++ y Rust
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

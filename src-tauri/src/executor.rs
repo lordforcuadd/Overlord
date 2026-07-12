@@ -2,10 +2,51 @@ use tokio::process::Command;
 use std::process::Stdio;
 use tokio::sync::Mutex;
 use tokio::io::AsyncWriteExt;
+use std::sync::OnceLock;
+use windows_sys::Win32::System::JobObjects::{
+    CreateJobObjectW, SetInformationJobObject, JobObjectExtendedLimitInformation,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    AssignProcessToJobObject,
+};
+use windows_sys::Win32::System::Threading::{
+    OpenProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE,
+};
+use windows_sys::Win32::Foundation::{HANDLE, CloseHandle};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 static EXECUTION_LOCK: Mutex<()> = Mutex::const_new(());
+static JOB_HANDLE: OnceLock<HANDLE> = OnceLock::new();
+
+fn get_job_handle() -> HANDLE {
+    *JOB_HANDLE.get_or_init(|| unsafe {
+        let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+        if handle != 0 {
+            let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                &info as *const _ as *const _,
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            );
+        }
+        handle
+    })
+}
+
+fn assign_child_to_job(pid: u32) {
+    let handle = get_job_handle();
+    if handle != 0 {
+        unsafe {
+            let proc_handle = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, 0, pid);
+            if proc_handle != 0 {
+                AssignProcessToJobObject(handle, proc_handle);
+                CloseHandle(proc_handle);
+            }
+        }
+    }
+}
 
 fn parse_qol_params(game_list: &str) -> (String, String) {
     let mut toggle_name = String::new();
@@ -128,6 +169,10 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Falla al inicializar el proceso PowerShell: {}", e))?;
+
+    if let Some(pid) = child.id() {
+        assign_child_to_job(pid);
+    }
 
     {
         let mut stdin = child.stdin.take().ok_or("No se pudo abrir el canal stdin de PowerShell".to_string())?;
