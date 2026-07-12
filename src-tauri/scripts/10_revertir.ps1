@@ -357,7 +357,28 @@ Try {
         }
     }
 
-
+    $NetAdapters = Get-NetAdapter -ErrorAction SilentlyContinue
+    if ($null -ne $NetAdapters) {
+        foreach ($Adapter in $NetAdapters) {
+            $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
+            if (Test-Path $AdapterBackupPath) {
+                $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                if ($null -ne $props) {
+                    if ($null -ne $props.PSObject.Properties["AllowComputerToTurnOffDevice"]) {
+                        $Val = $props.AllowComputerToTurnOffDevice
+                        if ($Val -eq 1) { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Enabled -ErrorAction SilentlyContinue | Out-Null }
+                        else { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null }
+                        Remove-ItemProperty -Path $AdapterBackupPath -Name "AllowComputerToTurnOffDevice" -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    if ($null -ne $props.PSObject.Properties["InterruptModerationVal"]) {
+                        $Val = $props.InterruptModerationVal
+                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue $Val -ErrorAction SilentlyContinue | Out-Null
+                        Remove-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -ErrorAction SilentlyContinue | Out-Null
+                    }
+                }
+            }
+        }
+    }
 
     $NetworkBackupRoot = "$BackupPath\Network"
     if (Test-Path $NetworkBackupRoot) {
@@ -491,6 +512,8 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "EnableTransparency" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -ValueName "AllowGameDVR" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\NVIDIA Corporation\Global\NVTweak" -ValueName "PowerMizerEnable" -BackupSubFolder "GPU" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\NVIDIA Corporation\Global\NVTweak" -ValueName "PerfLevelSrc" -BackupSubFolder "GPU" -DefaultValue 0x2222
 
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
@@ -504,6 +527,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage" -DefaultValue 3
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -ValueName "Start" -BackupSubFolder "Services\DoSvc" -DefaultValue 2
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry" -DefaultValue 1
 
@@ -519,12 +543,13 @@ Try {
         $SavedActiveGuid = Get-SafeRegistryValue -Path $PowerBackup -Name "ActivePowerPlan"
         $CustomPlanGuid = Get-SafeRegistryValue -Path $PowerBackup -Name "CustomPowerPlan"
 
-        # Restaurar indices de configuracion de energia originales
+        # Restaurar indices de configuracion de energia originales        
         $SubGroupMap = @{
             "94d3a615-a899-4ac5-ae2b-e4d8f634367f" = "54533251-82be-4824-96c1-47b60b740d00"
             "ee12f906-d277-404b-b6da-e5fa1a576df5" = "501a4d13-42af-4429-9fd1-a8218c268e20"
             "d4e00550-747f-4ddb-bf3e-9b6c97a522a4" = "2a737441-1930-4402-8d77-b2bea128a440"
             "0cc5b647-c1df-4637-891a-dec35c318583" = "54533251-82be-4824-96c1-47b60b740d00"
+            "ea062031-0e34-4ff1-9b6d-eb1059334028" = "54533251-82be-4824-96c1-47b60b740d00"
             "ea0653f5-eab4-474c-8a0f-1ba102244432" = "54533251-82be-4824-96c1-47b60b740d00"
             "6733a230-cd1a-4929-94d4-540b4ddecbeb" = "0012ee47-9041-4b5d-9b77-535fba8b1442"
             "3668a66e-6856-4221-b530-747f2d53e4c6" = "54533251-82be-4824-96c1-47b60b740d00"
@@ -594,6 +619,18 @@ Try {
 
     }
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" -ValueName "PowerThrottlingOff" -BackupSubFolder "Power" -DefaultValue 0
+
+    $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
+    if (Test-Path $PerfBackupPath) {
+        $perfProps = Get-ItemProperty -Path $PerfBackupPath -ErrorAction SilentlyContinue
+        if ($null -ne $perfProps -and $null -ne $perfProps.PSObject.Properties["DynamicTickWasDisabled"]) {
+            $wasDisabled = $perfProps.DynamicTickWasDisabled
+            if ($wasDisabled -eq 0) {
+                try { & bcdedit /deletevalue disabledynamictick 2>$null } catch {}
+                Remove-ItemProperty -Path $PerfBackupPath -Name "DynamicTickWasDisabled" -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+    }
 
     $StorageBackup = "HKLM:\SOFTWARE\Overlord\Backup\Storage"
     $SavedHibernate = Get-SafeRegistryValue -Path $StorageBackup -Name "HibernateEnabled"

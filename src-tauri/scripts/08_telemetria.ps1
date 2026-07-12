@@ -25,6 +25,19 @@ Try {
     } catch {}
 
     try {
+        $DoSvcObj = Get-Service -Name "DoSvc" -ErrorAction SilentlyContinue
+        if ($null -ne $DoSvcObj) {
+            $DoSvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\DoSvc"
+            if (!(Test-Path $DoSvcBackupPath)) { New-Item -Path $DoSvcBackupPath -Force | Out-Null }
+            $WasRunning = if ($DoSvcObj.Status -eq "Running") { 1 } else { 0 }
+            Set-ItemProperty -Path $DoSvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -ValueName "Start" -BackupSubFolder "Services\DoSvc"
+        Stop-Service "DoSvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
+        Set-Service "DoSvc" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+
+    try {
         $SvcObj = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
         if ($null -ne $SvcObj) {
             $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\WerSvc"

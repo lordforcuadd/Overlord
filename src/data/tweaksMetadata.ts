@@ -133,7 +133,9 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación del algoritmo de Nagle (TcpNoDelay = 1 y TcpAckFrequency = 1) en las interfaces de red activas.",
       "Desactivación de Large Send Offload (LSO) y Receive Segment Coalescing (RSC) en adaptadores de red para eliminar jitter (Advertencia: puede reducir el ancho de banda pico en transferencias masivas).",
       "Configuración del perfil RSS a Closest para minimizar fallos de caché L3 de la CPU al procesar interrupciones.",
-      "Desactivación de modos de ahorro Ethernet (EEE, Green Energy) y coalescencia de paquetes, control de flujo y moderación de interrupciones (adaptativo en escritorio con >8 hilos lógicos).",
+      "Desactivación de modos de ahorro Ethernet (EEE, Green Energy), coalescencia de paquetes y control de flujo.",
+      "Desactivación del Power Management del adaptador de red (AllowComputerToTurnOffDevice) para reducir varianza/jitter de ping (Aviso: reduce levemente la autonomía en WiFi).",
+      "Desactivación de Interrupt Moderation en el NIC (EXPERIMENTAL: Optimiza latencia de input competitivo a costa de mayor uso de CPU).",
     ],
   },
   generalPerformance: {
@@ -160,6 +162,8 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación de Page Combining en MMAgent para mitigar micro-stutters generados por el de-duplicador de páginas.",
       "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
+      "Desactivación del aparcamiento de núcleos (Core Parking al 0% en corriente alterna) para extrema estabilidad de 1% y 0.1% lows.",
+      "Desactivación de Dynamic Tick (requiere reinicio) para optimizar el jitter fino a nivel del kernel de Windows.",
     ],
   },
   disableMitigations: {
@@ -209,6 +213,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Establece HwSchMode a 2 para activar la programación de GPU acelerada por hardware (HAGS).",
       "Desactivación de GameBarPresenceWriter a nivel de directivas de usuario para prevenir congelamientos temporales.",
       "Desactivación del grabador de aplicaciones AppCaptureEnabled para liberar ciclos del codificador de vídeo.",
+      "Fuerza el perfil de Máximo Rendimiento (No Adaptativo) en GPUs NVIDIA para evitar caídas de FPS por ramp-up del reloj.",
     ],
   },
   irqAffinity: {
@@ -286,6 +291,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Deshabilitación de la directiva de Windows Error Reporting a nivel de políticas de sistema.",
       "Erradicación definitiva del servicio de recolección de experiencias DiagTrack y del historial de actividades de usuario.",
+      "Pausado del servicio Delivery Optimization (DoSvc) para evitar degradación de latencia por descargas locales P2P (Afecta Windows Update en red local).",
       "Bloqueo perimetral en el Firewall de Windows para los ejecutables de recolección nativos (CompatTelRunner, etc.).",
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
       "Bloqueo total de Windows Recall y captura de actividad local de Inteligencia Artificial (Windows AI).",

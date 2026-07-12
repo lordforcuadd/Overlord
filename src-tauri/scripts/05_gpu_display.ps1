@@ -57,9 +57,26 @@ Try {
     if ($RamGB -le 6) {
         $ColorPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
         if (!(Test-Path $ColorPath)) { New-Item -Path $ColorPath -Force | Out-Null }
-            Backup-OverlordRegistryValue -TargetKey $ColorPath -ValueName "EnableTransparency" -BackupSubFolder "GPU"
+        Backup-OverlordRegistryValue -TargetKey $ColorPath -ValueName "EnableTransparency" -BackupSubFolder "GPU"
         Set-ItemProperty -Path $ColorPath -Name "EnableTransparency" -Type DWord -Value 0 -Force | Out-Null
         if ((Get-ItemPropertyValue -Path $ColorPath -Name "EnableTransparency" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo de verificacion en EnableTransparency" }
+    }
+
+    Write-Host "    -> Configurando GPU en Maximo Rendimiento (No Adaptativo)..."
+    if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+        $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+        foreach ($Controller in $Controllers) {
+            if ($Controller.Name -match "NVIDIA") {
+                $NVTweakPath = "HKLM:\SOFTWARE\NVIDIA Corporation\Global\NVTweak"
+                if (!(Test-Path $NVTweakPath)) { New-Item -Path $NVTweakPath -Force | Out-Null }
+                Backup-OverlordRegistryValue -TargetKey $NVTweakPath -ValueName "PowerMizerEnable" -BackupSubFolder "GPU"
+                Backup-OverlordRegistryValue -TargetKey $NVTweakPath -ValueName "PerfLevelSrc" -BackupSubFolder "GPU"
+                Set-ItemProperty -Path $NVTweakPath -Name "PowerMizerEnable" -Type DWord -Value 0 -Force | Out-Null
+                Set-ItemProperty -Path $NVTweakPath -Name "PerfLevelSrc" -Type DWord -Value 0x2222 -Force | Out-Null
+            } elseif ($Controller.Name -match "AMD") {
+                # TODO: AMD proximamente. Requiere mapear claves PowerPlay (KMD_EnableEnhancedSyncStatic) por driver.
+            }
+        }
     }
 
     exit 0

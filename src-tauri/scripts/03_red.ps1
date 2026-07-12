@@ -100,15 +100,7 @@ Try {
                         }
                     }
 
-                    # 2. Desactivar el apagado del dispositivo para ahorrar energÃ­a (PnPCapabilities = 24)
-                    # ExcepciÃ³n: No aplicar si es Laptop y funciona con BaterÃ­a.
-                    if ($ActiveGuids -contains $NetInstanceId -and -not $RunningOnBattery) {
-                        Backup-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName "PnPCapabilities" -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)"
-                        Set-ItemProperty -Path $Adapter.PSPath -Name "PnPCapabilities" -Type DWord -Value 24 -Force | Out-Null
-                        if ((Get-ItemPropertyValue -Path $Adapter.PSPath -Name "PnPCapabilities" -ErrorAction SilentlyContinue) -ne 24) {
-                            throw "Fallo de validacion: No se pudo establecer PnPCapabilities para el adaptador $($Adapter.PSChildName)"
-                        }
-                    }
+                    # Optimizaciones de Power Management se aplican ahora mediante Cmdlets en el bloque inferior
                 }
             }
         }
@@ -169,12 +161,37 @@ Try {
                                 if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["UdpIPv6Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumUdpIPv6" -Value $Chk.UdpIPv6Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
                             }
                         }
+
+                        $PwrMgmt = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $PwrMgmt) {
+                            $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                            if ($null -eq $props -or $null -eq $props.PSObject.Properties["AllowComputerToTurnOffDevice"]) {
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "AllowComputerToTurnOffDevice" -Value (if ($PwrMgmt.AllowComputerToTurnOffDevice -match "Enabled|True|1") { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                            }
+                        }
+
+                        $AdvProps = Get-NetAdapterAdvancedProperty -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $AdvProps) {
+                            $IntMod = $AdvProps | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
+                            if ($null -ne $IntMod) {
+                                $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                                if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
+                                    Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $IntMod.DisplayValue -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                }
+                            }
+                        }
                     }
 
                     Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
                     Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
                     Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
                     Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
+                    Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null
+                    
+                    if (-not $IsLaptop -or $TotalThreads -gt 8) {
+                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
+                    }
+
                     Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
                 } catch {
                     throw "No se pudieron aplicar las optimizaciones de red para el adaptador $($Adapter.Name): $_"
