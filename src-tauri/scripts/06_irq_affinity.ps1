@@ -18,8 +18,7 @@ Try {
 
     if ($IsLaptop) {
         Write-Host "[+] Laptop detectada. Saltando remapeo fisico de afinidades IRQ para proteger la estabilidad de buses dinamicos de energia." -ForegroundColor Green
-        exit 0
-    }
+    } else {
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
@@ -87,6 +86,7 @@ Try {
             }
         }
         $pciKey.Close()
+    }
     }
 
     Write-Host "    -> Desactivando Interrupt Moderation en adaptadores de red (Experimental)..."

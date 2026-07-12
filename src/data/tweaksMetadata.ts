@@ -126,6 +126,8 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     scriptName: "03_red.ps1",
     impactoRendimiento:
       "Reducción y estabilización del ping de juegos, erradicación de micro-cortes por estrangulamiento de paquetes.",
+    warning:
+      "El beneficio real de desactivar el algoritmo de Nagle (TcpNoDelay y TcpAckFrequency) en pilas TCP modernas es marginal o disputado para juegos online, y podría aumentar ligeramente el overhead del router local al disparar demasiados paquetes pequeños.",
     details: [
       "Desactivación total del estrangulamiento de ancho de banda (NetworkThrottlingIndex deshabilitado).",
       "Prioridad de CPU dedicada (SystemResponsiveness = 10) para evitar que hilos del kernel estrangulen el hilo del juego.",
