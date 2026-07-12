@@ -16,6 +16,11 @@ use windows_sys::Win32::Foundation::{HANDLE, CloseHandle};
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 static EXECUTION_LOCK: Mutex<()> = Mutex::const_new(());
+
+pub fn is_busy() -> bool {
+    EXECUTION_LOCK.try_lock().is_err()
+}
+
 static JOB_HANDLE: OnceLock<HANDLE> = OnceLock::new();
 
 fn get_job_handle() -> HANDLE {

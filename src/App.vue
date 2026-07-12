@@ -271,6 +271,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import Swal from "sweetalert2";
 import { overlordSwalConfig } from "./utils/swalConfig";
 import BenchmarkPanel from "./components/BenchmarkPanel.vue";
@@ -290,6 +291,7 @@ const warningModalOpen = ref(false);
 const warningModalMessage = ref("");
 const pendingTweakKey = ref("");
 const appVersion = ref("");
+let unlistenBackendBusy: UnlistenFn | null = null;
 const isCopyingLog = ref(false);
 
 
@@ -364,15 +366,23 @@ onMounted(async () => {
       title: "Error de Inicializacion",
       text: "No se pudo detectar el hardware o estado de modulos. Algunas funciones pueden no estar disponibles.",
       icon: "error",
-      ...overlordSwalConfig
+      ...overlordSwalConfig,
     });
   }
-  
+
+  unlistenBackendBusy = await listen("backend-busy-warning", () => {
+    warningModalMessage.value = "Hay una operación crítica en curso (ej. SFC/DISM). No puedes cerrar la aplicación hasta que termine para evitar corromper la imagen del sistema operativo Windows.";
+    warningModalOpen.value = true;
+  });
+
   store.startTelemetryPolling();
   store.isInitialized = true;
 });
 
 onUnmounted(() => {
+  if (unlistenBackendBusy) {
+    unlistenBackendBusy();
+  }
   store.stopTelemetryPolling();
 });
 </script>

@@ -200,16 +200,21 @@ async fn detect_system_hardware() -> HardwareResponse {
             }
 
             if !handle_ok {
-                // Fallback no-privilegiado vía PowerShell / Get-PhysicalDisk
+                // Fallback no-privilegiado via PowerShell / Get-PhysicalDisk
                 let ps_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
-                let output = std::process::Command::new(&ps_path)
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .args(&[
-                        "-NoProfile",
-                        "-Command",
-                        "(Get-PhysicalDisk | Where-Object { $_.MediaType -eq 'SSD' })",
-                    ])
-                    .output();
+                let output = tokio::task::spawn_blocking(move || {
+                    std::process::Command::new(&ps_path)
+                        .creation_flags(CREATE_NO_WINDOW)
+                        .args(&[
+                            "-NoProfile",
+                            "-Command",
+                            "$SysDrv = $env:SystemDrive.Substring(0,1); $Part = Get-Partition -DriveLetter $SysDrv -ErrorAction SilentlyContinue; if ($Part) { $Disk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $Part.DiskNumber } ; if ($Disk.MediaType -eq 'SSD') { 'True' } }",
+                        ])
+                        .output()
+                })
+                .await
+                .unwrap();
+
                 if let Ok(out) = output {
                     if out.status.success() {
                         let text = String::from_utf8_lossy(&out.stdout).trim().to_string();

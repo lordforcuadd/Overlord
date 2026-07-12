@@ -312,7 +312,7 @@ fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
     }
 }
 
-fn is_priority_daemon_active() -> bool {
+async fn is_priority_daemon_active() -> bool {
     use std::os::windows::process::CommandExt;
       
     let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
@@ -322,14 +322,14 @@ fn is_priority_daemon_active() -> bool {
         powershell_path = sysnative_path;
     }
 
-    if let Ok(output) = std::process::Command::new(&powershell_path)
+    if let Ok(output) = tokio::process::Command::new(&powershell_path)
         .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
         .args(&[
             "-NoProfile",
             "-Command",
             "(Get-ScheduledTask -TaskName OverlordPriorityMonitor -ErrorAction SilentlyContinue).State",
         ])
-        .output() {
+        .output().await {
             let state = String::from_utf8_lossy(&output.stdout).trim().to_string();
             state == "Ready" || state == "Running"
         } else {
@@ -343,7 +343,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
     if game_list_raw.trim().is_empty() { return Ok(()); }
 
     // Evitar iniciar el monitor redundante si el daemon de Scheduled Task de PowerShell ya está activo
-    if is_priority_daemon_active() {
+    if is_priority_daemon_active().await {
         println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo. Se omite el monitor redundante de Rust.");
         return Ok(());
     }
@@ -382,7 +382,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
                         // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        if is_priority_daemon_active() {
+                        if is_priority_daemon_active().await {
                             println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
                             break;
                         }
@@ -484,6 +484,15 @@ pub fn run() {
     }));
 
     tauri::Builder::default()
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                if crate::executor::is_busy() {
+                    api.prevent_close();
+                    let _ = window.emit("backend-busy-warning", ());
+                }
+            }
+            _ => {}
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Si el usuario abre otra instancia, la enfocamos
             let _ = app.get_webview_window("main").map(|w| {
