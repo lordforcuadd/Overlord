@@ -512,8 +512,6 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "EnableTransparency" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -ValueName "AllowGameDVR" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\NVIDIA Corporation\Global\NVTweak" -ValueName "PowerMizerEnable" -BackupSubFolder "GPU" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\NVIDIA Corporation\Global\NVTweak" -ValueName "PerfLevelSrc" -BackupSubFolder "GPU" -DefaultValue 0x2222
 
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"

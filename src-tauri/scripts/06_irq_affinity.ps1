@@ -89,6 +89,31 @@ Try {
         $pciKey.Close()
     }
 
+    Write-Host "    -> Desactivando Interrupt Moderation en adaptadores de red (Experimental)..."
+    if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+        $NetAdapters = Get-NetAdapter -ErrorAction SilentlyContinue
+        foreach ($Adapter in $NetAdapters) {
+            if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
+                try {
+                    $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
+                    if (!(Test-Path $AdapterBackupPath)) { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null }
+                    
+                    $AdvProps = Get-NetAdapterAdvancedProperty -Name $Adapter.Name -ErrorAction SilentlyContinue
+                    if ($null -ne $AdvProps) {
+                        $IntMod = $AdvProps | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
+                        if ($null -ne $IntMod) {
+                            $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                            if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $IntMod.DisplayValue -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                            }
+                        }
+                    }
+                    Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
+                } catch {}
+            }
+        }
+    }
+
     Write-Host "[+] Carga equilibrada de hilos IRQ en P-Cores. Prioridades multimedia inyectadas con exito."
     exit 0
 } Catch {

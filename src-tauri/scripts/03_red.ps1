@@ -169,17 +169,6 @@ Try {
                                 Set-ItemProperty -Path $AdapterBackupPath -Name "AllowComputerToTurnOffDevice" -Value (if ($PwrMgmt.AllowComputerToTurnOffDevice -match "Enabled|True|1") { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }
-
-                        $AdvProps = Get-NetAdapterAdvancedProperty -Name $Adapter.Name -ErrorAction SilentlyContinue
-                        if ($null -ne $AdvProps) {
-                            $IntMod = $AdvProps | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
-                            if ($null -ne $IntMod) {
-                                $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
-                                if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
-                                    Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $IntMod.DisplayValue -Type String -Force -ErrorAction SilentlyContinue | Out-Null
-                                }
-                            }
-                        }
                     }
 
                     Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
@@ -188,10 +177,6 @@ Try {
                     Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
                     Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null
                     
-                    if (-not $IsLaptop -or $TotalThreads -gt 8) {
-                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
-                    }
-
                     Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
                 } catch {
                     throw "No se pudieron aplicar las optimizaciones de red para el adaptador $($Adapter.Name): $_"

@@ -135,7 +135,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Configuración del perfil RSS a Closest para minimizar fallos de caché L3 de la CPU al procesar interrupciones.",
       "Desactivación de modos de ahorro Ethernet (EEE, Green Energy), coalescencia de paquetes y control de flujo.",
       "Desactivación del Power Management del adaptador de red (AllowComputerToTurnOffDevice) para reducir varianza/jitter de ping (Aviso: reduce levemente la autonomía en WiFi).",
-      "Desactivación de Interrupt Moderation en el NIC (EXPERIMENTAL: Optimiza latencia de input competitivo a costa de mayor uso de CPU).",
     ],
   },
   generalPerformance: {
@@ -213,7 +212,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Establece HwSchMode a 2 para activar la programación de GPU acelerada por hardware (HAGS).",
       "Desactivación de GameBarPresenceWriter a nivel de directivas de usuario para prevenir congelamientos temporales.",
       "Desactivación del grabador de aplicaciones AppCaptureEnabled para liberar ciclos del codificador de vídeo.",
-      "Fuerza el perfil de Máximo Rendimiento (No Adaptativo) en GPUs NVIDIA para evitar caídas de FPS por ramp-up del reloj.",
     ],
   },
   irqAffinity: {
@@ -240,6 +238,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Cálculo topológico dinámico en tiempo de ejecución basado en el mapa de hilos físicos del procesador.",
       "Asignación multi-núcleo selectiva en dos cores físicos independientes (SpecifiedProcessors) para conservar RSS y ancho de banda en descargas.",
       "Selección automática de hilos P-Core optimizados (4 y 6 en CPUs >=12 hilos, o 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT).",
+      "Desactivación de Interrupt Moderation en adaptadores de red (EXPERIMENTAL: Fuerza interrupciones en tiempo real reduciendo latencia DPC, pero aumenta considerablemente el uso de CPU).",
     ],
   },
   smartStorage: {
@@ -291,7 +290,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Deshabilitación de la directiva de Windows Error Reporting a nivel de políticas de sistema.",
       "Erradicación definitiva del servicio de recolección de experiencias DiagTrack y del historial de actividades de usuario.",
-      "Pausado del servicio Delivery Optimization (DoSvc) para evitar degradación de latencia por descargas locales P2P (Afecta Windows Update en red local).",
+      "Configuración del servicio Delivery Optimization (DoSvc) en modo Manual para prevenir consumo sorpresivo de ancho de banda local.",
       "Bloqueo perimetral en el Firewall de Windows para los ejecutables de recolección nativos (CompatTelRunner, etc.).",
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
       "Bloqueo total de Windows Recall y captura de actividad local de Inteligencia Artificial (Windows AI).",
