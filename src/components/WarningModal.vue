@@ -25,9 +25,10 @@
         </h2>
       </div>
 
-      <p class="text-gray-400 text-sm leading-relaxed">
-        {{ message }}
-      </p>
+      <p
+        class="text-gray-400 text-sm leading-relaxed"
+        v-html="DOMPurify.sanitize(message)"
+      ></p>
 
       <div class="flex gap-3 mt-2">
         <button
@@ -48,6 +49,8 @@
 </template>
 
 <script setup lang="ts">
+import DOMPurify from "dompurify";
+
 defineProps<{
   isOpen: boolean;
   message: string;
