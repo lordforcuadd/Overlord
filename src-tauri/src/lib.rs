@@ -8,7 +8,7 @@ use executor::{execute_script_in_memory, execute_script_in_memory_readonly};
 use hardware::{get_system_hardware, HardwareResponse};
 use games::{collect_installed_games, ScanGamesResponse};
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
-use tauri::{State, Manager};
+use tauri::{State, Manager, Emitter};
 use std::time::{Instant, Duration};
 use sysinfo::System;
 use std::sync::Mutex;
@@ -313,7 +313,6 @@ fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
 }
 
 async fn is_priority_daemon_active() -> bool {
-    use std::os::windows::process::CommandExt;
       
     let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
     let mut powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
