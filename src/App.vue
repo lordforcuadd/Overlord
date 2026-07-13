@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="relative min-h-screen bg-[#050505] text-gray-200 font-sans p-6 md:p-10 overflow-x-hidden z-0"
   >
@@ -236,7 +236,7 @@
               store.activeProfile
             }}</span>
             <span class="mx-2 text-gray-600">|</span>
-            Módulos:
+            Modulos:
             <span class="text-white font-bold">{{
               Object.values(store.modules).filter((v) => v).length
             }}</span>
@@ -332,7 +332,7 @@ async function copiarReporteErrores() {
     await navigator.clipboard.writeText(logs);
     await Swal.fire({
       title: "Reporte Copiado",
-      text: "El registro de errores se ha copiado al portapapeles. Pégalo en tu issue de GitHub.",
+      text: "El registro de errores se ha copiado al portapapeles. Pegalo en tu issue de GitHub.",
       icon: "success",
       ...overlordSwalConfig,
     });
@@ -353,7 +353,7 @@ onMounted(async () => {
     appVersion.value = await getVersion();
     document.title = `Overlord v${appVersion.value}`;
   } catch (err) {
-    console.error("No se pudo obtener la versión de Tauri:", err);
+    console.error("No se pudo obtener la version de Tauri:", err);
   }
   
   try {
@@ -361,7 +361,7 @@ onMounted(async () => {
     await store.scanGames();
     await syncModulesStatus();
   } catch (innerErr) {
-    console.error("Fallo durante la sincronización inicial de hardware/módulos:", innerErr);
+    console.error("Fallo durante la sincronizacion inicial de hardware/modulos:", innerErr);
     Swal.fire({
       title: "Error de Inicializacion",
       text: "No se pudo detectar el hardware o estado de modulos. Algunas funciones pueden no estar disponibles.",
@@ -371,7 +371,7 @@ onMounted(async () => {
   }
 
   unlistenBackendBusy = await listen("backend-busy-warning", () => {
-    warningModalMessage.value = "Hay una operación crítica en curso (ej. SFC/DISM). No puedes cerrar la aplicación hasta que termine para evitar corromper la imagen del sistema operativo Windows.";
+    warningModalMessage.value = "Hay una operacion critica en curso (ej. SFC/DISM). No puedes cerrar la aplicacion hasta que termine para evitar corromper la imagen del sistema operativo Windows.";
     warningModalOpen.value = true;
   });
 

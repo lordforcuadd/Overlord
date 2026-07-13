@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="mb-12">
     <div class="flex items-center gap-3 mb-5">
       <svg
@@ -21,7 +21,7 @@
         ></path>
       </svg>
       <h2 class="text-xl md:text-2xl font-bold text-white tracking-wide">
-        Perfiles de Optimización
+        Perfiles de Optimizacion
       </h2>
     </div>
 
@@ -60,26 +60,26 @@
       </svg>
       <p class="text-sm text-gray-300 font-medium leading-relaxed">
         <span v-if="store.activeProfile === 'Competitivo'"
-          >Optimización máxima. Aísla el CPU, reduce latencia de periféricos y prioriza hilos de juego para minimizar el retardo de entrada (input lag) y evitar la pérdida de fotogramas (frame drops). Recomendado para setups de alta gama.</span
+          >Optimizacion maxima. Aisla el CPU, reduce latencia de perifericos y prioriza hilos de juego para minimizar el retardo de entrada (input lag) y evitar la perdida de fotogramas (frame drops). Recomendado para setups de alta gama.</span
         >
         <span v-else-if="store.activeProfile === 'Programador & Competitivo'"
-          >Equilibrio perfecto. Mantiene la virtualización activa para Docker/Máquinas
+          >Equilibrio perfecto. Mantiene la virtualizacion activa para Docker/Maquinas
           Virtuales, pero inyecta baja latencia y hooks a los motores de
           juego.</span
         >
         <span v-else-if="store.activeProfile === 'Programador'"
-          >Optimiza el rendimiento del compilador, aplica caché de almacenamiento inteligente y reduce servicios innecesarios en segundo plano para desarrollo.</span
+          >Optimiza el rendimiento del compilador, aplica cache de almacenamiento inteligente y reduce servicios innecesarios en segundo plano para desarrollo.</span
         >
         <span v-else-if="store.activeProfile === 'Home Office / Laptops'"
-          >Prioriza la duración de la batería en Laptops y la estabilidad de la
+          >Prioriza la duracion de la bateria en Laptops y la estabilidad de la
           red para videollamadas.</span
         >
         <span v-else-if="store.activeProfile === 'Usuario Casual'"
-          >El estándar. Windows 11 ultraligero para navegación y multimedia sin
+          >El estandar. Windows 11 ultraligero para navegacion y multimedia sin
           tweaks arriesgados.</span
         >
         <span v-else
-          >Modo personalizado. Conserva tu configuración actual como punto de partida para activar o desactivar los módulos manualmente según tus necesidades.</span
+          >Modo personalizado. Conserva tu configuracion actual como punto de partida para activar o desactivar los modulos manualmente segun tus necesidades.</span
         >
       </p>
     </div>

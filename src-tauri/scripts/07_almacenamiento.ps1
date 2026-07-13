@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8,
     [bool]$IsSsd = $false
@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
-    Write-Host "[*] Iniciando mantenimiento y optimización de almacenamiento..."
+    Write-Host "[*] Iniciando mantenimiento y optimizacion de almacenamiento..."
 
     if ($IsSsd) {
         Write-Host "[+] Unidad SSD detectada. Optimizando parametros de lectura/escritura NTFS y cache..." -ForegroundColor Green
@@ -33,7 +33,7 @@ Try {
     # Desactivar nombres cortos MS-DOS 8.3
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -Type DWord -Value 1 -Force | Out-Null
 
-    # Optimizar caché de metadatos NTFS adaptativamente (solo en SSD rápidos)
+    # Optimizar cache de metadatos NTFS adaptativamente (solo en SSD rapidos)
     if ($IsSsd -and $RamGB -ge 16) {
         Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value 2 -Force | Out-Null
     }
@@ -61,7 +61,7 @@ Try {
         if ($LASTEXITCODE -ne 0) { throw "powercfg fallo al desactivar la hibernacion (Codigo: $LASTEXITCODE)" }
     }
 
-    # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
+    # La compactacion de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
     try {
         # El objeto COM Microsoft.Update.Installer.IsBusy es local, por lo que verificamos procesos activos
@@ -79,21 +79,21 @@ Try {
                 Start-Service wuauserv -ErrorAction SilentlyContinue
             }
         } else {
-            # TiWorker o TrustedInstaller están activos. Borrar solo temporales no bloqueados sin apagar el servicio.
+            # TiWorker o TrustedInstaller estan activos. Borrar solo temporales no bloqueados sin apagar el servicio.
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
     } catch {
-        # Evitamos apagar wuauserv por seguridad. Se borran únicamente los temporales no bloqueados.
+        # Evitamos apagar wuauserv por seguridad. Se borran unicamente los temporales no bloqueados.
         Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     }
 
     try {
         Remove-Item -Path "$env:TEMP\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         Remove-Item -Path "$env:SystemRoot\Temp\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    } catch { Write-Warning "Fallo no crítico limpiando temporales: $_" }
+    } catch { Write-Warning "Fallo no critico limpiando temporales: $_" }
 
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo de Almacenamiento: $_"
+    Write-Error "[-] Error critico en Modulo de Almacenamiento: $_"
     exit 1
 }

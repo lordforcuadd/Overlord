@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false, 
     [int]$RamGB = 8,
     [bool]$IsHybrid = $false,
@@ -23,7 +23,7 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # Para asegurar máxima compatibilidad con cualquier topología (Intel Hybrid, AMD X3D, 4-cores)
+    # Para asegurar maxima compatibilidad con cualquier topologia (Intel Hybrid, AMD X3D, 4-cores)
     # dejamos que el sistema operativo balancee de forma nativa (IrqPolicyMachineDefault)
     $DevicePolicyValue = 0 # IrqPolicyMachineDefault
     [uint64]$NetBitmask = 0
@@ -66,12 +66,12 @@ Try {
                                         $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
                                         
                                         if ($affinityKey.GetValue("DevicePolicy") -ne $DevicePolicyValue) {
-                                            throw "El SO bloqueó DevicePolicy para el dispositivo PCI: $devId"
+                                            throw "El SO bloqueo DevicePolicy para el dispositivo PCI: $devId"
                                         }
                                     }
                                 }
                             } catch {
-                                throw "El SO bloqueó la configuración de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
+                                throw "El SO bloqueo la configuracion de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
                             } finally {
                                 if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
                                 if ($null -ne $paramKey) { $paramKey.Close(); $paramKey = $null }

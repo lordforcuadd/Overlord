@@ -1,4 +1,4 @@
-# 08_telemetria.ps1
+﻿# 08_telemetria.ps1
 $ErrorActionPreference = "Stop"
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 
@@ -59,7 +59,7 @@ Try {
         throw "Fallo al asegurar la desactivacion de Windows Error Reporting"
     }
 
-    # Evitar reinicios automÃ¡ticos de Windows Update con sesiÃ³n iniciada
+    # Evitar reinicios automaticos de Windows Update con sesion iniciada
     $WUpPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
     if (!(Test-Path $WUpPath)) { New-Item -Path $WUpPath -Force | Out-Null }
     Backup-OverlordRegistryValue -TargetKey $WUpPath -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry"
@@ -85,7 +85,7 @@ Try {
             }
         }
     } catch {
-        throw "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc estÃ© deshabilitado): $_"
+        throw "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc este deshabilitado): $_"
     }
 
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"

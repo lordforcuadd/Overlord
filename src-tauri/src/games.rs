@@ -1,4 +1,4 @@
-use serde::Serialize;
+﻿use serde::Serialize;
 use std::path::Path;
 use winreg::enums::*;
 use winreg::RegKey;
@@ -305,7 +305,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    // Detección dinámica de Minecraft (Launcher oficial, CurseForge, Prism, Modrinth, TLauncher)
+    // Deteccion dinamica de Minecraft (Launcher oficial, CurseForge, Prism, Modrinth, TLauncher)
     for game in catalog.iter_mut() {
         if game.name == "Minecraft" {
             let appdata = std::env::var("APPDATA").unwrap_or_default();

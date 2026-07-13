@@ -1,4 +1,4 @@
-# $HKCU_Path ya estÃ¡ resuelto e inyectado globalmente por sid_resolver.ps1
+﻿# $HKCU_Path ya esta resuelto e inyectado globalmente por sid_resolver.ps1
 if (-not (Get-Variable -Name 'HKCU_Path' -Scope 'Global' -ErrorAction SilentlyContinue)) {
     $global:HKCU_Path = "HKCU:"
 }
@@ -21,7 +21,7 @@ function Backup-OverlordRegistryValue {
     )
     
     try {
-        # Redirigir HKCU de forma dinÃ¡mica
+        # Redirigir HKCU de forma dinamica
         if ($TargetKey -match "^HKCU:") {
             $TargetKey = $TargetKey -replace '^HKCU:', $global:HKCU_Path
         }
@@ -65,7 +65,7 @@ function Restore-OverlordRegistryValue {
     )
     
     try {
-        # Redirigir HKCU de forma dinÃ¡mica
+        # Redirigir HKCU de forma dinamica
         if ($TargetKey -match "^HKCU:") {
             $TargetKey = $TargetKey -replace '^HKCU:', $global:HKCU_Path
         }
@@ -157,7 +157,7 @@ function Uninstall-OverlordPriorityDaemon {
         }
     } catch {}
 
-    # Limpieza de la carpeta raÃ­z del daemon en ProgramData
+    # Limpieza de la carpeta raiz del daemon en ProgramData
     if (Test-Path $InstallDir) {
         Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }

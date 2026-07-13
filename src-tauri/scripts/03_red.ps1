@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false
 )
 $ErrorActionPreference = "Stop"
@@ -52,7 +52,7 @@ Try {
             }
         }
 
-        # Obtener adaptadores fÃ­sicos activos (Ethernet y Wi-Fi)
+        # Obtener adaptadores fisicos activos (Ethernet y Wi-Fi)
         $ActiveGuids = @()
         $EthernetGuids = @()
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
@@ -71,11 +71,11 @@ Try {
             if ($Adapter.PSChildName -match "^\d{4}$") {
                 $NetInstanceId = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue
                 if ($null -ne $NetInstanceId) {
-                    # 1. Aplicar optimizaciones clÃ¡sicas de energÃ­a (EEE, Green Energy) solo a Ethernet
+                    # 1. Aplicar optimizaciones clasicas de energia (EEE, Green Energy) solo a Ethernet
                     if ($EthernetGuids -contains $NetInstanceId) {
                         $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
                         
-                        # Desactivar Coalescencia, ModeraciÃ³n de InterrupciÃ³n y Control de Flujo Ãºnicamente en PCs de Escritorio con >8 hilos lÃ³gicos
+                        # Desactivar Coalescencia, Moderacion de Interrupcion y Control de Flujo unicamente en PCs de Escritorio con >8 hilos logicos
                         $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
                         if (-not $IsLaptop -or $TotalThreads -gt 8) {
                             $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"

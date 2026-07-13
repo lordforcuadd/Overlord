@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed } from "vue";
 import { useOverlordStore } from "../stores/overlordStore";
 
@@ -88,7 +88,7 @@ const maxDnsValue = computed(() => {
           <p
             class="text-[10px] font-mono text-zinc-500 mt-0.5 tracking-tight uppercase"
           >
-            Muestreo dinámico de latencia TCP e hilos DNS
+            Muestreo dinamico de latencia TCP e hilos DNS
           </p>
         </div>
       </div>
@@ -124,7 +124,7 @@ const maxDnsValue = computed(() => {
             v-if="store.benchmarks.before.measured"
             class="space-y-3 font-mono"
           >
-            <!-- Gráfica Latencia TCP Base -->
+            <!-- Grafica Latencia TCP Base -->
             <div>
               <div class="flex justify-between items-center text-[11px] mb-1">
                 <span class="text-zinc-400">Latencia TCP</span>
@@ -144,7 +144,7 @@ const maxDnsValue = computed(() => {
 
             <div>
               <div class="flex justify-between items-center text-[11px] mb-1">
-                <span class="text-zinc-400">Resolución DNS</span>
+                <span class="text-zinc-400">Resolucion DNS</span>
                 <span class="text-zinc-300 font-bold"
                   >{{ store.benchmarks.before.dnsResolution }} ms</span
                 >
@@ -164,7 +164,7 @@ const maxDnsValue = computed(() => {
             v-else
             class="text-[11px] font-mono text-zinc-600 italic py-4 flex items-center gap-2 border border-dashed border-zinc-900 rounded p-2 justify-center bg-zinc-950/20"
           >
-            Esperando telemetría de red...
+            Esperando telemetria de red...
           </div>
         </div>
 
@@ -196,7 +196,7 @@ const maxDnsValue = computed(() => {
               />
               <path d="m2 12 5-3 5 3 5-3 5 3" />
             </svg>
-            Inyección Núcleo Saneado
+            Inyeccion Nucleo Saneado
           </div>
 
           <div
@@ -227,7 +227,7 @@ const maxDnsValue = computed(() => {
 
             <div>
               <div class="flex justify-between items-center text-[11px] mb-1">
-                <span class="text-zinc-400">Resolución DNS</span>
+                <span class="text-zinc-400">Resolucion DNS</span>
                 <span class="text-cyan-400 font-bold flex items-center gap-1.5">
                   {{ store.benchmarks.after.dnsResolution }} ms
                   <span
@@ -252,7 +252,7 @@ const maxDnsValue = computed(() => {
             v-else
             class="text-[11px] font-mono text-zinc-600 italic py-4 flex items-center gap-2 border border-dashed border-zinc-900 rounded p-2 justify-center bg-zinc-950/20"
           >
-            {{ !store.benchmarks.before.measured ? "Requiere calibración inicial..." : "Bloque de optimización inactivo" }}
+            {{ !store.benchmarks.before.measured ? "Requiere calibracion inicial..." : "Bloque de optimizacion inactivo" }}
           </div>
         </div>
 
@@ -289,7 +289,7 @@ const maxDnsValue = computed(() => {
         </div>
         <div>
           <div class="text-[8px] text-zinc-500 uppercase tracking-widest">
-            Delta Tráfico TCP
+            Delta Trafico TCP
           </div>
           <div
             class="text-[11px] font-black tracking-tight"
@@ -302,7 +302,7 @@ const maxDnsValue = computed(() => {
             {{
               improvementNetwork?.positive
                 ? `+ ${improvementNetwork.percent}% EFICIENCIA`
-                : "SIN VARIACIÓN"
+                : "SIN VARIACION"
             }}
           </div>
         </div>
@@ -326,7 +326,7 @@ const maxDnsValue = computed(() => {
         </div>
         <div>
           <div class="text-[8px] text-zinc-500 uppercase tracking-widest">
-            Resolución Nombres
+            Resolucion Nombres
           </div>
           <div
             class="text-[11px] font-black tracking-tight"
@@ -337,7 +337,7 @@ const maxDnsValue = computed(() => {
             {{
               improvementDns?.positive
                 ? `+ ${improvementDns.percent}% FLUIDEZ`
-                : "SIN VARIACIÓN"
+                : "SIN VARIACION"
             }}
           </div>
         </div>

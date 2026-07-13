@@ -114,7 +114,32 @@ function Get-JavaRoots {
         (Join-Path $ProgramFilesx86 "Minecraft Launcher"),
         (Join-Path $ProgramFiles "Java")
     )
-    return $JavaRoots
+    
+    # Búsqueda dinámica en el Registro
+    $RegPaths = @(
+        "HKLM:\SOFTWARE\JavaSoft\Java Runtime Environment",
+        "HKLM:\SOFTWARE\JavaSoft\Java Development Kit",
+        "HKLM:\SOFTWARE\WOW6432Node\JavaSoft\Java Runtime Environment"
+    )
+    foreach ($RegPath in $RegPaths) {
+        if (Test-Path $RegPath) {
+            $Versions = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+            foreach ($Version in $Versions) {
+                $VKey = "HKLM:\$Version"
+                $JavaHome = Get-SafeRegistryValue -Path $VKey -Name "JavaHome"
+                if (![string]::IsNullOrWhiteSpace($JavaHome) -and (Test-Path $JavaHome)) {
+                    $JavaRoots += $JavaHome
+                }
+            }
+        }
+    }
+    
+    $AppPath = Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\javaw.exe" -Name "Path"
+    if (![string]::IsNullOrWhiteSpace($AppPath) -and (Test-Path $AppPath)) {
+        $JavaRoots += $AppPath
+    }
+    
+    return $JavaRoots | Select-Object -Unique
 }
 
 function Resolve-GameExePath {

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8
 )
@@ -80,7 +80,7 @@ Try {
                                         }
                                     }
                                     
-                                    # Revertir prioridad de interrupciÃ³n
+                                    # Revertir prioridad de interrupcion
                                     $priorityRegID = "PCI_${venId}_${devId}_DevicePriority"
                                     $savedPriority = if ($null -ne $msiProps -and $null -ne $msiProps.PSObject.Properties[$priorityRegID]) { $msiProps.$priorityRegID } else { $null }
                                     if ($null -ne $savedPriority) {
@@ -574,7 +574,7 @@ Try {
                                     Remove-Item -Path $SettingPath -Force -ErrorAction SilentlyContinue | Out-Null
                                 }
                                 
-                                # TambiÃ©n verificar si la clave de subgrupo queda vacÃ­a
+                                # Tambien verificar si la clave de subgrupo queda vacia
                                 $SubGroupPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid"
                                 if (Test-Path $SubGroupPath) {
                                     $subKey = Get-Item -Path $SubGroupPath -ErrorAction SilentlyContinue
@@ -774,7 +774,7 @@ Try {
         Remove-Item -Path $DefenderBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 
-    Write-Host "[+] Reversion completa de Overlord finalizada con exito."
+
 
     if (Test-Path $BackupPath) {
         $RemainingFiles = Get-ChildItem -Path $BackupPath -Recurse -ErrorAction SilentlyContinue
@@ -785,7 +785,7 @@ Try {
         }
     }
 
-    # Eliminar la clave padre principal si queda vacÃ­a tras la reversiÃ³n para no dejar huella
+    # Eliminar la clave padre principal si queda vacia tras la reversion para no dejar huella
     $OverlordKey = "HKLM:\SOFTWARE\Overlord"
     if (Test-Path $OverlordKey) {
         $Subkeys = Get-ChildItem -Path $OverlordKey -ErrorAction SilentlyContinue
@@ -801,6 +801,7 @@ Try {
     if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
         Start-Process explorer.exe | Out-Null
     }
+    Write-Host "[+] Reversion completa de Overlord finalizada con exito."
     exit 0
 
 } Catch {

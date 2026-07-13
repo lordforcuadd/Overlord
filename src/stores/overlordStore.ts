@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+﻿import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { PROFILE_CONFIGS } from "../data/tweaksMetadata";
 import { buildExpectedProfileState } from "./profileLogic";
@@ -184,7 +184,7 @@ export const useOverlordStore = defineStore("overlord", {
         ) {
           this.hardwareInfo.tier = "Gama Media-Alta";
         } else {
-          this.hardwareInfo.tier = "Gama Estándar";
+          this.hardwareInfo.tier = "Gama Estandar";
         }
         await this.checkBackupStatus();
         await this.checkPriorityServiceStatus();
@@ -255,7 +255,7 @@ export const useOverlordStore = defineStore("overlord", {
         }));
         this.gameList = [...scanned, ...manualGames];
       } catch (e) {
-        console.error("[ERROR ESCANEANDO CATÁLOGO DE JUEGOS]:", e);
+        console.error("[ERROR ESCANEANDO CATALOGO DE JUEGOS]:", e);
       }
     },
     startTelemetryPolling() {

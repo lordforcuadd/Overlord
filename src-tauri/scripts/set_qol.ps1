@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ToggleName,
     [string]$IsEnabledStr
 )
@@ -31,10 +31,10 @@ function Set-RegistryValue($subPath, $name, $type, $val) {
         if (!(Test-Path $fullPath)) { New-Item -Path $fullPath -Force | Out-Null }
         Set-ItemProperty -Path $fullPath -Name $name -Type $type -Value $val -Force | Out-Null
         
-        # VerificaciÃ³n estricta (Cero Complacencia)
+        # Verificacion estricta (Cero Complacencia)
         $actualVal = Get-ItemPropertyValue -Path $fullPath -Name $name -ErrorAction SilentlyContinue
         if ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString()) {
-            throw "El sistema interceptÃ³ el cambio o bloqueÃ³ la escritura del registro en $fullPath\$name"
+            throw "El sistema intercepto el cambio o bloqueo la escritura del registro en $fullPath\$name"
         }
     }
 }
@@ -215,7 +215,7 @@ switch ($ToggleName) {
         }
         if ($Value -eq 1) {
             if ($CurrentFlags -eq "59") {
-                # Ya estÃ¡ optimizado y con teclas filtro desactivadas. No tocar para no romper latencia de perifÃ©ricos.
+                # Ya esta optimizado y con teclas filtro desactivadas. No tocar para no romper latencia de perifericos.
             } else {
                 Set-RegistryValue "Control Panel\Accessibility\Keyboard Response" "Flags" "String" "122"
             }
@@ -382,7 +382,7 @@ switch ($ToggleName) {
         
         $dvrVal = if ($Value -eq 1) { 0 } else { 1 }
         
-        # Evitar sobreescribir con 1 si otro mÃ³dulo de rendimiento/GPU ya optimizÃ³ y respaldÃ³ la clave
+        # Evitar sobreescribir con 1 si otro modulo de rendimiento/GPU ya optimizo y respaldo la clave
         if ($Value -eq 0) {
             $HasGpuBackup = Test-Path "HKLM:\SOFTWARE\Overlord\Backup\GPU"
             $HasPerfBackup = Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Performance"

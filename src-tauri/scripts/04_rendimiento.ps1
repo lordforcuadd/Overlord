@@ -21,7 +21,7 @@ Try {
     $StorePath = "$HKCU_Path\System\GameConfigStore"
     Backup-OverlordRegistryValue -TargetKey $StorePath -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance"
 
-    # Guardar backup de MMAgent de forma dinÃ¡mica y configurar adaptativamente
+    # Guardar backup de MMAgent de forma dinamica y configurar adaptativamente
     try {
         if (Get-Command Get-MMAgent -ErrorAction SilentlyContinue) {
             $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
@@ -46,16 +46,16 @@ Try {
                 Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
                 Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
                 $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
-                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $true -or $chkAgent.PageCombining -eq $true)) { throw "El SO bloqueÃ³ la directiva MMAgent de compresiÃ³n de RAM" }
+                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $true -or $chkAgent.PageCombining -eq $true)) { Write-Warning "El SO bloqueo la directiva MMAgent de compresion de RAM (posible politica de grupo o VM)" }
             } else {
                 Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
                 Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
                 $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
-                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $false -or $chkAgent.PageCombining -eq $false)) { throw "El SO bloqueÃ³ la directiva MMAgent de compresiÃ³n de RAM" }
+                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $false -or $chkAgent.PageCombining -eq $false)) { Write-Warning "El SO bloqueo la directiva MMAgent de compresion de RAM (posible politica de grupo o VM)" }
             }
         }
     } catch {
-        throw "El SO bloqueÃ³ la comprobaciÃ³n o configuraciÃ³n de MMAgent: $_"
+        Write-Warning "El SO bloqueo la comprobacion o configuracion de MMAgent: $_"
     }
 
     if (-not $RunningOnBattery) {
@@ -82,7 +82,7 @@ Try {
     }
     try { & bcdedit /set disabledynamictick yes 2>$null } catch {}
 
-    # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a travÃ©s del mÃ³dulo independiente disableMitigations por seguridad.
+    # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a traves del modulo independiente disableMitigations por seguridad.
 
     $GamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
     if (Test-Path $GamesPath) {
@@ -101,7 +101,7 @@ Try {
         Set-ItemProperty -Path $GamesPath -Name "GPU Priority" -Type DWord -Value $GPU_PRIORITY_8 -Force | Out-Null
         Set-ItemProperty -Path $GamesPath -Name "Clock Rate" -Type DWord -Value $CLOCK_RATE_100_PERCENT -Force | Out-Null
 
-        # VerificaciÃ³n de MMCSS
+        # Verificacion de MMCSS
         if ((Get-ItemPropertyValue -Path $GamesPath -Name "Scheduling Category" -ErrorAction SilentlyContinue) -ne "High") { throw "Fallo de verificacion en MMCSS Scheduling Category" }
         if ((Get-ItemPropertyValue -Path $GamesPath -Name "Priority" -ErrorAction SilentlyContinue) -ne $PRIORITY_HIGH_6) { throw "Fallo de verificacion en MMCSS Priority" }
     }

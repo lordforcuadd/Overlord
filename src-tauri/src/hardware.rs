@@ -63,10 +63,10 @@ pub async fn get_system_hardware(force_refresh: bool) -> HardwareResponse {
 }
 
 async fn detect_system_hardware() -> HardwareResponse {
-        // 1. Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
-        let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
-        let powershell_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+        // 1. Consultar velocidad de RAM de forma asincrona mediante PowerShell/CIM (metodo moderno compatible con 24H2)
+        let powershell_path = crate::get_powershell_path();
         
+        // Ejecutar wmic via PowerShell sin crear ventana (usamos wmic porque es inmensamente mas rapido que Get-CimInstance en este contexto especifico)
         let mut ram_speed_val = None;
         let mut cmd = tokio::process::Command::new(&powershell_path);
         cmd.creation_flags(CREATE_NO_WINDOW)
@@ -87,8 +87,8 @@ async fn detect_system_hardware() -> HardwareResponse {
             }
         }
 
-        // 2. Ejecutar el resto de las consultas síncronas en un hilo de bloqueo
-        let (mut hardware, handle_ok, sys_root) = tokio::task::spawn_blocking(move || {
+        // 2. Ejecutar el resto de las consultas sincronas en un hilo de bloqueo
+        let (mut hardware, handle_ok) = tokio::task::spawn_blocking(move || {
             let mut sys = System::new_all();
             sys.refresh_memory();
             sys.refresh_cpu();
@@ -200,7 +200,7 @@ async fn detect_system_hardware() -> HardwareResponse {
             }
 
             if !handle_ok {
-                // Se difiere el fallback al contexto asíncrono
+                // Se difiere el fallback al contexto asincrono
             }
 
             let mut is_hybrid = false;
@@ -244,7 +244,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_hybrid,
                 is_x3d,
                 is_ssd: drive_is_ssd,
-            }, handle_ok, system_root)
+            }, handle_ok)
         }).await.unwrap_or_else(|e| {
             eprintln!("[OVERLORD ERROR] spawn_blocking failed for hardware info: {:?}", e);
             (HardwareResponse {
@@ -260,11 +260,11 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_hybrid: false,
                 is_x3d: false,
                 is_ssd: false,
-            }, true, "".to_string())
+            }, true)
         });
         
         if !handle_ok {
-            let ps_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", sys_root);
+            let ps_path = crate::get_powershell_path();
             if let Ok(out) = tokio::process::Command::new(&ps_path)
                 .creation_flags(CREATE_NO_WINDOW)
                 .args(&[

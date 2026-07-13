@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$GameList = "",
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8
@@ -104,7 +104,7 @@ try {
                         $ini = Find-FileFaster -Path $ConfigFolder -Filter $engine.FileName -MaxDepth 3
                     }
                     if ($ini -and ($engine.Name -eq "Unreal")) {
-                        # Comprobar si el proceso del juego estÃ¡ activo
+                        # Comprobar si el proceso del juego esta activo
                         $RunningProc = Get-Process -Name $GameBaseName -ErrorAction SilentlyContinue
                         if ($null -ne $RunningProc) {
                             Write-Warning "El juego $GameBaseName esta en ejecucion. Se omitira la modificacion de GameUserSettings.ini para evitar conflictos de escritura."
@@ -132,7 +132,7 @@ try {
                                 }
                             }
                             if (-not $foundKey) {
-                                # Si no existÃ­a en el archivo, guardamos _ABSENT_ para la reversiÃ³n simÃ©trica
+                                # Si no existia en el archivo, guardamos _ABSENT_ para la reversion simetrica
                                 $gameProps = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
                                 if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_$key"]) {
                                     Set-ItemProperty -Path $GameBackupPath -Name "Original_$key" -Value "_ABSENT_" -Force | Out-Null
@@ -222,7 +222,7 @@ try {
                     Remove-Item -Path "$OldIfeo\PerfOptions" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                 }
             } else {
-                # Guardar marcador de ausente para saber que no existÃ­a originalmente
+                # Guardar marcador de ausente para saber que no existia originalmente
                 if (!(Test-Path (Split-Path $IfeoBackup -Parent))) {
                     New-Item -Path (Split-Path $IfeoBackup -Parent) -Force | Out-Null
                 }
@@ -298,6 +298,6 @@ try {
     Write-Host "[+] Protocolo de Game Hooks completado."
     exit 0
 } catch {
-    Write-Error "[-] Error crítico global en Módulo de Game Hooks: $_"
+    Write-Error "[-] Error critico global en Modulo de Game Hooks: $_"
     exit 1
 }

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false
 )
 $ErrorActionPreference = "Stop"
@@ -40,7 +40,7 @@ Try {
     # Copia de seguridad para permisos de aplicaciones de segundo plano
     Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
     
-    # Copia de seguridad para polÃ­ticas de Microsoft Edge
+    # Copia de seguridad para politicas de Microsoft Edge
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry"
 
@@ -65,7 +65,7 @@ Try {
     if (!(Test-Path $DataPath)) { New-Item -Path $DataPath -Force | Out-Null }
     Set-ItemProperty -Path $DataPath -Name "AllowTelemetry" -Type DWord -Value 0 -Force | Out-Null
     $AllowTelemetry = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
-    if ($null -eq $AllowTelemetry -or $AllowTelemetry -ne 0) { throw "El SO bloqueó la configuración de AllowTelemetry" }
+    if ($null -eq $AllowTelemetry -or $AllowTelemetry -ne 0) { throw "El SO bloqueo la configuracion de AllowTelemetry" }
 
     $SearchPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search"
     if (!(Test-Path $SearchPath)) { New-Item -Path $SearchPath -Force | Out-Null }
@@ -73,8 +73,8 @@ Try {
     Set-ItemProperty -Path $SearchPath -Name "CortanaConsent" -Type DWord -Value 0 -Force | Out-Null
     $BingSearchEnabled = Get-ItemPropertyValue -Path $SearchPath -Name "BingSearchEnabled" -ErrorAction SilentlyContinue
     $CortanaConsent = Get-ItemPropertyValue -Path $SearchPath -Name "CortanaConsent" -ErrorAction SilentlyContinue
-    if ($null -eq $BingSearchEnabled -or $BingSearchEnabled -ne 0) { throw "El SO bloqueó la configuración de BingSearchEnabled" }
-    if ($null -eq $CortanaConsent -or $CortanaConsent -ne 0) { throw "El SO bloqueó la configuración de CortanaConsent" }
+    if ($null -eq $BingSearchEnabled -or $BingSearchEnabled -ne 0) { throw "El SO bloqueo la configuracion de BingSearchEnabled" }
+    if ($null -eq $CortanaConsent -or $CortanaConsent -ne 0) { throw "El SO bloqueo la configuracion de CortanaConsent" }
 
     $CopilotUserPath = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot"
     if (!(Test-Path $CopilotUserPath)) { New-Item -Path $CopilotUserPath -Force | Out-Null }
@@ -89,7 +89,7 @@ Try {
     if (!(Test-Path $BgAppPath)) { New-Item -Path $BgAppPath -Force | Out-Null }
     Set-ItemProperty -Path $BgAppPath -Name "GlobalUserDisabled" -Type DWord -Value 1 -Force | Out-Null
 
-    # Desactivar inicio rÃ¡pido y segundo plano de Microsoft Edge
+    # Desactivar inicio rapido y segundo plano de Microsoft Edge
     $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
     if (!(Test-Path $EdgePolicyPath)) { New-Item -Path $EdgePolicyPath -Force | Out-Null }
     Set-ItemProperty -Path $EdgePolicyPath -Name "StartupBoostEnabled" -Type DWord -Value 0 -Force | Out-Null

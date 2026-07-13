@@ -1,4 +1,4 @@
-# 09_energia.ps1
+﻿# 09_energia.ps1
 $ErrorActionPreference = "Stop"
 
 Try {
@@ -49,7 +49,7 @@ Try {
                 # Intentar duplicar plan de Alto Rendimiento (High Performance)
                 $dupOut = powercfg /duplicatescheme "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null
                 if ($dupOut -notmatch "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
-                    # Si no existe Alto Rendimiento, duplicamos el plan Equilibrado (Balanced) que siempre viene de fÃ¡brica
+                    # Si no existe Alto Rendimiento, duplicamos el plan Equilibrado (Balanced) que siempre viene de fabrica
                     $dupOut = powercfg /duplicatescheme "381b4222-f694-41f0-9685-ff5bb260df2e" 2>$null
                 }
 
@@ -59,7 +59,7 @@ Try {
                     & powercfg /setactive $newGuid 2>$null
                     Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force -ErrorAction SilentlyContinue | Out-Null
                 } else {
-                    # Ãšltimo recurso: activar plan Equilibrado de fÃ¡brica
+                    # išltimo recurso: activar plan Equilibrado de fabrica
                     & powercfg /setactive "381b4222-f694-41f0-9685-ff5bb260df2e" 2>$null
                 }
             }
@@ -90,29 +90,29 @@ Try {
 
         # Nota de rigor: Las llamadas powercfg externas no generan excepciones en PowerShell
         # al fallar (por ejemplo, si el hardware/firmware no soporta EPP o Boost Mode).
-        # Verificamos explícitamente $LASTEXITCODE para reportar advertencias informadas sin interrumpir la ejecución.
+        # Verificamos explicitamente $LASTEXITCODE para reportar advertencias informadas sin interrumpir la ejecucion.
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ee12f906-d277-404b-b6da-e5fa1a576df5" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para ee12f906-d277-404b-b6da-e5fa1a576df5" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bea128a440 d4e00550-747f-4ddb-bf3e-9b6c97a522a4 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para d4e00550-747f-4ddb-bf3e-9b6c97a522a4" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para d4e00550-747f-4ddb-bf3e-9b6c97a522a4" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 0cc5b647-c1df-4637-891a-dec35c318583" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 0cc5b647-c1df-4637-891a-dec35c318583" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ea0653f5-eab4-474c-8a0f-1ba102244432" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para ea0653f5-eab4-474c-8a0f-1ba102244432" }
         
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6733a230-cd1a-4929-94d4-540b4ddecbeb 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 6733a230-cd1a-4929-94d4-540b4ddecbeb" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 6733a230-cd1a-4929-94d4-540b4ddecbeb" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3668a66e-6856-4221-b530-747f2d53e4c6 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 3668a66e-6856-4221-b530-747f2d53e4c6" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 3668a66e-6856-4221-b530-747f2d53e4c6" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 be337238-0d82-4146-a960-4f3749d470c7 2 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para be337238-0d82-4146-a960-4f3749d470c7" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para be337238-0d82-4146-a960-4f3749d470c7" }
 
-        # Inyectar desactivación global de Power Throttling
+        # Inyectar desactivacion global de Power Throttling
         $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
         if (!(Test-Path $ThrottlePath)) { New-Item -Path $ThrottlePath -Force | Out-Null }
         Backup-OverlordRegistryValue -TargetKey $ThrottlePath -ValueName "PowerThrottlingOff" -BackupSubFolder "Power"

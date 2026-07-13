@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="mb-12 rounded-2xl border border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl p-6 md:p-8 shadow-[0_0_30px_rgba(0,0,0,0.5)]"
   >
@@ -22,7 +22,7 @@
       </div>
       <div>
         <h2 class="text-xl md:text-2xl font-bold text-white tracking-wide">
-          Ajustes Instantáneos (QoL)
+          Ajustes Instantaneos (QoL)
         </h2>
         <p class="text-sm text-gray-400 mt-1">Modificaciones de sistema</p>
       </div>
@@ -343,38 +343,38 @@ const uiToggles = [
     id: "barebonesVisual" as const,
     title: "Rendimiento Visual (Barebones)",
     desc: "Optimiza efectos y animaciones conservando suavizado ClearType.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "darkMode" as const,
     title: "Modo Oscuro Global",
     desc: "Fuerza el tema oscuro nativo.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "showExtensions" as const,
     title: "Mostrar Extensiones",
     desc: "Hace visibles formatos como .exe, .ps1.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
-  { id: "classicMenu" as const, title: "Menú Clásico Win 11", desc: "", evidenciaImpacto: "Cosmético" as const },
+  { id: "classicMenu" as const, title: "Menu Clasico Win 11", desc: "", evidenciaImpacto: "Cosmetico" as const },
   {
     id: "taskbarLeft" as const,
     title: "Barra a la Izquierda (Win11)",
-    desc: "Mueve los iconos al estilo clásico.",
-    evidenciaImpacto: "Cosmético" as const,
+    desc: "Mueve los iconos al estilo clasico.",
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "cleanAltTab" as const,
     title: "Alt+Tab Limpio",
-    desc: "Oculta las pestañas de Edge del atajo.",
-    evidenciaImpacto: "Cosmético" as const,
+    desc: "Oculta las pestanas de Edge del atajo.",
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "detailedBSoD" as const,
     title: "Pantallazo Azul Detallado",
-    desc: "Muestra códigos de error reales.",
-    evidenciaImpacto: "Cosmético" as const,
+    desc: "Muestra codigos de error reales.",
+    evidenciaImpacto: "Cosmetico" as const,
   },
 ];
 
@@ -382,14 +382,14 @@ const privacyToggles = [
   {
     id: "disableBing" as const,
     title: "Erradicar Bing",
-    desc: "Desactiva búsquedas y sugerencias web en el Menú Inicio.",
+    desc: "Desactiva busquedas y sugerencias web en el Menu Inicio.",
     evidenciaImpacto: "Comprobado" as const,
   },
   {
     id: "disableLockScreen" as const,
     title: "Ocultar Lock Screen",
-    desc: "Va directo a la pantalla de contraseña.",
-    evidenciaImpacto: "Cosmético" as const,
+    desc: "Va directo a la pantalla de contrasena.",
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "disableExplorerAds" as const,
@@ -406,7 +406,7 @@ const privacyToggles = [
   {
     id: "disableCopilot" as const,
     title: "Erradicar MS Copilot",
-    desc: "Bloquea el uso y telemetría de Copilot.",
+    desc: "Bloquea el uso y telemetria de Copilot.",
     evidenciaImpacto: "Comprobado" as const,
   },
   {
@@ -422,13 +422,13 @@ const explorerToggles = [
     id: "showHiddenFiles" as const,
     title: "Mostrar Archivos Ocultos",
     desc: "Revela carpetas ocultas.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "launchToThisPC" as const,
     title: 'Iniciar en "Este Equipo"',
     desc: "Evita la vista de historial.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "disableOneDrive" as const,
@@ -439,8 +439,8 @@ const explorerToggles = [
   {
     id: "zeroStartupDelay" as const,
     title: "Cero Retraso de Arranque",
-    desc: "Apps de inicio instantáneas.",
-    evidenciaImpacto: "Cosmético" as const,
+    desc: "Apps de inicio instantaneas.",
+    evidenciaImpacto: "Cosmetico" as const,
   },
 ];
 
@@ -449,13 +449,13 @@ const gamingToggles = [
     id: "disableStickyKeys" as const,
     title: "Desactivar Sticky Keys",
     desc: "Evita minimizar juegos.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "disableFilterKeys" as const,
     title: "Desactivar Teclas Filtro",
     desc: "Bloquea alertas de Shift.",
-    evidenciaImpacto: "Cosmético" as const,
+    evidenciaImpacto: "Cosmetico" as const,
   },
   {
     id: "disableWidgets" as const,
@@ -466,7 +466,7 @@ const gamingToggles = [
   {
     id: "enableGameMode" as const,
     title: "Modo Juego",
-    desc: "Prioriza hilos de juegos y apaga grabación GameDVR de fondo.",
+    desc: "Prioriza hilos de juegos y apaga grabacion GameDVR de fondo.",
     evidenciaImpacto: "Comprobado" as const,
   },
 ];
@@ -480,7 +480,7 @@ function getDescription(id: QolKeys): string {
     } else if (windowsBuild.value >= 22000) {
       return "Recupera el clic derecho de Windows 10.";
     } else {
-      return "Ya es clásico en Windows 10.";
+      return "Ya es clasico en Windows 10.";
     }
   }
   const all = [
@@ -546,8 +546,8 @@ async function applyToggle(settingKey: QolKeys) {
         text: "Este ajuste requiere reiniciar el Explorador de Windows para aplicarse. ¿Deseas recargarlo de forma segura ahora?",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "SÍ, REINICIAR",
-        cancelButtonText: "MÁS TARDE",
+        confirmButtonText: "SI, REINICIAR",
+        cancelButtonText: "MAS TARDE",
         ...props.swalConfig
       });
 
@@ -570,7 +570,7 @@ async function applyToggle(settingKey: QolKeys) {
           console.error("Fallo al reiniciar el explorador:", err);
           await Swal.fire({
             title: "ERROR DE REINICIO",
-            text: "No se pudo reiniciar el Explorador de Windows de forma automática. Inténtalo de nuevo o reinicia tu PC manualmente.",
+            text: "No se pudo reiniciar el Explorador de Windows de forma automatica. Intentalo de nuevo o reinicia tu PC manualmente.",
             icon: "error",
             ...props.swalConfig
           });

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     v-if="isOpen"
     class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -21,7 +21,7 @@
           ></path>
         </svg>
         <h2 class="text-xl font-black tracking-tight uppercase text-white">
-          Confirmación de Riesgo
+          Confirmacion de Riesgo
         </h2>
       </div>
 

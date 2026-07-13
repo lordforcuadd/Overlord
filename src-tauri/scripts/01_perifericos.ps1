@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false
 )
 
@@ -55,11 +55,11 @@ Try {
                                         $interruptKey.SetValue("MSISupported", 1, [Microsoft.Win32.RegistryValueKind]::DWord)
                                         
                                         if ($interruptKey.GetValue("MSISupported") -ne 1) { 
-                                            throw "El SO bloqueó MSISupported para el dispositivo PCI: $devId" 
+                                            throw "El SO bloqueo MSISupported para el dispositivo PCI: $devId" 
                                         }
                                     }
                                     
-                                    # Configurar prioridad de interrupción alta (DevicePriority = 3)
+                                    # Configurar prioridad de interrupcion alta (DevicePriority = 3)
                                     $affinityPathName = "Interrupt Management\Affinity Policy"
                                     $affinityKey = $paramKey.CreateSubKey($affinityPathName, $true)
                                     if ($affinityKey) {
@@ -77,7 +77,7 @@ Try {
                                     }
                                 }
                             } catch {
-                                throw "El SO bloqueó MSI para el dispositivo PCI $devId (sin permisos): $_"
+                                throw "El SO bloqueo MSI para el dispositivo PCI $devId (sin permisos): $_"
                             } finally {
                                 if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
                                 if ($null -ne $interruptKey) { $interruptKey.Close(); $interruptKey = $null }
@@ -100,7 +100,7 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $PriorityControlPath -ValueName "Win32PrioritySeparation" -BackupSubFolder "Performance"
         Set-ItemProperty -Path $PriorityControlPath -Name "Win32PrioritySeparation" -Type DWord -Value 26 -Force | Out-Null
         if ((Get-ItemProperty -Path $PriorityControlPath -ErrorAction SilentlyContinue).Win32PrioritySeparation -ne 26) { 
-            throw "El SO bloqueÃ³ Win32PrioritySeparation" 
+            throw "El SO bloqueo Win32PrioritySeparation" 
         }
     }
 
@@ -116,7 +116,7 @@ Try {
             & powercfg /setactive $CurrentGuid 2>$null | Out-Null
         }
     } catch {
-        throw "El SO bloqueÃ³ la desactivaciÃ³n de USB Selective Suspend"
+        throw "El SO bloqueo la desactivacion de USB Selective Suspend"
     }
 
     # Desactivar Aceleracion del Raton (Precision del Puntero)
@@ -128,7 +128,7 @@ Try {
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Type String -Value "0" -Force | Out-Null
     Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Type String -Value "0" -Force | Out-Null
     if ((Get-ItemPropertyValue -Path $MousePath -Name "MouseSpeed" -ErrorAction SilentlyContinue) -ne "0") { 
-        throw "El SO bloqueÃ³ MouseSpeed lineal" 
+        throw "El SO bloqueo MouseSpeed lineal" 
     }
 
     $StickyPath = "$HKCU_Path\Control Panel\Accessibility\StickyKeys"
@@ -156,7 +156,7 @@ Try {
     Set-ItemProperty -Path $KeyRespPath -Name "BounceTime" -Type String -Value "0" -Force | Out-Null
 
     if ((Get-ItemPropertyValue -Path $StickyPath -Name "Flags" -ErrorAction SilentlyContinue) -ne "506") { 
-        throw "El SO bloqueÃ³ los Flags de StickyKeys stock" 
+        throw "El SO bloqueo los Flags de StickyKeys stock" 
     }
 
     Write-Host "[+] Modulo de latencia de perifericos aplicado de forma limpia."

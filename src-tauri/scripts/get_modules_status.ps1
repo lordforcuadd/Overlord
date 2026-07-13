@@ -1,4 +1,4 @@
-param(
+﻿param(
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8,
     [bool]$IsSsd = $false
@@ -301,7 +301,7 @@ if (Test-Path $LayersPath) {
     if ($null -ne $LayersProps) {
         foreach ($Prop in $LayersProps.PSObject.Properties) {
             # Si hay un .exe con override de DPI o fullscreen optimizations deshabilitado, 
-            # asumimos que el módulo gameHooks (o al menos un juego de su catálogo) está activo.
+            # asumimos que el modulo gameHooks (o al menos un juego de su catalogo) esta activo.
             if ($Prop.Name -match "\.exe$" -and ($Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -or $Prop.Value -match "DISABLEDXMAXIMIZEDWINDOWEDMODE")) {
                 $Status['gameHooks'] = $true
                 break
