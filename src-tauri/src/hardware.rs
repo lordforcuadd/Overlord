@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use winreg::enums::*;
 use winreg::RegKey;
-use std::os::windows::process::CommandExt;
+
 use sysinfo::System;
 use tokio::sync::RwLock;
 
@@ -88,7 +88,7 @@ async fn detect_system_hardware() -> HardwareResponse {
         }
 
         // 2. Ejecutar el resto de las consultas síncronas en un hilo de bloqueo
-        tokio::task::spawn_blocking(move || {
+        let (mut hardware, handle_ok, sys_root) = tokio::task::spawn_blocking(move || {
             let mut sys = System::new_all();
             sys.refresh_memory();
             sys.refresh_cpu();
@@ -200,25 +200,7 @@ async fn detect_system_hardware() -> HardwareResponse {
             }
 
             if !handle_ok {
-                // Fallback no-privilegiado via PowerShell / Get-PhysicalDisk
-                let ps_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
-                let output = std::process::Command::new(&ps_path)
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .args(&[
-                        "-NoProfile",
-                        "-Command",
-                        "$SysDrv = $env:SystemDrive.Substring(0,1); $Part = Get-Partition -DriveLetter $SysDrv -ErrorAction SilentlyContinue; if ($Part) { $Disk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $Part.DiskNumber } ; if ($Disk.MediaType -eq 'SSD') { 'True' } }",
-                    ])
-                    .output();
-
-                if let Ok(out) = output {
-                    if out.status.success() {
-                        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                        if !text.is_empty() {
-                            drive_is_ssd = true;
-                        }
-                    }
-                }
+                // Se difiere el fallback al contexto asíncrono
             }
 
             let mut is_hybrid = false;
@@ -249,7 +231,7 @@ async fn detect_system_hardware() -> HardwareResponse {
 
             let is_x3d = cpu_name.to_lowercase().contains("x3d");
 
-            HardwareResponse {
+            (HardwareResponse {
                 cpu: cpu_name,
                 cpu_brand,
                 cpu_vendor,
@@ -262,10 +244,10 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_hybrid,
                 is_x3d,
                 is_ssd: drive_is_ssd,
-            }
+            }, handle_ok, system_root)
         }).await.unwrap_or_else(|e| {
             eprintln!("[OVERLORD ERROR] spawn_blocking failed for hardware info: {:?}", e);
-            HardwareResponse {
+            (HardwareResponse {
                 cpu: "Error al detectar CPU".to_string(),
                 cpu_brand: "Error al detectar CPU".to_string(),
                 cpu_vendor: "Desconocido".to_string(),
@@ -278,8 +260,31 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_hybrid: false,
                 is_x3d: false,
                 is_ssd: false,
+            }, true, "".to_string())
+        });
+        
+        if !handle_ok {
+            let ps_path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", sys_root);
+            if let Ok(out) = tokio::process::Command::new(&ps_path)
+                .creation_flags(CREATE_NO_WINDOW)
+                .args(&[
+                    "-NoProfile",
+                    "-Command",
+                    "$SysDrv = $env:SystemDrive.Substring(0,1); $Part = Get-Partition -DriveLetter $SysDrv -ErrorAction SilentlyContinue; if ($Part) { $Disk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $Part.DiskNumber } ; if ($Disk.MediaType -eq 'SSD') { 'True' } }",
+                ])
+                .output()
+                .await 
+            {
+                if out.status.success() {
+                    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !text.is_empty() {
+                        hardware.is_ssd = true;
+                    }
+                }
             }
-        })
+        }
+
+        hardware
 }
 
 
