@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <main
     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-32"
   >
@@ -46,7 +46,7 @@
           
           <!-- Agregar juego manual -->
           <div class="flex flex-col gap-2 p-1 border-t border-white/5 pt-3 mt-1">
-            <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Anadir Juego Manual</span>
+            <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Añadir Juego Manual</span>
             <div class="flex flex-col gap-2">
               <input 
                 v-model="manualGameName"
@@ -62,7 +62,7 @@
                 @click="addManualGame"
                 class="w-full bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 hover:text-yellow-400 font-bold py-2 rounded-lg text-xs transition-colors"
               >
-                Anadir Juego
+                Añadir Juego
               </button>
             </div>
           </div>
@@ -130,8 +130,8 @@ function addManualGame() {
   const exeRegex = /^[^\\/:*?"<>|\s]+\.exe$/i;
   if (!exeRegex.test(exe)) {
     Swal.fire({
-      title: "Ejecutable Invalido",
-      text: "El nombre del ejecutable debe terminar en '.exe' y no contener espacios ni caracteres no validos de Windows (\\ / : * ? \" < > |).",
+      title: "Ejecutable Inválido",
+      text: "El nombre del ejecutable debe terminar en '.exe' y no contener espacios ni caracteres no válidos de Windows (\\ / : * ? \" < > |).",
       icon: "error",
       ...overlordSwalConfig,
     });
@@ -171,8 +171,8 @@ const handleServiceToggle = async (event: Event) => {
     target.checked = !isChecked;
     
     await Swal.fire({
-      title: "Modulo Requerido",
-      text: "Para activar el Servicio de Fondo, primero debes aplicar con exito el modulo de 'Game Hooks'.",
+      title: "Módulo Requerido",
+      text: "Para activar el Servicio de Fondo, primero debes aplicar con éxito el módulo de 'Game Hooks'.",
       icon: "warning",
       ...overlordSwalConfig,
     });
@@ -182,10 +182,10 @@ const handleServiceToggle = async (event: Event) => {
     if (isChecked) {
       const confirm = await Swal.fire({
         title: "¿Instalar Servicio de Fondo?",
-        html: "<p>Esta accion instalara un <b>proceso persistente</b> (Daemon) en Windows que seguira ejecutandose incluso despues de cerrar Overlord.</p><p class='mt-2'>Su funcion es monitorear e inyectar prioridad alta a los juegos en tiempo real de forma autonoma.</p>",
+        html: "<p>Esta acción instalará un <b>proceso persistente</b> (Daemon) en Windows que seguirá ejecutándose incluso después de cerrar Overlord.</p><p class='mt-2'>Su función es monitorear e inyectar prioridad alta a los juegos en tiempo real de forma autónoma.</p>",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Si, instalar e iniciar",
+        confirmButtonText: "Sí, instalar e iniciar",
         cancelButtonText: "Cancelar",
         ...overlordSwalConfig,
       });

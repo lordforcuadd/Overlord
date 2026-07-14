@@ -1,4 +1,4 @@
-﻿import { ref } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
@@ -28,7 +28,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       store.restorePointCreated = true;
       await Swal.fire({
         title: "¡Punto Creado!",
-        text: "El sistema ha sido blindado con exito.",
+        text: "El sistema ha sido blindado con éxito.",
         icon: "success",
         ...overlordSwalConfig,
       });
@@ -37,10 +37,10 @@ export function useOrchestrator(overlordSwalConfig: any) {
       if (String(error).includes("[WARNING]")) {
         const confirmBypass = await Swal.fire({
           title: "ADVERTENCIA DE VSS",
-          html: "No se pudo crear el Punto de Restauracion del sistema (el servicio VSS de Windows esta inactivo o usas un sistema modificado).<br><br><b>¿Deseas continuar de todos modos?</b> Las optimizaciones y los respaldos locales del Registro de Overlord funcionaran normalmente.",
+          html: "No se pudo crear el Punto de Restauración del sistema (el servicio VSS de Windows está inactivo o usas un sistema modificado).<br><br><b>¿Deseas continuar de todos modos?</b> Las optimizaciones y los respaldos locales del Registro de Overlord funcionarán normalmente.",
           icon: "warning",
           showCancelButton: true,
-          confirmButtonText: "SI, CONTINUAR",
+          confirmButtonText: "SÍ, CONTINUAR",
           cancelButtonText: "CANCELAR",
           ...overlordSwalConfig,
         });
@@ -78,10 +78,10 @@ export function useOrchestrator(overlordSwalConfig: any) {
       if (!store.backupExists) {
         const alertConfirm = await Swal.fire({
           title: "RESPALDO REQUERIDO",
-          html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creara un respaldo obligatorio.",
+          html: "Para inyectar optimizaciones de nivel Kernel con seguridad, Overlord creará un respaldo obligatorio.",
           icon: "info",
           showCancelButton: true,
-          confirmButtonText: "SI, BLINDAR SISTEMA",
+          confirmButtonText: "SÍ, BLINDAR SISTEMA",
           cancelButtonText: "CANCELAR",
           ...overlordSwalConfig,
         });
@@ -128,7 +128,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
           store.modules[modKey as keyof typeof store.modules] = false;
           modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
         } catch (errorOutput) {
-          console.error(`[FALLO EN MODULO ${modKey}]:`, errorOutput);
+          console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
           cardStatus.value[modKey] = "error";
 
           moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${String(errorOutput).substring(0, 80)}...</span>`;
@@ -139,7 +139,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
       if (huboError) {
         try {
-          // Detener el monitor dinamico en Rust
+          // Detener el monitor dinámico en Rust
           await invoke("stop_game_priority_monitor").catch((err) => {
             console.error("[RUST MONITOR STOP FAIL ON ROLLBACK]:", err);
           });
@@ -161,12 +161,12 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
         const textoExitos =
           modulosExitosos.length > 0
-            ? `Los modulos <b>${modulosExitosos.join(", ")}</b> se habian aplicado, pero se ejecuto un rollback automatico por seguridad.`
-            : "Ningun modulo previo pudo completarse.";
+            ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se habían aplicado, pero se ejecutó un rollback automático por seguridad.`
+            : "Ningún módulo previo pudo completarse.";
 
         await Swal.fire({
-          title: "OPTIMIZACION FALLIDA",
-          html: `${textoExitos}<br><br>El modulo <b>${moduloFallido}</b> fallo durante la inyeccion.<br><br>El sistema ha sido revertido a su estado inicial.`,
+          title: "OPTIMIZACIÓN FALLIDA",
+          html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>El sistema ha sido revertido a su estado inicial.`,
           icon: "error",
           ...overlordSwalConfig,
         });
@@ -180,8 +180,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
           title: "SISTEMA OPTIMIZADO",
           html: "Es <b class='text-yellow-500'>OBLIGATORIO</b> reiniciar para inyectar los cambios en el Kernel.",
           icon: "success",
-          confirmButtonText: "SI, REINICIAR AHORA",
-          cancelButtonText: "MAS TARDE",
+          confirmButtonText: "SÍ, REINICIAR AHORA",
+          cancelButtonText: "MÁS TARDE",
           showCancelButton: true,
           ...overlordSwalConfig,
         });
@@ -215,11 +215,11 @@ export function useOrchestrator(overlordSwalConfig: any) {
     if (store.isGlobalBusy) return;
 
     const result = await Swal.fire({
-      title: "ATENCION",
-      text: "¿Estas seguro de revertir los cambios y volver a stock?",
+      title: "ATENCIÓN",
+      text: "¿Estás seguro de revertir los cambios y volver a stock?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "SI, REVERTIR",
+      confirmButtonText: "SÍ, REVERTIR",
       cancelButtonText: "CANCELAR",
       ...overlordSwalConfig,
     });
@@ -229,7 +229,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
     isReverting.value = true;
     store.setGlobalBusy(true);
     try {
-      // 1. Detener el monitor dinamico en Rust
+      // 1. Detener el monitor dinámico en Rust
       await invoke("stop_game_priority_monitor").catch((err) => {
         console.error("[RUST MONITOR STOP FAIL]:", err);
       });
@@ -255,15 +255,15 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
       await Swal.fire({
         title: "SISTEMA REVERTIDO",
-        text: "Reinicia tu PC para aplicar los valores de fabrica.",
+        text: "Reinicia tu PC para aplicar los valores de fábrica.",
         icon: "success",
         ...overlordSwalConfig,
       });
     } catch (error) {
-      console.error("[FALLO EN REVERSION]:", error);
+      console.error("[FALLO EN REVERSIÓN]:", error);
       await Swal.fire({
-        title: "ERROR EN REVERSION",
-        text: `No se pudo restaurar el estado de fabrica de Windows: ${error}`,
+        title: "ERROR EN REVERSIÓN",
+        text: `No se pudo restaurar el estado de fábrica de Windows: ${error}`,
         icon: "error",
         ...overlordSwalConfig,
       });

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false
 )
 $ErrorActionPreference = "Stop"

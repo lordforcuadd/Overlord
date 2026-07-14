@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$GameList = "",
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8
@@ -141,12 +141,12 @@ try {
                 Add-MpPreference -ExclusionPath $Dir -ErrorAction Stop
                 Write-Host "    [+] Ruta excluida en Windows Defender: $Dir"
                 
-                # Registrar en nuestro backup que Overlord gestiona esta exclusion
+                # Registrar en nuestro backup que Overlord gestiona esta exclusión
                 if (-not $NewAddedPaths.Contains($Dir)) {
                     $NewAddedPaths.Add($Dir)
                 }
             } catch {
-                throw "Defender bloqueo la adicion de la exclusion para ${Dir}: $_"
+                throw "Defender bloqueó la adición de la exclusión para ${Dir}: $_"
             }
         } else {
             Write-Host "    [*] La ruta ya estaba excluida en Windows Defender: $Dir"

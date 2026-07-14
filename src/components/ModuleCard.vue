@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="bg-[#0a0a0a]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col justify-between gap-5 relative hover:border-white/10 transition-colors group"
   >
@@ -11,7 +11,7 @@
           <button
             @click="toggleDoc"
             class="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
-            title="Ver Detalles Tecnicos"
+            title="Ver Detalles Técnicos"
           >
             <svg
               class="w-4 h-4"
@@ -59,7 +59,7 @@
           <span class="text-gray-300"> {{ meta.impactoRendimiento }}</span>
         </div>
         <div>
-          <span class="text-yellow-500 font-bold">REVERSION EXACTA:</span>
+          <span class="text-yellow-500 font-bold">REVERSIÓN EXACTA:</span>
           <span class="text-gray-300"> {{ meta.metodoReversion }}</span>
         </div>
         <div>
@@ -75,7 +75,7 @@
           target="_blank"
           class="text-yellow-500/70 hover:text-yellow-400 underline truncate block mt-1 font-sans"
         >
-          Documentacion Oficial de Microsoft →
+          Documentación Oficial de Microsoft →
         </a>
       </div>
 

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8
 )

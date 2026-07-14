@@ -63,7 +63,7 @@ pub async fn get_system_hardware(force_refresh: bool) -> HardwareResponse {
 }
 
 async fn detect_system_hardware() -> HardwareResponse {
-        // 1. Consultar velocidad de RAM de forma asincrona mediante PowerShell/CIM (metodo moderno compatible con 24H2)
+        // 1. Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let powershell_path = crate::get_powershell_path();
         
         // Ejecutar wmic via PowerShell sin crear ventana (usamos wmic porque es inmensamente mas rapido que Get-CimInstance en este contexto especifico)
@@ -87,7 +87,7 @@ async fn detect_system_hardware() -> HardwareResponse {
             }
         }
 
-        // 2. Ejecutar el resto de las consultas sincronas en un hilo de bloqueo
+        // 2. Ejecutar el resto de las consultas síncronas en un hilo de bloqueo
         let (mut hardware, handle_ok) = tokio::task::spawn_blocking(move || {
             let mut sys = System::new_all();
             sys.refresh_memory();
@@ -200,7 +200,7 @@ async fn detect_system_hardware() -> HardwareResponse {
             }
 
             if !handle_ok {
-                // Se difiere el fallback al contexto asincrono
+                // Se difiere el fallback al contexto asíncrono
             }
 
             let mut is_hybrid = false;

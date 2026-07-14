@@ -1,4 +1,4 @@
-﻿# 08_telemetria.ps1
+# 08_telemetria.ps1
 $ErrorActionPreference = "Stop"
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 

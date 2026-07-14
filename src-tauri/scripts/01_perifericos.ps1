@@ -1,4 +1,4 @@
-﻿param(
+param(
     [bool]$IsLaptop = $false
 )
 
@@ -55,11 +55,11 @@ Try {
                                         $interruptKey.SetValue("MSISupported", 1, [Microsoft.Win32.RegistryValueKind]::DWord)
                                         
                                         if ($interruptKey.GetValue("MSISupported") -ne 1) { 
-                                            throw "El SO bloqueo MSISupported para el dispositivo PCI: $devId" 
+                                            throw "El SO bloqueó MSISupported para el dispositivo PCI: $devId" 
                                         }
                                     }
                                     
-                                    # Configurar prioridad de interrupcion alta (DevicePriority = 3)
+                                    # Configurar prioridad de interrupción alta (DevicePriority = 3)
                                     $affinityPathName = "Interrupt Management\Affinity Policy"
                                     $affinityKey = $paramKey.CreateSubKey($affinityPathName, $true)
                                     if ($affinityKey) {
@@ -77,7 +77,7 @@ Try {
                                     }
                                 }
                             } catch {
-                                throw "El SO bloqueo MSI para el dispositivo PCI $devId (sin permisos): $_"
+                                throw "El SO bloqueó MSI para el dispositivo PCI $devId (sin permisos): $_"
                             } finally {
                                 if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
                                 if ($null -ne $interruptKey) { $interruptKey.Close(); $interruptKey = $null }

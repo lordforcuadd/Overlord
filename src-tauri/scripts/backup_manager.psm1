@@ -1,4 +1,4 @@
-﻿# $HKCU_Path ya esta resuelto e inyectado globalmente por sid_resolver.ps1
+# $HKCU_Path ya esta resuelto e inyectado globalmente por sid_resolver.ps1
 if (-not (Get-Variable -Name 'HKCU_Path' -Scope 'Global' -ErrorAction SilentlyContinue)) {
     $global:HKCU_Path = "HKCU:"
 }

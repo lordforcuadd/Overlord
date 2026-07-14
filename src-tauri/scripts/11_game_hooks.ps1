@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$GameList = "",
     [bool]$IsLaptop = $false,
     [int]$RamGB = 8
@@ -298,6 +298,6 @@ try {
     Write-Host "[+] Protocolo de Game Hooks completado."
     exit 0
 } catch {
-    Write-Error "[-] Error critico global en Modulo de Game Hooks: $_"
+    Write-Error "[-] Error crítico global en Módulo de Game Hooks: $_"
     exit 1
 }

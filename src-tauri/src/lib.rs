@@ -136,9 +136,9 @@ pub struct BenchmarkResponse {
 
 #[tauri::command]
 async fn run_benchmark() -> Result<BenchmarkResponse, String> {
-    // 1. Medir latencia TCP (Trafico de red general) de forma asincrona.
-    // Se utiliza el puerto 80 del servidor DNS publico de Cloudflare (1.1.1.1)
-    // para medir la latencia de establecimiento de conexion TCP pura de red.
+    // 1. Medir latencia TCP (Tráfico de red general) de forma asíncrona.
+    // Se utiliza el puerto 80 del servidor DNS público de Cloudflare (1.1.1.1)
+    // para medir la latencia de establecimiento de conexión TCP pura de red.
     let start_tcp = Instant::now();
     let addr: std::net::SocketAddr = "1.1.1.1:80".parse().unwrap_or_else(|_| {
         std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1)), 80)
@@ -153,9 +153,9 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
         _ => 1500.0, // Timeout o fallo de red
     };
 
-    // 2. Medir resolucion DNS real via UDP de forma asincrona.
+    // 2. Medir resolución DNS real vía UDP de forma asíncrona.
     // Se realiza una consulta DNS UDP al puerto 53 del mismo servidor (1.1.1.1)
-    // para evaluar la latencia especifica de resolucion de nombres de dominio.
+    // para evaluar la latencia específica de resolución de nombres de dominio.
     let socket = tokio::net::UdpSocket::bind("0.0.0.0:0").await.map_err(|e| e.to_string())?;
     let dns_packet: [u8; 28] = [
         0xAA, 0xBB, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -191,8 +191,8 @@ async fn run_benchmark() -> Result<BenchmarkResponse, String> {
 
 #[tauri::command]
 fn purge_ram_native() -> Result<String, String> {
-    // Verificacion dinamica de la version de build de Windows.
-    // La clase SystemMemoryListInformation (80) y la accion MemoryPurgeStandbyList (4)
+    // Verificación dinámica de la versión de build de Windows.
+    // La clase SystemMemoryListInformation (80) y la acción MemoryPurgeStandbyList (4)
     // fueron introducidas en Windows Vista / Server 2008. Validamos Build >= 7600 (Windows 7+)
     // para mitigar riesgos de comportamiento indefinido en colmenas legacy.
     let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
@@ -216,7 +216,7 @@ fn purge_ram_native() -> Result<String, String> {
         }
         
         // Se requiere el privilegio SeProfileSingleProcessPrivilege para poder invocar NtSetSystemInformation
-        // con clases de informacion de memoria de sistema (como SystemMemoryListInformation).
+        // con clases de información de memoria de sistema (como SystemMemoryListInformation).
         let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
         let mut luid = Luid { low_part: 0, high_part: 0 };
         if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) == 0 {
@@ -238,10 +238,10 @@ fn purge_ram_native() -> Result<String, String> {
         }
         CloseHandle(token);
         
-        // DOCUMENTACION TECNICA DE REVERSING (Origen: ReactOS / Geoff Chappell NT API Research):
+        // DOCUMENTACIÓN TÉCNICA DE REVERSING (Origen: ReactOS / Geoff Chappell NT API Research):
         // * Clase 80 = SystemMemoryListInformation (Clase indocumentada de Windows NT)
         // * command_class = 4 = MemoryPurgeStandbyList (Purga la lista de stand-by sin vaciar sets de trabajo)
-        // Este valor se pasa al buffer de entrada de NtSetSystemInformation con un tamano de 4 bytes.
+        // Este valor se pasa al buffer de entrada de NtSetSystemInformation con un tamaño de 4 bytes.
         let mut command_class = 4u32;
         let current_status = NtSetSystemInformation(80, &raw mut command_class as *mut std::ffi::c_void, 4);
 
@@ -345,7 +345,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
     validate_game_list(&game_list_raw)?;
     if game_list_raw.trim().is_empty() { return Ok(()); }
 
-    // Evitar iniciar el monitor redundante si el daemon de Scheduled Task de PowerShell ya esta activo
+    // Evitar iniciar el monitor redundante si el daemon de Scheduled Task de PowerShell ya está activo
     if is_priority_daemon_active().await {
         println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo. Se omite el monitor redundante de Rust.");
         return Ok(());
@@ -384,9 +384,9 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         break;
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
-                        // Evitar continuar ejecutandose si el daemon de Scheduled Task de PowerShell se activo
+                        // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
                         if is_priority_daemon_active().await {
-                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecucion. Se detiene el monitor dinamico de Rust.");
+                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
                             break;
                         }
 
@@ -415,7 +415,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                                         if handle != 0 {
                                             if GetPriorityClass(handle) != HIGH_PRIORITY_CLASS && SetPriorityClass(handle, HIGH_PRIORITY_CLASS) == 0 {
                                                 let err = std::io::Error::last_os_error();
-                                                eprintln!("[OVERLORD WARNING] SetPriorityClass fallo para PID {}: {}", pid.as_u32(), err);
+                                                eprintln!("[OVERLORD WARNING] SetPriorityClass falló para PID {}: {}", pid.as_u32(), err);
                                             }
                                             windows_sys::Win32::Foundation::CloseHandle(handle);
                                         }
@@ -437,7 +437,7 @@ fn stop_game_priority_monitor() -> Result<(), String> {
     let mut guard = MONITOR_CANCELLER.lock().map_err(|e| e.to_string())?;
     if let Some(tx) = guard.take() {
         let _ = tx.send(());
-        println!("[RUST MONITOR]: Hilo dinamico de prioridad detenido.");
+        println!("[RUST MONITOR]: Hilo dinámico de prioridad detenido.");
     }
     Ok(())
 }
@@ -527,7 +527,7 @@ mod tests {
     fn test_version_sync() {
         let cargo_toml_version = env!("CARGO_PKG_VERSION");
         let package_json_content = std::fs::read_to_string("../package.json")
-            .expect("Fallo al leer package.json para verificar la version");
+            .expect("Fallo al leer package.json para verificar la versión");
         
         let parsed_version = package_json_content
             .lines()
@@ -540,12 +540,12 @@ mod tests {
                     None
                 }
             })
-            .expect("No se encontro el campo 'version' en package.json");
+            .expect("No se encontró el campo 'version' en package.json");
 
         assert_eq!(
             cargo_toml_version, 
             parsed_version, 
-            "La version de Cargo.toml ({}) y package.json ({}) no coinciden. Mantener sincronizados.",
+            "La versión de Cargo.toml ({}) y package.json ({}) no coinciden. Mantener sincronizados.",
             cargo_toml_version,
             parsed_version
         );

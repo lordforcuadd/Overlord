@@ -1,4 +1,4 @@
-﻿param([string]$ActionId)
+param([string]$ActionId)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
