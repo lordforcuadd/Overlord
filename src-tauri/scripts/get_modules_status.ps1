@@ -293,20 +293,11 @@ if (Test-Path $PowerSchemePath) {
     }
 }
 
-$LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
-
-# Verificar estado activo de GameHooks leyendo directamente los flags reales en el registro
-if (Test-Path $LayersPath) {
-    $LayersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
-    if ($null -ne $LayersProps) {
-        foreach ($Prop in $LayersProps.PSObject.Properties) {
-            # Si hay un .exe con override de DPI o fullscreen optimizations deshabilitado, 
-            # asumimos que el módulo gameHooks (o al menos un juego de su catálogo) está activo.
-            if ($Prop.Name -match "\.exe$" -and ($Prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -or $Prop.Value -match "DISABLEDXMAXIMIZEDWINDOWEDMODE")) {
-                $Status['gameHooks'] = $true
-                break
-            }
-        }
+$GameHooksReg = Get-Item -Path "HKLM:\SOFTWARE\Overlord\Backup\GameHooks" -ErrorAction SilentlyContinue
+if ($null -ne $GameHooksReg) {
+    $Subkeys = Get-ChildItem -Path "HKLM:\SOFTWARE\Overlord\Backup\GameHooks" -ErrorAction SilentlyContinue
+    if ($null -ne $Subkeys -and @($Subkeys).Count -gt 0) {
+        $Status['gameHooks'] = $true
     }
 }
 

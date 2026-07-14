@@ -1,4 +1,4 @@
-# sid_resolver.ps1 â€” Resolucion unificada y robusta de SID y HKCU_Path
+# sid_resolver.ps1 - Resolucion unificada y robusta de SID y HKCU_Path
 $UserSID = ""
 $Username = $null
 

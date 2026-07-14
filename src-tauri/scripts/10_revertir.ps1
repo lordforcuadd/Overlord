@@ -721,6 +721,7 @@ Try {
                 }
             }
         }
+        Remove-Item -Path $GameHooksBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 
 

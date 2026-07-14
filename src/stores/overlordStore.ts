@@ -247,7 +247,17 @@ export const useOverlordStore = defineStore("overlord", {
     async scanGames() {
       try {
         const games = await invoke<GamePayload[]>("fetch_games");
-        const manualGames = this.gameList.filter((g) => g.manual);
+        let manualGames = this.gameList.filter((g) => g.manual);
+        if (manualGames.length === 0) {
+          const stored = localStorage.getItem("overlord_manual_games");
+          if (stored) {
+            try {
+              manualGames = JSON.parse(stored);
+            } catch (err) {
+              console.error("[ERROR PARSING MANUAL GAMES]:", err);
+            }
+          }
+        }
         const scanned = games.map((g) => ({
           ...g,
           optimize: g.detected,
@@ -348,6 +358,18 @@ export const useOverlordStore = defineStore("overlord", {
           optimize: true,
           manual: true,
         });
+        const manualGames = this.gameList.filter((g) => g.manual);
+        localStorage.setItem("overlord_manual_games", JSON.stringify(manualGames));
+      }
+    },
+    removeManualGame(index: number) {
+      if (index >= 0 && index < this.gameList.length) {
+        const game = this.gameList[index];
+        if (game.manual) {
+          this.gameList.splice(index, 1);
+          const manualGames = this.gameList.filter((g) => g.manual);
+          localStorage.setItem("overlord_manual_games", JSON.stringify(manualGames));
+        }
       }
     },
   },

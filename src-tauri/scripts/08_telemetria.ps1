@@ -85,7 +85,7 @@ Try {
             }
         }
     } catch {
-        throw "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc este deshabilitado): $_"
+        Write-Warning "No se pudieron inyectar las reglas del Firewall de Windows (es posible que el servicio MpsSvc este deshabilitado): $_"
     }
 
     $LoggersPath = "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger"

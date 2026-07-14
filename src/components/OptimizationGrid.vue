@@ -24,23 +24,33 @@
             >
               <span
                 class="text-xs font-mono font-medium truncate pr-2"
-                :class="game.detected ? 'text-yellow-400' : 'text-gray-600'"
+                :class="game.detected ? (game.manual ? 'text-orange-400' : 'text-yellow-400') : 'text-gray-600'"
                 :title="game.name + ' (' + game.exe + ')'"
               >
                 {{ game.name }}
               </span>
-              <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  :checked="game.optimize"
-                  @change="store.toggleGameOptimization(index, ($event.target as HTMLInputElement).checked)"
-                  :disabled="!game.detected"
-                  class="sr-only peer"
-                />
-                <div
-                  class="w-8 h-4 bg-neutral-700 rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-500"
-                ></div>
-              </label>
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="game.manual"
+                  @click="store.removeManualGame(index)"
+                  class="text-red-500 hover:text-red-400 text-xs font-extrabold px-1 transition-colors focus:outline-none"
+                  title="Eliminar juego manual"
+                >
+                  ✕
+                </button>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    :checked="game.optimize"
+                    @change="store.toggleGameOptimization(index, ($event.target as HTMLInputElement).checked)"
+                    :disabled="!game.detected"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-8 h-4 bg-neutral-700 rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-500"
+                  ></div>
+                </label>
+              </div>
             </div>
           </div>
           

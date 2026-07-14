@@ -63,7 +63,11 @@ async fn fetch_hardware(force: Option<bool>) -> HardwareResponse {
 
 #[tauri::command]
 async fn fetch_games() -> Vec<ScanGamesResponse> {
-    collect_installed_games()
+    tokio::task::spawn_blocking(move || {
+        collect_installed_games()
+    })
+    .await
+    .unwrap_or_else(|_| Vec::new())
 }
 
 #[tauri::command]
@@ -322,7 +326,6 @@ fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
 }
 
 async fn is_priority_daemon_active() -> bool {
-      
     let powershell_path = get_powershell_path();
 
     if let Ok(output) = tokio::process::Command::new(&powershell_path)
@@ -384,11 +387,6 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         break;
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
-                        // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        if is_priority_daemon_active().await {
-                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado en ejecución. Se detiene el monitor dinámico de Rust.");
-                            break;
-                        }
 
                         sys.refresh_processes_specifics(
                             sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
