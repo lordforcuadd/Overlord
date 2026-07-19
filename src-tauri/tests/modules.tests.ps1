@@ -419,5 +419,37 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             ($RevertContent -match "AddedExclusions") | Should Be $true
             ($RevertContent -match "Remove-MpPreference") | Should Be $true
         }
+
+        It "Debe garantizar que no existan archivos de certificado o secretos (.pfx, .p12, .pem, .key) en la base de codigo" {
+            $SecretFiles = Get-ChildItem -Recurse -Path (Join-Path $ScriptsPath "..\..") -Include "*.pfx","*.p12","*.pem","*.key" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\node_modules\\' -and $_.FullName -notmatch '\\target\\' -and $_.FullName -notmatch '\\.git\\' }
+            $SecretFiles.Count | Should Be 0
+        }
+
+        It "Debe certificar que no haya rutas absolutas de entorno de desarrollo local (laragon) hardcodeadas en codigo" {
+            $SrcFiles = Get-ChildItem -Recurse -Path (Join-Path $ScriptsPath "..") -Include "*.rs","*.ps1","*.psm1" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'modules.tests.ps1' }
+            foreach ($File in $SrcFiles) {
+                $Content = Get-Content -Path $File.FullName -Raw
+                if ($Content -match 'c:/laragon' -or $Content -match 'c:\\laragon') {
+                    throw "Se encontro una ruta de entorno de desarrollo local 'laragon' en $($File.Name)"
+                }
+            }
+        }
+
+        It "Debe verificar que la deteccion de SSD en hardware.rs filtre al disco de arranque y no a cualquier disco" {
+            $HwContent = Get-Content -Path (Join-Path $ScriptsPath "..\src\hardware.rs") -Raw
+            ($HwContent -match "SystemDrive") | Should Be $true
+        }
+
+        It "Debe certificar que todas las llaves de modulos en tweaksMetadata.ts existan en get_modules_status.ps1" {
+            $MetadataContent = Get-Content -Path (Join-Path $ScriptsPath "..\..\src\data\tweaksMetadata.ts") -Raw
+            $StatusContent = Get-Content -Path (Join-Path $ScriptsPath "get_modules_status.ps1") -Raw
+            $Keys = [regex]::Matches($MetadataContent, '^\s*([a-zA-Z0-9]+):\s*\{', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+            foreach ($Match in $Keys) {
+                $Key = $Match.Groups[1].Value
+                if ($Key -ne "tweaksMetadata" -and $Key -ne "PROFILE_CONFIGS") {
+                    ($StatusContent -match "\b$Key\b") | Should Be $true
+                }
+            }
+        }
     }
 }

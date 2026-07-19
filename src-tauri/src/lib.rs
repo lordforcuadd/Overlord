@@ -343,6 +343,11 @@ async fn is_priority_daemon_active() -> bool {
         }
 }
 
+fn is_priority_daemon_registered_native() -> bool {
+    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+    hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok()
+}
+
 #[tauri::command]
 async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String> {
     validate_game_list(&game_list_raw)?;
@@ -387,6 +392,11 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         break;
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
+                        // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
+                        if is_priority_daemon_registered_native() {
+                            println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado. Se detiene el monitor dinámico de Rust.");
+                            break;
+                        }
 
                         sys.refresh_processes_specifics(
                             sysinfo::ProcessRefreshKind::new().with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
