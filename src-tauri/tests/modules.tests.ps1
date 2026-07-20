@@ -31,21 +31,21 @@ $global:OverlordScriptsPath = $ScriptsDir
 
 Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     BeforeAll {
-        $GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
-        $ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
-        $MemoryManagerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-        $ScriptsPath = $global:OverlordScriptsPath
-        $GetQolPath = Join-Path $ScriptsPath "get_qol.ps1"
-        $SetQolPath = Join-Path $ScriptsPath "set_qol.ps1"
-        $RevertPath = Join-Path $ScriptsPath "10_revertir.ps1"
-        $BackupModulePath = Join-Path $ScriptsPath "backup_manager.psm1"
+        $script:GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
+        $script:ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+        $script:MemoryManagerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+        $script:ScriptsPath = $global:OverlordScriptsPath
+        $script:GetQolPath = Join-Path $script:ScriptsPath "get_qol.ps1"
+        $script:SetQolPath = Join-Path $script:ScriptsPath "set_qol.ps1"
+        $script:RevertPath = Join-Path $script:ScriptsPath "10_revertir.ps1"
+        $script:BackupModulePath = Join-Path $script:ScriptsPath "backup_manager.psm1"
     }
 
     Context "Auditoria de Infraestructura de Soporte Fisiologico" {
         It "Debe verificar la existencia fisica de los modulos core de soporte" {
-            $null -ne $BackupModulePath | Should Be $true
-            Test-Path $BackupModulePath | Should Be $true
-            Test-Path $RevertPath | Should Be $true
+            $null -ne $script:BackupModulePath | Should Be $true
+            Test-Path $script:BackupModulePath | Should Be $true
+            Test-Path $script:RevertPath | Should Be $true
         }
     }
 
@@ -219,13 +219,13 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Auditoria Estructural de QoL y Mecanismos de Reversion" {
         It "Debe comprobar la existencia fisica de scripts QoL complementarios" {
-            Test-Path $GetQolPath | Should Be $true
-            Test-Path $SetQolPath | Should Be $true
+            Test-Path $script:GetQolPath | Should Be $true
+            Test-Path $script:SetQolPath | Should Be $true
         }
 
         It "Debe validar que el extractor get_qol parsee un JSON estructural integro" {
-            if (Test-Path $GetQolPath) {
-                $JsonResult = & $GetQolPath | ConvertFrom-Json -ErrorAction SilentlyContinue
+            if (Test-Path $script:GetQolPath) {
+                $JsonResult = & $script:GetQolPath | ConvertFrom-Json -ErrorAction SilentlyContinue
                 if ($null -ne $JsonResult) {
                     ($JsonResult.PSObject.Properties.Name -contains "darkMode") | Should Be $true
                     ($JsonResult.PSObject.Properties.Name -contains "disableWidgets") | Should Be $true
@@ -234,8 +234,8 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe garantizar la integridad estructural del script de reversion espejo" {
-            if (Test-Path $RevertPath) {
-                $Content = Get-Content -Path $RevertPath -ErrorAction SilentlyContinue
+            if (Test-Path $script:RevertPath) {
+                $Content = Get-Content -Path $script:RevertPath -ErrorAction SilentlyContinue
                 ([string]::IsNullOrEmpty($Content)) | Should Be $false
                 ([string]::IsNullOrEmpty(($Content -match 'HKLM:\\SOFTWARE\\Overlord\\Backup'))) | Should Be $false
             }
@@ -244,11 +244,11 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Analisis Estatico de Simetria de Backups y Reversion" {
         BeforeAll {
-            $RevertContent = (Get-Content -Path $RevertPath -Raw) -replace '`\r?\n\s*', ' '
+            $script:RevertContent = (Get-Content -Path $script:RevertPath -Raw) -replace '`\r?\n\s*', ' '
         }
 
         It "Debe comprobar que cada Backup-OverlordRegistryValue en scripts de aplicacion tenga un restaurador simetrico en la reversion" {
-            $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
+            $ModuleFiles = Get-ChildItem -Path $script:ScriptsPath -Filter "*.ps1" | Where-Object {
                 $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
@@ -268,15 +268,15 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                         $EscapedSub = [regex]::Escape($SubFolder)
                         
                         $Found = $false
-                        if ($RevertContent -match "-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?[^|;\n]*?-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?") {
+                        if ($script:RevertContent -match "-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?[^|;\n]*?-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?") {
                             $Found = $true
-                        } elseif ($RevertContent -match "-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?[^|;\n]*?-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
+                        } elseif ($script:RevertContent -match "-BackupSubFolder\s+[\x22\x27]?$EscapedSub[\x22\x27]?[^|;\n]*?-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
                             $Found = $true
                         }
                         
                         # Fallback para variables o loops (ej. $PKey)
                         if (!$Found -and ($ValueName -match '^\$' -or $SubFolder -match '^\$')) {
-                            if ($RevertContent -match "-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
+                            if ($script:RevertContent -match "-ValueName\s+[\x22\x27]?$EscapedVal[\x22\x27]?") {
                                 $Found = $true
                             }
                         }
@@ -291,9 +291,9 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe comprobar que cada restaurador de registro en la reversion tenga un Backup-OverlordRegistryValue en algun script de aplicacion" {
-            $RevertCalls = [regex]::Matches($RevertContent, '(Invoke-OverlordSafeRestore|Restore-OverlordRegistryValue)\s+[^|\n;]+')
+            $RevertCalls = [regex]::Matches($script:RevertContent, '(Invoke-OverlordSafeRestore|Restore-OverlordRegistryValue)\s+[^|\n;]+')
             
-            $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
+            $ModuleFiles = Get-ChildItem -Path $script:ScriptsPath -Filter "*.ps1" | Where-Object {
                 $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
             
@@ -337,7 +337,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe certificar que ninguna llamada SETACVALUEINDEX o SETDCVALUEINDEX en scripts de aplicacion carezca de su correspondiente backup/query" {
-            $ModuleFiles = Get-ChildItem -Path $ScriptsPath -Filter "*.ps1" | Where-Object {
+            $ModuleFiles = Get-ChildItem -Path $script:ScriptsPath -Filter "*.ps1" | Where-Object {
                 $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
@@ -363,7 +363,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe verificar que get_modules_status.ps1 no use Test-Path sobre carpetas de backup como proxy de estado sin validacion real" {
-            $StatusContent = (Get-Content -Path (Join-Path $ScriptsPath "get_modules_status.ps1") -Raw) -replace '`\r?\n\s*', ' '
+            $StatusContent = (Get-Content -Path (Join-Path $script:ScriptsPath "get_modules_status.ps1") -Raw) -replace '`\r?\n\s*', ' '
             
             # Variables de backup
             $TestPathCalls = [regex]::Matches($StatusContent, 'Test-Path\s+\$(\w+Backup\w*|\w*Backup\w*)')
@@ -380,53 +380,53 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe verificar que todos los servicios desactivados en el debloat o la telemetria esten en la tabla de restauracion del revert" {
-            $DebloatContent = (Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw) -replace '`\r?\n\s*', ' '
-            $TelemetryContent = (Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw) -replace '`\r?\n\s*', ' '
+            $DebloatContent = (Get-Content -Path (Join-Path $script:ScriptsPath "02_debloat.ps1") -Raw) -replace '`\r?\n\s*', ' '
+            $TelemetryContent = (Get-Content -Path (Join-Path $script:ScriptsPath "08_telemetria.ps1") -Raw) -replace '`\r?\n\s*', ' '
             
             $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc")
             
             foreach ($Svc in $KnownServices) {
-                ($RevertContent -match "\b$Svc\b") | Should Be $true
-                ($RevertContent -match "[\x22\x27]$Svc[\x22\x27]\s*=") | Should Be $true
+                ($script:RevertContent -match "\b$Svc\b") | Should Be $true
+                ($script:RevertContent -match "[\x22\x27]$Svc[\x22\x27]\s*=") | Should Be $true
             }
         }
 
         It "Debe comprobar que todas las tareas programadas desactivadas en debloat o telemetria se vuelvan a habilitar en la reversion" {
-            $DebloatContent = Get-Content -Path (Join-Path $ScriptsPath "02_debloat.ps1") -Raw
-            $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
+            $DebloatContent = Get-Content -Path (Join-Path $script:ScriptsPath "02_debloat.ps1") -Raw
+            $TelemetryContent = Get-Content -Path (Join-Path $script:ScriptsPath "08_telemetria.ps1") -Raw
             
             $TaskMatches = [regex]::Matches($DebloatContent + $TelemetryContent, '["''](Microsoft\\Windows\\[^"'']+)["'']')
             foreach ($m in $TaskMatches) {
                 $FullPath = $m.Groups[1].Value
-                ($RevertContent -match "[\x22\x27]$([regex]::Escape($FullPath))[\x22\x27]") | Should Be $true
+                ($script:RevertContent -match "[\x22\x27]$([regex]::Escape($FullPath))[\x22\x27]") | Should Be $true
             }
         }
 
         It "Debe comprobar que todos los Autologgers desactivados en telemetria tengan su revert en el desinstalador" {
-            $TelemetryContent = Get-Content -Path (Join-Path $ScriptsPath "08_telemetria.ps1") -Raw
+            $TelemetryContent = Get-Content -Path (Join-Path $script:ScriptsPath "08_telemetria.ps1") -Raw
             $LoggerMatches = [regex]::Matches($TelemetryContent, '(AutoLogger-[a-zA-Z0-9-]+|SQMLogger|DiagLog|AitEventLog)')
             foreach ($m in $LoggerMatches) {
                 $LoggerName = $m.Groups[1].Value
-                ($RevertContent -match "\b$LoggerName\b") | Should Be $true
+                ($script:RevertContent -match "\b$LoggerName\b") | Should Be $true
             }
         }
 
         It "Debe verificar la simetria de exclusiones de Windows Defender (AddedExclusions) entre aplicacion y reversion" {
-            $DefenderContent = Get-Content -Path (Join-Path $ScriptsPath "12_defender_exclusions.ps1") -Raw
+            $DefenderContent = Get-Content -Path (Join-Path $script:ScriptsPath "12_defender_exclusions.ps1") -Raw
             # Verificar que escribe en AddedExclusions
             ($DefenderContent -match "AddedExclusions") | Should Be $true
             # Verificar que la reversion lee AddedExclusions y aplica Remove-MpPreference
-            ($RevertContent -match "AddedExclusions") | Should Be $true
-            ($RevertContent -match "Remove-MpPreference") | Should Be $true
+            ($script:RevertContent -match "AddedExclusions") | Should Be $true
+            ($script:RevertContent -match "Remove-MpPreference") | Should Be $true
         }
 
         It "Debe garantizar que no existan archivos de certificado o secretos (.pfx, .p12, .pem, .key) en la base de codigo" {
-            $SecretFiles = Get-ChildItem -Recurse -Path (Join-Path $ScriptsPath "..\..") -Include "*.pfx","*.p12","*.pem","*.key" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\node_modules\\' -and $_.FullName -notmatch '\\target\\' -and $_.FullName -notmatch '\\.git\\' }
+            $SecretFiles = Get-ChildItem -Recurse -Path (Join-Path $script:ScriptsPath "..\..") -Include "*.pfx","*.p12","*.pem","*.key" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\node_modules\\' -and $_.FullName -notmatch '\\target\\' -and $_.FullName -notmatch '\\.git\\' }
             $SecretFiles.Count | Should Be 0
         }
 
         It "Debe certificar que no haya rutas absolutas de entorno de desarrollo local (laragon) hardcodeadas en codigo" {
-            $SrcFiles = Get-ChildItem -Recurse -Path (Join-Path $ScriptsPath "..") -Include "*.rs","*.ps1","*.psm1" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'modules.tests.ps1' }
+            $SrcFiles = Get-ChildItem -Recurse -Path (Join-Path $script:ScriptsPath "..") -Include "*.rs","*.ps1","*.psm1" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'modules.tests.ps1' }
             foreach ($File in $SrcFiles) {
                 $Content = Get-Content -Path $File.FullName -Raw
                 if ($Content -match 'c:/laragon' -or $Content -match 'c:\\laragon') {
@@ -436,7 +436,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe verificar que la deteccion de SSD en hardware.rs filtre al disco de arranque y no a cualquier disco" {
-            $HwContent = Get-Content -Path (Join-Path $ScriptsPath "..\src\hardware.rs") -Raw
+            $HwContent = Get-Content -Path (Join-Path $script:ScriptsPath "..\src\hardware.rs") -Raw
             $SsdBlockMatch = [regex]::Match($HwContent, '\$env:SystemDrive[\s\S]*?Get-Partition[\s\S]*?Get-PhysicalDisk[\s\S]*?MediaType[\s\S]*?''SSD''')
             $SsdBlockMatch.Success | Should Be $true
             
@@ -447,8 +447,8 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe certificar que todas las llaves de modulos en tweaksMetadata.ts existan en get_modules_status.ps1" {
-            $MetadataContent = Get-Content -Path (Join-Path $ScriptsPath "..\..\src\data\tweaksMetadata.ts") -Raw
-            $StatusContent = Get-Content -Path (Join-Path $ScriptsPath "get_modules_status.ps1") -Raw
+            $MetadataContent = Get-Content -Path (Join-Path $script:ScriptsPath "..\..\src\data\tweaksMetadata.ts") -Raw
+            $StatusContent = Get-Content -Path (Join-Path $script:ScriptsPath "get_modules_status.ps1") -Raw
             $Keys = [regex]::Matches($MetadataContent, '^\s*([a-zA-Z0-9]+):\s*\{', [System.Text.RegularExpressions.RegexOptions]::Multiline)
             foreach ($Match in $Keys) {
                 $Key = $Match.Groups[1].Value
