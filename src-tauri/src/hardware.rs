@@ -23,6 +23,7 @@ pub struct HardwareResponse {
     pub is_hybrid: bool,
     pub is_x3d: bool,
     pub is_ssd: bool,
+    pub is_arm64: bool,
 }
 
 
@@ -244,6 +245,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_hybrid,
                 is_x3d,
                 is_ssd: drive_is_ssd,
+                is_arm64: is_arm64(),
             }, handle_ok)
         }).await.unwrap_or_else(|e| {
             eprintln!("[OVERLORD ERROR] spawn_blocking failed for hardware info: {:?}", e);
@@ -260,6 +262,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_hybrid: false,
                 is_x3d: false,
                 is_ssd: false,
+                is_arm64: is_arm64(),
             }, true)
         });
         
@@ -319,15 +322,34 @@ mod tests {
             is_hybrid: false,
             is_x3d: false,
             is_ssd: true,
+            is_arm64: false,
         };
         assert_eq!(resp.cpu, "Test");
         assert_eq!(resp.ram_gb, 16);
+        assert_eq!(resp.is_arm64, false);
     }
 
     #[test]
     fn test_is_arm64_check() {
-        let is_arm = is_arm64();
-        // Check that function executes cleanly without panic
-        assert!(is_arm || !is_arm);
+        let orig_arch = std::env::var("PROCESSOR_ARCHITECTURE").ok();
+        let orig_wow = std::env::var("PROCESSOR_ARCHITEW6432").ok();
+
+        std::env::set_var("PROCESSOR_ARCHITECTURE", "ARM64");
+        assert_eq!(is_arm64(), true);
+
+        if !cfg!(target_arch = "aarch64") {
+            std::env::set_var("PROCESSOR_ARCHITECTURE", "AMD64");
+            std::env::remove_var("PROCESSOR_ARCHITEW6432");
+            assert_eq!(is_arm64(), false);
+        }
+
+        match orig_arch {
+            Some(v) => std::env::set_var("PROCESSOR_ARCHITECTURE", v),
+            None => std::env::remove_var("PROCESSOR_ARCHITECTURE"),
+        }
+        match orig_wow {
+            Some(v) => std::env::set_var("PROCESSOR_ARCHITEW6432", v),
+            None => std::env::remove_var("PROCESSOR_ARCHITEW6432"),
+        }
     }
 }

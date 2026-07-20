@@ -18,11 +18,19 @@
           Perfil: {{ store.hardwareInfo.tier }}
         </span>
       </div>
-      <span
-        class="px-2 py-1 bg-white/5 rounded text-xs font-bold text-gray-300 uppercase tracking-wider"
-      >
-        {{ store.hardwareInfo.isLaptop ? "Laptop" : "Desktop" }}
-      </span>
+      <div class="flex items-center gap-2">
+        <span
+          v-if="store.hardwareInfo.isArm64"
+          class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded text-xs font-bold uppercase tracking-wider border border-yellow-500/30"
+        >
+          ARM64
+        </span>
+        <span
+          class="px-2 py-1 bg-white/5 rounded text-xs font-bold text-gray-300 uppercase tracking-wider"
+        >
+          {{ store.hardwareInfo.isLaptop ? "Laptop" : "Desktop" }}
+        </span>
+      </div>
     </div>
 
     <div class="flex flex-col gap-3 text-xs md:text-sm font-mono text-gray-400">
