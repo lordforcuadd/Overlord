@@ -137,7 +137,7 @@ function addManualGame() {
     return;
   }
 
-  const nameRegex = /^[a-zA-Z0-9\s._\-+:&']+$/;
+  const nameRegex = /^[a-zA-Z0-9\s._\-+:&',]+$/;
   if (!nameRegex.test(name)) {
     Swal.fire({
       title: "Nombre Inválido",

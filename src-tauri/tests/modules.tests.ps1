@@ -437,7 +437,13 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
         It "Debe verificar que la deteccion de SSD en hardware.rs filtre al disco de arranque y no a cualquier disco" {
             $HwContent = Get-Content -Path (Join-Path $ScriptsPath "..\src\hardware.rs") -Raw
-            ($HwContent -match "SystemDrive") | Should Be $true
+            $SsdBlockMatch = [regex]::Match($HwContent, '\$env:SystemDrive[\s\S]*?Get-Partition[\s\S]*?Get-PhysicalDisk[\s\S]*?MediaType[\s\S]*?''SSD''')
+            $SsdBlockMatch.Success | Should Be $true
+            
+            $SsdCode = $SsdBlockMatch.Value
+            ($SsdCode -match "SystemDrive") | Should Be $true
+            ($SsdCode -match "DriveLetter") | Should Be $true
+            ($SsdCode -match "DiskNumber") | Should Be $true
         }
 
         It "Debe certificar que todas las llaves de modulos en tweaksMetadata.ts existan en get_modules_status.ps1" {
