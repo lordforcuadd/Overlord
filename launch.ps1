@@ -122,7 +122,7 @@ if ($null -ne $DownloadUrl) {
                     Write-Host "El archivo pudo haber sido interceptado, alterado o descargado de forma corrupta." -ForegroundColor Yellow
                     Write-Host " -> Hash Esperado: $ExpectedHash" -ForegroundColor Green
                     Write-Host " -> Hash Obtenido: $CalculatedHash" -ForegroundColor Red
-                    Write-Host "=======================================================\n" -ForegroundColor Red
+                    Write-Host "=======================================================`n" -ForegroundColor Red
                 }
             } else {
                 Write-Host "[-] Firma descargada pero ilegible. Abortando ejecucion por seguridad." -ForegroundColor Red
@@ -172,7 +172,7 @@ try {
                     Write-Host $_ -ForegroundColor BrightRed
                 }
             } catch {}
-            Write-Host "=======================================================\n" -ForegroundColor Red
+            Write-Host "=======================================================`n" -ForegroundColor Red
             
             Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoría..." -ForegroundColor Gray
             try {

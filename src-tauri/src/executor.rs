@@ -381,4 +381,9 @@ mod tests {
         assert_eq!(custom_base64_encode(b"any carnal wen"), "YW55IGNhcm5hbCB3ZW4=");
         assert_eq!(custom_base64_encode(b""), "");
     }
+
+    #[test]
+    fn test_is_busy_initial_state() {
+        assert_eq!(is_busy(), false);
+    }
 }

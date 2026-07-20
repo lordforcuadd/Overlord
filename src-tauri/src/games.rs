@@ -224,7 +224,12 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         let lower_loc = install_loc.to_lowercase();
         for game in catalog.iter_mut() {
             let lower_game_name = game.name.to_lowercase();
-            if lower_folder.contains(&lower_game_name) || lower_loc.contains(&lower_game_name) {
+            let matches = if lower_game_name == "rust" {
+                lower_folder == "rust" || lower_loc.ends_with("\\rust") || lower_loc.ends_with("/rust")
+            } else {
+                lower_folder.contains(&lower_game_name) || lower_loc.contains(&lower_game_name)
+            };
+            if matches {
                 game.detected = true;
             }
         }
@@ -238,7 +243,13 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(title) = subkey.get_value::<String, _>("title") {
                         let lower_title = title.to_lowercase();
                         for game in catalog.iter_mut() {
-                            if lower_title.contains(&game.name.to_lowercase()) { game.detected = true; }
+                            let game_lower = game.name.to_lowercase();
+                            let matches = if game_lower == "rust" {
+                                lower_title == "rust"
+                            } else {
+                                lower_title.contains(&game_lower)
+                            };
+                            if matches { game.detected = true; }
                         }
                     }
                 }

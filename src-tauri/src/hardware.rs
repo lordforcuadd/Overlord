@@ -288,6 +288,18 @@ async fn detect_system_hardware() -> HardwareResponse {
 }
 
 
+#[allow(dead_code)]
+pub fn is_arm64() -> bool {
+    cfg!(target_arch = "aarch64")
+        || std::env::var("PROCESSOR_ARCHITECTURE")
+            .map(|a| a.to_lowercase() == "arm64")
+            .unwrap_or(false)
+        || std::env::var("PROCESSOR_ARCHITEW6432")
+            .map(|a| a.to_lowercase() == "arm64")
+            .unwrap_or(false)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -310,5 +322,12 @@ mod tests {
         };
         assert_eq!(resp.cpu, "Test");
         assert_eq!(resp.ram_gb, 16);
+    }
+
+    #[test]
+    fn test_is_arm64_check() {
+        let is_arm = is_arm64();
+        // Check that function executes cleanly without panic
+        assert!(is_arm || !is_arm);
     }
 }

@@ -302,7 +302,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "powerProfiles",
     title: "Perfiles de Energía",
     description:
-      "Inyecta el esquema energético de Máximo Rendimiento y deshabilita el Core Parking en PCs de escritorio.",
+      "Inyecta el esquema energético de Máximo Rendimiento y optimiza el Core Parking y límites térmicos de forma adaptativa.",
     riesgo: "Balanceado",
     evidenciaImpacto: "Comprobado",
     reversible: true,
@@ -319,8 +319,8 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Importación e inyección del esquema de energía personalizado Overlord Performance.",
       "Ajuste del estacionamiento de núcleos (Core Parking) al 100% para evitar caídas y fluctuaciones de frecuencias.",
-      "Optimización de la preferencia de rendimiento energético (EPP = 0) y CPU Boost (Agresivo) en desktops.",
-      "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación global de Power Throttling en desktops.",
+      "Optimización adaptativa de la preferencia de rendimiento energético (EPP = 0) y CPU Boost (Agresivo).",
+      "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación global de Power Throttling.",
     ],
   },
   gameHooks: {

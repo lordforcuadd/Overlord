@@ -558,4 +558,11 @@ mod tests {
             parsed_version
         );
     }
+
+    #[test]
+    fn test_get_powershell_path() {
+        let path = super::get_powershell_path();
+        assert!(!path.is_empty());
+        assert!(path.to_lowercase().ends_with("powershell.exe"));
+    }
 }
