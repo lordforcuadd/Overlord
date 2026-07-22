@@ -291,7 +291,6 @@ async fn detect_system_hardware() -> HardwareResponse {
 }
 
 
-#[allow(dead_code)]
 pub fn is_arm64() -> bool {
     cfg!(target_arch = "aarch64")
         || std::env::var("PROCESSOR_ARCHITECTURE")

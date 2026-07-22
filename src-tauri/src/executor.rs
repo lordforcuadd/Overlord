@@ -386,4 +386,12 @@ mod tests {
     fn test_is_busy_initial_state() {
         assert_eq!(is_busy(), false);
     }
+
+    #[tokio::test]
+    async fn test_execute_script_in_memory_readonly_simple() {
+        let script = "Write-Output 'Overlord Test Output'";
+        let res = execute_script_in_memory_readonly("test_action", script, false, 16, "", false, false, true).await;
+        assert!(res.is_ok(), "Expected script execution to succeed, got: {:?}", res);
+        assert_eq!(res.unwrap(), "Overlord Test Output");
+    }
 }
