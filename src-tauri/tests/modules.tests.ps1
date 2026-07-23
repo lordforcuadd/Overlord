@@ -164,7 +164,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     }
 
     Context "Modulo 04, 05 y 07 - Kernel, Almacenamiento y Pipelines Graficos" {
-        It "Debe validar esquemas HwSchMode de programaciÃ³n por hardware de GPU" -Skip:($env:CI -eq "true") {
+        It "Debe validar esquemas HwSchMode de programación por hardware de GPU" -Skip:($env:CI -eq "true") {
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
             if (Test-Path $Path) {
                 $Hags = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).HwSchMode

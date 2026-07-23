@@ -135,7 +135,9 @@ while ($true) {
 
     $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($null -eq $ExistingTask) {
-        $ActionCmd = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -NoProfile -File `"$DaemonScript`""
+        $PowerShellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+        if (-not (Test-Path $PowerShellExe)) { $PowerShellExe = "$PSHOME\powershell.exe" }
+        $ActionCmd = New-ScheduledTaskAction -Execute $PowerShellExe -Argument "-WindowStyle Hidden -NoProfile -File `"$DaemonScript`""
         $Trigger = New-ScheduledTaskTrigger -AtStartup
         $Principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest
         $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

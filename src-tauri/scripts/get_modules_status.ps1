@@ -218,7 +218,7 @@ if (-not $IsLaptop) {
                             $devParamKey = $devKey.OpenSubKey("Device Parameters\Interrupt Management\Affinity Policy", $false)
                             if ($devParamKey) {
                                 $policy = $devParamKey.GetValue("DevicePolicy")
-                                if ($null -ne $policy -and ($policy -eq 4 -or $policy -eq 2)) {
+                                if ($null -ne $policy -and ($policy -eq 4 -or $policy -eq 2 -or $policy -eq 0)) {
                                     $Status['irqAffinity'] = $true
                                 }
                                 $devParamKey.Close()
@@ -235,7 +235,40 @@ if (-not $IsLaptop) {
         $pciKey.Close()
     }
 } else {
-    $Status['irqAffinity'] = $false
+    $intModDisabled = $false
+    if (Get-Command Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue) {
+        $AdvProps = Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
+        if ($null -ne $AdvProps) {
+            foreach ($Prop in $AdvProps) {
+                if ($Prop.DisplayValue -eq "Disabled" -or $Prop.DisplayValue -eq "Deshabilitado" -or $Prop.DisplayValue -eq "0") {
+                    $intModDisabled = $true
+                    break
+                }
+            }
+        }
+    }
+    if (-not $intModDisabled) {
+        $classKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}", $false)
+        if ($classKey) {
+            foreach ($subName in $classKey.GetSubKeyNames()) {
+                if ($subName -match "^\d{4}$") {
+                    $subKey = $classKey.OpenSubKey($subName, $false)
+                    if ($subKey) {
+                        $im1 = $subKey.GetValue("*InterruptModeration")
+                        $im2 = $subKey.GetValue("InterruptModeration")
+                        if (($null -ne $im1 -and "$im1" -eq "0") -or ($null -ne $im2 -and "$im2" -eq "0")) {
+                            $intModDisabled = $true
+                            $subKey.Close()
+                            break
+                        }
+                        $subKey.Close()
+                    }
+                }
+            }
+            $classKey.Close()
+        }
+    }
+    $Status['irqAffinity'] = $intModDisabled
 }
 
 

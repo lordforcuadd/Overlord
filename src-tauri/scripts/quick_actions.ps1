@@ -178,6 +178,9 @@ Try {
             }
             Write-Output "OK: Explorador de Windows reiniciado con exito."
         }
+        default {
+            throw "Accion rapida no reconocida: '$TargetAction'"
+        }
     }
     exit 0
 } Catch {
