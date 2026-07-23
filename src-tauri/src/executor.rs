@@ -151,7 +151,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
 
     let b64_encoded = encode_utf16_base64(&unified_script);
 
-    let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); [scriptblock]::Create($script).InvokeReturnAsIs() }";
+    let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); & ([scriptblock]::Create($script)) }";
     let powershell_path = crate::get_powershell_path();
     
     let mut child = Command::new(&powershell_path)
