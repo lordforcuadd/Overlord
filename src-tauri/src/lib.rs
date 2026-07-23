@@ -393,7 +393,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
                         // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        if is_priority_daemon_registered_native() {
+                        if tokio::task::spawn_blocking(is_priority_daemon_registered_native).await.unwrap_or(false) {
                             println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado. Se detiene el monitor dinámico de Rust.");
                             break;
                         }
