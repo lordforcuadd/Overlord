@@ -1,4 +1,6 @@
-# 09_energia.ps1
+param(
+    [bool]$IsLaptop = $false
+)
 $ErrorActionPreference = "Stop"
 
 Try {

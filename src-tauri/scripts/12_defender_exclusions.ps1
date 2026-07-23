@@ -28,10 +28,7 @@ try {
     $Games = $GameList -split "," | ForEach-Object { $_.Trim() }
     $LauncherRoots = Get-LauncherRoots
 
-    $FolderTranslationTable = @{
-        "LeagueClient" = "League of Legends"
-        "Overwatch"    = "Overwatch"
-    }
+    $FolderTranslationTable = Get-OverlordFolderTranslationTable
 
     $localAppDataFolders = Get-ChildItem -Path $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue
     $ExcludedPaths = [System.Collections.Generic.List[string]]::new()

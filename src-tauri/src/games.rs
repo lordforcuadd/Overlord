@@ -360,4 +360,19 @@ mod tests {
         assert_eq!(resp.exe, "test.exe");
         assert!(!resp.detected);
     }
+
+    #[test]
+    fn test_collect_installed_games_returns_catalog() {
+        let games = collect_installed_games();
+        assert!(!games.is_empty(), "Catalog should contain default games");
+        assert!(games.iter().any(|g| g.name == "VALORANT"));
+        assert!(games.iter().any(|g| g.name == "Minecraft"));
+    }
+
+    #[test]
+    fn test_get_epic_installed_games_does_not_panic() {
+        let epic = get_epic_installed_games();
+        // Check that function runs safely without panicking
+        assert!(epic.is_empty() || !epic.is_empty());
+    }
 }

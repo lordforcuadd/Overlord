@@ -142,16 +142,20 @@ function Get-JavaRoots {
     return $JavaRoots | Select-Object -Unique
 }
 
+function Get-OverlordFolderTranslationTable {
+    return @{
+        "LeagueClient" = "League of Legends"
+        "Overwatch"    = "Overwatch"
+    }
+}
+
 function Resolve-GameExePath {
     param (
         [string]$ExeName
     )
     $GameBaseName = $ExeName -replace '\.exe$',''
     $shortName = ($GameBaseName -split '-|_')[0]
-    $FolderTranslationTable = @{
-        "LeagueClient" = "League of Legends"
-        "Overwatch"    = "Overwatch"
-    }
+    $FolderTranslationTable = Get-OverlordFolderTranslationTable
     $TranslatedName = if ($FolderTranslationTable.ContainsKey($shortName)) { $FolderTranslationTable[$shortName] } else { $null }
 
     $RealExePath = $null

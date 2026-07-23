@@ -5,14 +5,15 @@ import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
 import { buildExpectedProfileState } from "../stores/profileLogic";
 import Swal from "sweetalert2";
 
+const cardStatus = ref<
+  Record<string, "idle" | "loading" | "success" | "error">
+>({});
+const isBackingUp = ref(false);
+const isReverting = ref(false);
+const isExecutingAll = ref(false);
+
 export function useOrchestrator(overlordSwalConfig: any) {
   const store = useOverlordStore();
-  const cardStatus = ref<
-    Record<string, "idle" | "loading" | "success" | "error">
-  >({});
-  const isBackingUp = ref(false);
-  const isReverting = ref(false);
-  const isExecutingAll = ref(false);
 
   async function crearRespaldo() {
     isBackingUp.value = true;

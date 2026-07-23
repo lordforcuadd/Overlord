@@ -1,9 +1,14 @@
-param([string]$ActionId)
+param(
+    [string]$ActionId,
+    [string]$GameList
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$TargetAction = if (![string]::IsNullOrWhiteSpace($GameList)) { $GameList } else { $ActionId }
+
 Try {
-    switch ($GameList) {
+    switch ($TargetAction) {
         "DeepClean" {
             # Papelera de reciclaje
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue | Out-Null
