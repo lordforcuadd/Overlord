@@ -53,7 +53,7 @@ release_binaries/
 scratch/
 
 # ========================
-# CERTIFICADOS Y CLAVES Criptogr�ficas
+# CERTIFICADOS Y CLAVES Criptograficas
 # ========================
 *.pfx
 *.p12
