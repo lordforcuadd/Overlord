@@ -53,7 +53,7 @@ release_binaries/
 scratch/
 
 # ========================
-# CERTIFICADOS Y CLAVES Criptográficas
+# CERTIFICADOS Y CLAVES Criptogrï¿½ficas
 # ========================
 *.pfx
 *.p12
@@ -61,4 +61,7 @@ scratch/
 *.crt
 *.pem
 *.key
+
+# Agent temp logs
+.hermes/
 
