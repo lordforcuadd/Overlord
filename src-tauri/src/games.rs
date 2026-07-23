@@ -372,7 +372,7 @@ mod tests {
     #[test]
     fn test_get_epic_installed_games_does_not_panic() {
         let epic = get_epic_installed_games();
-        // Check that function runs safely without panicking
-        assert!(epic.is_empty() || !epic.is_empty());
+        // Validar que cualquier juego devuelto posea un nombre y ejecutable no vacíos
+        assert!(epic.iter().all(|(name, exe)| !name.is_empty() && !exe.is_empty()));
     }
 }
