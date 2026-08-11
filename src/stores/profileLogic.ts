@@ -1,7 +1,7 @@
 
 export function buildExpectedProfileState(
   profileMods: string[],
-  hardware: { isLaptop: boolean; tier: string }
+  hardware: { isLaptop: boolean; tier: string; isArm64?: boolean }
 ): Record<string, boolean> {
   const expected: Record<string, boolean> = {
     peripheralLatency: false,
@@ -22,7 +22,7 @@ export function buildExpectedProfileState(
     if (Object.prototype.hasOwnProperty.call(expected, mod)) {
       if (mod === "irqAffinity" && hardware.isLaptop) return;
       if (mod === "irqAffinity" && hardware.tier === "Gama Estándar") return;
-      if (mod === "disableMitigations" && hardware.tier !== "Gama Estándar") return;
+      if (mod === "disableMitigations" && (hardware.tier !== "Gama Estándar" || hardware.isArm64)) return;
       expected[mod] = true;
     }
   });

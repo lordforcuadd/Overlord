@@ -1,6 +1,13 @@
 $ErrorActionPreference = "Stop"
 
 try {
+    $Arch = $env:PROCESSOR_ARCHITECTURE
+    $ArchW64 = $env:PROCESSOR_ARCHITEW6432
+    if ($Arch -eq "ARM64" -or $ArchW64 -eq "ARM64") {
+        Write-Host "[+] Procesador ARM64 detectado. Las mitigaciones Spectre/Meltdown de x86 no aplican en esta arquitectura."
+        exit 0
+    }
+
     Write-Host "[*] Iniciando desactivacion de mitigaciones Spectre/Meltdown..."
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
     if (!(Test-Path $MemPath)) { New-Item -Path $MemPath -Force | Out-Null }

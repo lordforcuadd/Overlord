@@ -302,8 +302,8 @@ export const useOverlordStore = defineStore("overlord", {
       });
 
       const activeModules = PROFILE_CONFIGS[profile] || [];
-      const { isLaptop, tier } = this.hardwareInfo;
-      const expected = buildExpectedProfileState(activeModules, { isLaptop, tier });
+      const { isLaptop, tier, isArm64 } = this.hardwareInfo;
+      const expected = buildExpectedProfileState(activeModules, { isLaptop, tier, isArm64 });
 
       Object.keys(expected).forEach((key) => {
         this.modules[key as keyof typeof this.modules] = expected[key];

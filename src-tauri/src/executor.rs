@@ -382,8 +382,11 @@ mod tests {
         assert_eq!(custom_base64_encode(b""), "");
     }
 
-    #[test]
-    fn test_is_busy_initial_state() {
+    #[tokio::test]
+    async fn test_is_busy_lock_state() {
+        let guard = EXECUTION_LOCK.lock().await;
+        assert_eq!(is_busy(), true);
+        drop(guard);
         assert_eq!(is_busy(), false);
     }
 
@@ -393,5 +396,13 @@ mod tests {
         let res = execute_script_in_memory_readonly("test_action", script, false, 16, "", false, false, true).await;
         assert!(res.is_ok(), "Expected script execution to succeed, got: {:?}", res);
         assert_eq!(res.unwrap(), "Overlord Test Output");
+    }
+
+    #[tokio::test]
+    async fn test_execute_script_in_memory_simple() {
+        let script = "Write-Output 'Overlord Locking Test Output'";
+        let res = execute_script_in_memory("test_locking_action", script, false, 16, "", false, false, true).await;
+        assert!(res.is_ok(), "Expected script execution to succeed, got: {:?}", res);
+        assert_eq!(res.unwrap(), "Overlord Locking Test Output");
     }
 }

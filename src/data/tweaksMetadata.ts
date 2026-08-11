@@ -186,7 +186,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Recuperación de rendimiento y reducción de stutters en juegos, con una mejora marginal de FPS (1-5% real en gaming, aunque mayor en benchmarks de syscalls de CPU antiguos).",
     warning:
-      "Desactivar mitigaciones expone al procesador a vulnerabilidades de ejecución especulativa de canal lateral.",
+      "Desactivar mitigaciones expone al procesador a vulnerabilidades de ejecución especulativa de canal lateral. En procesadores ARM64 (como Qualcomm Snapdragon X), las mitigaciones x86 no aplican y este módulo se omite automáticamente.",
     details: [
       "Inhabilitación de mitigaciones de speculative execution (Spectre/Meltdown).",
       "Restauración del rendimiento perdido por parches de seguridad de kernel.",
