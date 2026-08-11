@@ -52,7 +52,7 @@ fn get_epic_installed_games() -> Vec<(String, String)> {
     if manifests_path.exists() {
         if let Ok(entries) = std::fs::read_dir(manifests_path) {
             for entry in entries.flatten() {
-                if entry.path().extension().map_or(false, |ext| ext == "item") {
+                if entry.path().extension().is_some_and(|ext| ext == "item") {
                     if let Ok(content) = std::fs::read_to_string(entry.path()) {
                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                             if let (Some(name), Some(location)) = (
@@ -177,7 +177,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         if let Some(steamapps) = steamapps_dir {
             if let Ok(entries) = std::fs::read_dir(steamapps) {
                 for entry in entries.flatten() {
-                    if entry.path().extension().map_or(false, |ext| ext == "acf") {
+                    if entry.path().extension().is_some_and(|ext| ext == "acf") {
                         if let Ok(content) = std::fs::read_to_string(entry.path()) {
                             let mut inst_dir = None;
                             for line in content.lines() {

@@ -67,6 +67,7 @@ fn parse_qol_params(game_list: &str) -> (String, String) {
     (toggle_name, is_enabled_str)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> String {
     let game_list_b64 = encode_utf8_base64(game_list);
     let action_id_b64 = encode_utf8_base64(action_id);
@@ -122,6 +123,7 @@ fn validate_input_string(s: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
     validate_input_string(game_list)?;
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
@@ -157,7 +159,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     let mut child = Command::new(&powershell_path)
         .creation_flags(CREATE_NO_WINDOW)
         .kill_on_drop(true)
-        .args(&[
+        .args([
             "-NoProfile",
             "-NonInteractive",
             // NOTA: Bypass es intencional porque el script se pasa completo via stdin en memoria sin tocar disco
@@ -239,11 +241,13 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     Ok(String::from_utf8_lossy(&stdout_bytes).trim().to_string())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn execute_script_in_memory(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
     let _lock = EXECUTION_LOCK.lock().await;
     execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list, is_hybrid, is_x3d, is_ssd).await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn execute_script_in_memory_readonly(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
     execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list, is_hybrid, is_x3d, is_ssd).await
 }
@@ -303,7 +307,7 @@ fn strip_param_block(script: &str) -> String {
 
 fn custom_base64_encode(bytes: &[u8]) -> String {
     const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut result = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut result = String::with_capacity(bytes.len().div_ceil(3) * 4);
     let mut i = 0;
 
     while i < bytes.len() {

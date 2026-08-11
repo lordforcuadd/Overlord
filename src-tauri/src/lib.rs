@@ -330,7 +330,7 @@ async fn is_priority_daemon_active() -> bool {
 
     if let Ok(output) = tokio::process::Command::new(&powershell_path)
         .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
-        .args(&[
+        .args([
             "-NoProfile",
             "-Command",
             "(Get-ScheduledTask -TaskName OverlordPriorityMonitor -ErrorAction SilentlyContinue).State",
@@ -495,14 +495,13 @@ pub fn run() {
     }));
 
     tauri::Builder::default()
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if crate::executor::is_busy() {
                     api.prevent_close();
                     let _ = window.emit("backend-busy-warning", ());
                 }
             }
-            _ => {}
         })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Si el usuario abre otra instancia, la enfocamos

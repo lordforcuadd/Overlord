@@ -71,7 +71,7 @@ async fn detect_system_hardware() -> HardwareResponse {
         let mut ram_speed_val = None;
         let mut cmd = tokio::process::Command::new(&powershell_path);
         cmd.creation_flags(CREATE_NO_WINDOW)
-           .args(&[
+           .args([
                "-NoProfile",
                "-Command",
                "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
@@ -270,7 +270,7 @@ async fn detect_system_hardware() -> HardwareResponse {
             let ps_path = crate::get_powershell_path();
             if let Ok(out) = tokio::process::Command::new(&ps_path)
                 .creation_flags(CREATE_NO_WINDOW)
-                .args(&[
+                .args([
                     "-NoProfile",
                     "-Command",
                     "$SysDrv = $env:SystemDrive.Substring(0,1); $Part = Get-Partition -DriveLetter $SysDrv -ErrorAction SilentlyContinue; if ($Part) { $Disk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $Part.DiskNumber } ; if ($Disk.MediaType -eq 'SSD') { 'True' } }",
