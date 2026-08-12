@@ -149,9 +149,14 @@ export function useOrchestrator(overlordSwalConfig: any) {
               !l.startsWith("$IsHybrid") &&
               !l.startsWith("$IsX3d") &&
               !l.startsWith("$IsSsd") &&
-              !l.startsWith("$ErrorActionPreference")
+              !l.startsWith("$ErrorActionPreference") &&
+              !l.startsWith("+") &&
+              !l.startsWith("At line:") &&
+              !l.startsWith("En línea:") &&
+              !l.includes("CategoryInfo") &&
+              !l.includes("FullyQualifiedErrorId")
           );
-          const reason = (meaningful.length > 0 ? meaningful[meaningful.length - 1] : errStr).substring(0, 150);
+          const reason = (meaningful.length > 0 ? meaningful[0] : errStr).substring(0, 150);
 
           moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${reason}</span>`;
           huboError = true;

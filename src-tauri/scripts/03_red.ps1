@@ -93,7 +93,7 @@ Try {
                                     Set-ItemProperty -Path $Adapter.PSPath -Name $PKey -Type String -Value "0" -Force | Out-Null
                                 }
                                 $checkVal = Get-ItemPropertyValue -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
-                                if ($checkVal -ne "0" -and -not ($IsLaptop -and ($PKey -eq "*PacketCoalescing" -or $PKey -eq "PacketCoalescing"))) {
+                                if ($null -ne $checkVal -and "$checkVal".Trim() -ne "0" -and -not ($IsLaptop -and ($PKey -eq "*PacketCoalescing" -or $PKey -eq "PacketCoalescing"))) {
                                     throw "Fallo de validacion: No se pudo establecer $PKey en 0 para el adaptador $($Adapter.PSChildName)"
                                 }
                             }
