@@ -60,26 +60,26 @@ if (!(Test-Path $TempDir)) {
 try {
     $Acl = Get-Acl $TempDir
     $Acl.SetAccessRuleProtection($true, $false)
-    $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $AdminsRule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administradores", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $UsersRule2  = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Usuarios", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $SidSystem = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-18") # SYSTEM
+    $SidAdmins = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544") # Administrators
+    $SidUsers  = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-545") # Users
+
+    $SystemRule = New-Object System.Security.AccessControl.FileSystemAccessRule($SidSystem, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $AdminsRule = New-Object System.Security.AccessControl.FileSystemAccessRule($SidAdmins, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $UsersRule  = New-Object System.Security.AccessControl.FileSystemAccessRule($SidUsers, "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
     
     $Acl.AddAccessRule($SystemRule)
     $Acl.AddAccessRule($AdminsRule)
-    try { $Acl.AddAccessRule($AdminsRule2) } catch {}
     $Acl.AddAccessRule($UsersRule)
-    try { $Acl.AddAccessRule($UsersRule2) } catch {}
     
     Set-Acl -Path $TempDir -AclObject $Acl | Out-Null
 } catch {
-    Write-Host "[*] Advertencia: No se pudieron endurecer los permisos NTFS del directorio de trabajo." -ForegroundColor Yellow
+    Write-Host "[*] Advertencia: No se pudieron endurecer los permisos NTFS del directorio de trabajo: $_" -ForegroundColor Yellow
 }
 
 $ExePath = Join-Path $TempDir $FileName
 $HashPath = Join-Path $TempDir "Overlord.exe.sha256"
-$GlobalLog = Join-Path $TempDir "overlord_errors.log"
+$GlobalLog = Join-Path $ProgData "Overlord\logs\overlord_errors.log"
 
 $ExecutionPermitted = $false
 
