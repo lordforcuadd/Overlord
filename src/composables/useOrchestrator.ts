@@ -139,7 +139,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
           const lines = errStr.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
           const meaningful = lines.filter(
             (l) =>
-              !l.startsWith("$") &&
+              !/^\$\w+\s*=/.test(l) &&
               !l.startsWith("#") &&
               !l.startsWith("+") &&
               !l.startsWith("At line:") &&

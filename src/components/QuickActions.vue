@@ -266,8 +266,32 @@ const runAction = async (actionId: string) => {
     }
     status.value[actionId] = "success";
   } catch (error) {
-    console.error(`[ERROR FATAL EN MODULO ${actionId}]:`, error);
+    console.error(`[ERROR FATAL EN ACCIÓN RÁPIDA ${actionId}]:`, error);
+    const errStr = String(error);
+    invoke("log_from_js", {
+      msg: `[FALLO ACCIÓN RÁPIDA ${actionId}]: ${errStr}`,
+    }).catch(() => {});
     status.value[actionId] = "error";
+
+    const lines = errStr.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+    const meaningful = lines.filter(
+      (l) =>
+        !/^\$\w+\s*=/.test(l) &&
+        !l.startsWith("#") &&
+        !l.startsWith("+") &&
+        !l.startsWith("At line:") &&
+        !l.startsWith("En línea:") &&
+        !l.includes("CategoryInfo") &&
+        !l.includes("FullyQualifiedErrorId")
+    );
+    const reason = (meaningful.length > 0 ? meaningful[0] : errStr).substring(0, 150);
+
+    await Swal.fire({
+      title: "ERROR EN ACCIÓN RÁPIDA",
+      html: `No se pudo completar la acción <b>${actionId}</b>.<br><span class='text-xs text-red-500 font-mono mt-2 block'>Motivo: ${reason}</span>`,
+      icon: "error",
+      ...overlordSwalConfig,
+    });
   } finally {
     isExecutingGlobal.value = false;
     store.setGlobalBusy(false);

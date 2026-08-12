@@ -115,7 +115,9 @@ Try {
         if ($CurrentGuid) {
             & powercfg /setactive $CurrentGuid 2>$null | Out-Null
         }
-    } catch {}
+    } catch {
+        Write-Warning "USB Selective Suspend no se pudo desactivar (bloqueado por politica de energia OEM del fabricante, no critico)."
+    }
 
     # Desactivar Aceleracion del Raton (Precision del Puntero)
     $MousePath = "$HKCU_Path\Control Panel\Mouse"

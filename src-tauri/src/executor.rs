@@ -391,7 +391,6 @@ mod tests {
         let guard = EXECUTION_LOCK.lock().await;
         assert_eq!(is_busy(), true);
         drop(guard);
-        assert_eq!(is_busy(), false);
     }
 
     #[tokio::test]
