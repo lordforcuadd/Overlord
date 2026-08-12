@@ -139,17 +139,8 @@ export function useOrchestrator(overlordSwalConfig: any) {
           const lines = errStr.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
           const meaningful = lines.filter(
             (l) =>
-              !l.startsWith("$IsLaptop") &&
-              !l.startsWith("$RamGB") &&
-              !l.startsWith("$GameList") &&
-              !l.startsWith("$ActionId") &&
-              !l.startsWith("$ToggleName") &&
-              !l.startsWith("$IsEnabledStr") &&
-              !l.startsWith("$Version") &&
-              !l.startsWith("$IsHybrid") &&
-              !l.startsWith("$IsX3d") &&
-              !l.startsWith("$IsSsd") &&
-              !l.startsWith("$ErrorActionPreference") &&
+              !l.startsWith("$") &&
+              !l.startsWith("#") &&
               !l.startsWith("+") &&
               !l.startsWith("At line:") &&
               !l.startsWith("En línea:") &&

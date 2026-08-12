@@ -24,7 +24,7 @@ Try {
     if ((Get-ItemPropertyValue -Path $TcpPath -Name "InitialRto" -ErrorAction SilentlyContinue) -ne 2000) { throw "Verification failed" }
     
     $throttingVal = Get-ItemPropertyValue -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue
-    if ($null -eq $throttingVal -or [uint32]$throttingVal -ne [uint32]4294967295) { throw "Verification failed" }
+    if ($null -eq $throttingVal -or (@(4294967295, -1) -notcontains $throttingVal)) { throw "Fallo de verificacion en NetworkThrottlingIndex" }
 
     
     $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
