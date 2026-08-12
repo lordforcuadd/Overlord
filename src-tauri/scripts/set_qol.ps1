@@ -300,7 +300,7 @@ switch ($ToggleName) {
             )
             foreach ($Setup in $Paths) {
                 if (Test-Path $Setup) {
-                    Start-Process -FilePath $Setup -ArgumentList "/uninstall" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+                    Start-Process -FilePath $Setup -ArgumentList "/uninstall" -NoNewWindow -ErrorAction SilentlyContinue
                     break
                 }
             }

@@ -502,8 +502,9 @@ function getRowClass(id: QolKeys) {
   return "bg-[#121212] border border-neutral-800/60";
 }
 
-onMounted(async () => {
+async function fetchQolStatus() {
   try {
+    isScanning.value = true;
     const jsonOutput = await invoke<string>("run_optimization_script", {
       scriptName: "get_qol",
       isLaptop: store.hardwareInfo.isLaptop,
@@ -519,6 +520,10 @@ onMounted(async () => {
   } finally {
     isScanning.value = false;
   }
+}
+
+onMounted(async () => {
+  await fetchQolStatus();
 });
 
 async function applyToggle(settingKey: QolKeys) {
@@ -577,6 +582,8 @@ async function applyToggle(settingKey: QolKeys) {
         }
       }
     }
+
+    await fetchQolStatus();
 
     setTimeout(() => {
       if (qolStatus.value[settingKey] === "success")

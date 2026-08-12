@@ -126,7 +126,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
           }
 
           cardStatus.value[modKey] = "success";
-          store.modules[modKey as keyof typeof store.modules] = false;
+          store.modules[modKey as keyof typeof store.modules] = true;
           modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
         } catch (errorOutput) {
           console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);

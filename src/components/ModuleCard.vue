@@ -108,9 +108,46 @@
     <div
       class="flex justify-between items-center border-t border-white/5 pt-4 mt-2"
     >
-      <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">
-        {{ statusText }}
-      </span>
+      <div
+        class="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all duration-300"
+        :class="statusBadgeStyle"
+      >
+        <span
+          v-if="status === 'loading'"
+          class="inline-block w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin shrink-0"
+        ></span>
+        <svg
+          v-else-if="status === 'success'"
+          class="w-3.5 h-3.5 text-emerald-400 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="3"
+            d="M5 13l4 4L19 7"
+          ></path>
+        </svg>
+        <svg
+          v-else-if="status === 'error'"
+          class="w-3.5 h-3.5 text-red-400 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <span v-else class="w-2 h-2 rounded-full bg-gray-500 shrink-0"></span>
+        <span>{{ statusText }}</span>
+      </div>
+
       <label class="relative inline-flex items-center cursor-pointer">
         <input
           type="checkbox"
@@ -185,16 +222,29 @@ const badgeClass = computed(() => {
 
 const impactBadgeClass = computed(() => getImpactClass(meta.value.evidenciaImpacto));
 
+const statusBadgeStyle = computed(() => {
+  switch (props.status) {
+    case "loading":
+      return "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 animate-pulse shadow-[0_0_12px_rgba(234,179,8,0.2)]";
+    case "success":
+      return "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]";
+    case "error":
+      return "bg-red-500/15 text-red-400 border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.25)]";
+    default:
+      return "bg-white/5 text-gray-400 border border-white/10";
+  }
+});
+
 const statusText = computed(() => {
   switch (props.status) {
     case "loading":
-      return "Inyectando...";
+      return "Aplicando...";
     case "success":
-      return "Optimizado Al 100%";
+      return "Optimizado 100%";
     case "error":
-      return "Fallo";
+      return "Fallido";
     default:
-      return "No Optimizado";
+      return "Pendiente";
   }
 });
 </script>
