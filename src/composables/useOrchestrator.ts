@@ -135,7 +135,25 @@ export function useOrchestrator(overlordSwalConfig: any) {
           }).catch(() => {});
           cardStatus.value[modKey] = "error";
 
-          moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${String(errorOutput).substring(0, 80)}...</span>`;
+          const errStr = String(errorOutput);
+          const lines = errStr.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+          const meaningful = lines.filter(
+            (l) =>
+              !l.startsWith("$IsLaptop") &&
+              !l.startsWith("$RamGB") &&
+              !l.startsWith("$GameList") &&
+              !l.startsWith("$ActionId") &&
+              !l.startsWith("$ToggleName") &&
+              !l.startsWith("$IsEnabledStr") &&
+              !l.startsWith("$Version") &&
+              !l.startsWith("$IsHybrid") &&
+              !l.startsWith("$IsX3d") &&
+              !l.startsWith("$IsSsd") &&
+              !l.startsWith("$ErrorActionPreference")
+          );
+          const reason = (meaningful.length > 0 ? meaningful[meaningful.length - 1] : errStr).substring(0, 150);
+
+          moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${reason}</span>`;
           huboError = true;
           break;
         }
