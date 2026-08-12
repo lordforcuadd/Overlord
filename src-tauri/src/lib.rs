@@ -123,11 +123,17 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
         _ => false,
     };
 
-    if is_readonly {
+    let res = if is_readonly {
         execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
     } else {
         execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
+    };
+
+    if let Err(ref err) = res {
+        write_to_overlord_log(&format!("[FALLO EN SCRIPT {}]: {}", script_name, err));
     }
+
+    res
 }
 
 #[derive(serde::Serialize)]
