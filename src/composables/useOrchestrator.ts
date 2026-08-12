@@ -130,6 +130,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
           modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
         } catch (errorOutput) {
           console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
+          invoke("log_from_js", {
+            msg: `[FALLO EN MÓDULO ${modKey}]: ${String(errorOutput)}`,
+          }).catch(() => {});
           cardStatus.value[modKey] = "error";
 
           moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${String(errorOutput).substring(0, 80)}...</span>`;
