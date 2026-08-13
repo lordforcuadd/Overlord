@@ -282,7 +282,6 @@ import QuickActions from "./components/QuickActions.vue";
 import HardwareSidebar from "./components/HardwareSidebar.vue";
 import ProfileSelector from "./components/ProfileSelector.vue";
 import OptimizationGrid from "./components/OptimizationGrid.vue";
-import SafetyHub from "./components/SafetyHub.vue";
 import WarningModal from "./components/WarningModal.vue";
 
 const store = useOverlordStore();
