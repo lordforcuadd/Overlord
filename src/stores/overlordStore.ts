@@ -32,12 +32,6 @@ interface GamePayload {
   detected: boolean;
 }
 
-interface BenchmarkData {
-  networkLatency: number;
-  dnsResolution: number;
-  measured: boolean;
-}
-
 export const useOverlordStore = defineStore("overlord", {
   state: () => ({
     isGlobalBusy: false,
@@ -85,18 +79,6 @@ export const useOverlordStore = defineStore("overlord", {
       optimize: boolean;
       manual?: boolean;
     }>,
-    benchmarks: {
-      before: {
-        networkLatency: 0,
-        dnsResolution: 0,
-        measured: false,
-      } as BenchmarkData,
-      after: {
-        networkLatency: 0,
-        dnsResolution: 0,
-        measured: false,
-      } as BenchmarkData,
-    },
     activeProfile: "Personalizado",
     restorePointCreated: false,
     backupExists: false,
@@ -105,7 +87,6 @@ export const useOverlordStore = defineStore("overlord", {
     priorityServiceSelected: false,
     telemetryInterval: null as ReturnType<typeof setInterval> | null,
     isInitialized: false,
-    isBenchmarkTesting: false,
   }),
   actions: {
     setGlobalBusy(value: boolean) {
@@ -312,28 +293,6 @@ export const useOverlordStore = defineStore("overlord", {
       invoke("log_from_js", {
         msg: `applyProfile done: profile=${profile}, isLaptop=${isLaptop}, tier=${tier}, activeModules=${JSON.stringify(activeModules)}, modulesState=${JSON.stringify(this.modules)}`
       }).catch(() => {});
-    },
-    async ejecutarNetworkBenchmark(fase: "before" | "after") {
-      if (this.isBenchmarkTesting || this.isGlobalBusy) return;
-      this.isBenchmarkTesting = true;
-      this.setGlobalBusy(true);
-
-      try {
-        const result = await invoke<{ tcp_latency: number; dns_latency: number }>("run_benchmark");
-
-        this.benchmarks[fase].networkLatency = result.tcp_latency;
-        this.benchmarks[fase].dnsResolution = result.dns_latency;
-        this.benchmarks[fase].measured = true;
-      } catch (e) {
-        console.error("[BENCHMARK CRITICAL FAIL]:", e);
-
-        this.benchmarks[fase].networkLatency = 999;
-        this.benchmarks[fase].dnsResolution = 999;
-        this.benchmarks[fase].measured = false;
-      } finally {
-        this.isBenchmarkTesting = false;
-        this.setGlobalBusy(false);
-      }
     },
     updateModule(tweakId: string, value: boolean) {
       this.activeProfile = "Personalizado";

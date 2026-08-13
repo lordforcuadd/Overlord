@@ -46,13 +46,10 @@
         <QuickActions />
         <QolPanel :swalConfig="overlordSwalConfig" />
         <ProfileSelector />
-        <BenchmarkPanel class="mb-6" />
         <OptimizationGrid
           :cardStatus="cardStatus"
           @trigger-warning="openWarningModal"
         />
-
-        <SafetyHub />
 
         <footer
           class="mb-24 flex flex-col items-center gap-6 border-t border-white/5 pt-10"
@@ -274,7 +271,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import Swal from "sweetalert2";
 import { overlordSwalConfig } from "./utils/swalConfig";
-import BenchmarkPanel from "./components/BenchmarkPanel.vue";
 import { useOverlordStore } from "./stores/overlordStore";
 import { useOrchestrator } from "./composables/useOrchestrator";
 import QolPanel from "./components/QolPanel.vue";

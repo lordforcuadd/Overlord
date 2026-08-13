@@ -9,7 +9,7 @@ use hardware::{get_system_hardware, HardwareResponse};
 use games::{collect_installed_games, ScanGamesResponse};
 use memory::{get_live_metrics, LiveMetricsResponse, SystemStateCache};
 use tauri::{State, Manager, Emitter};
-use std::time::{Instant, Duration};
+use std::time::Duration;
 use sysinfo::System;
 use std::sync::Mutex;
 use tokio::sync::oneshot;
@@ -134,69 +134,6 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
     }
 
     res
-}
-
-#[derive(serde::Serialize)]
-pub struct BenchmarkResponse {
-    #[serde(rename = "tcp_latency")]
-    pub tcp_latency: f64,
-    #[serde(rename = "dns_latency")]
-    pub dns_latency: f64,
-}
-
-#[tauri::command]
-async fn run_benchmark() -> Result<BenchmarkResponse, String> {
-    // 1. Medir latencia TCP (Tráfico de red general) de forma asíncrona.
-    // Se utiliza el puerto 80 del servidor DNS público de Cloudflare (1.1.1.1)
-    // para medir la latencia de establecimiento de conexión TCP pura de red.
-    let start_tcp = Instant::now();
-    let addr: std::net::SocketAddr = "1.1.1.1:80".parse().unwrap_or_else(|_| {
-        std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1)), 80)
-    });
-    let tcp_res = tokio::time::timeout(
-        Duration::from_millis(1500),
-        tokio::net::TcpStream::connect(addr)
-    ).await;
-    
-    let tcp_latency = match tcp_res {
-        Ok(Ok(_)) => start_tcp.elapsed().as_secs_f64() * 1000.0,
-        _ => 1500.0, // Timeout o fallo de red
-    };
-
-    // 2. Medir resolución DNS real vía UDP de forma asíncrona.
-    // Se realiza una consulta DNS UDP al puerto 53 del mismo servidor (1.1.1.1)
-    // para evaluar la latencia específica de resolución de nombres de dominio.
-    let socket = tokio::net::UdpSocket::bind("0.0.0.0:0").await.map_err(|e| e.to_string())?;
-    let dns_packet: [u8; 28] = [
-        0xAA, 0xBB, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x06, b'g', b'o', b'o',
-        b'g', b'l', b'e', 0x03, b'c', b'o', b'm', 0x00,
-        0x00, 0x01, 0x00, 0x01
-    ];
-
-    let start_dns = Instant::now();
-    let send_res = socket.send_to(&dns_packet, "1.1.1.1:53").await;
-    
-    let dns_latency = match send_res {
-        Ok(_) => {
-            let mut buf = [0u8; 512];
-            let recv_res = tokio::time::timeout(
-                Duration::from_millis(1500),
-                socket.recv_from(&mut buf)
-            ).await;
-            
-            match recv_res {
-                Ok(Ok(_)) => start_dns.elapsed().as_secs_f64() * 1000.0,
-                _ => 1500.0, // Timeout o error de lectura UDP
-            }
-        }
-        Err(_) => 1500.0, // Error al enviar
-    };
-    
-    Ok(BenchmarkResponse {
-        tcp_latency: (tcp_latency * 100.0).round() / 100.0,
-        dns_latency: (dns_latency * 100.0).round() / 100.0,
-    })
 }
 
 #[tauri::command]
@@ -523,7 +460,6 @@ pub fn run() {
             fetch_games,
             get_live_telemetry,
             run_optimization_script,
-            run_benchmark,
             purge_ram_native,
             start_game_priority_monitor,
             stop_game_priority_monitor,
