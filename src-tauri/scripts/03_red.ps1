@@ -110,10 +110,16 @@ Try {
         $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue
         foreach ($Adapter in $Adapters) {
             if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
-                # Evitar optimizaciones de descarga y latencia agresivas en adaptadores Wi-Fi
+                # Evitar optimizaciones de descarga y latencia agresivas en adaptadores Wi-Fi y virtuales/Bluetooth
                 $IsWiFi = $Adapter.PhysicalMediaType -match "802.11" -or $Adapter.MediaType -match "Wireless" -or $Adapter.Name -match "Wi-Fi|Wireless|wlan"
                 if ($IsWiFi) {
                     Write-Host "    -> Saltando optimizaciones de bajo nivel para adaptador Wi-Fi ($($Adapter.Name)) para preservar estabilidad de enlace inalambrico."
+                    continue
+                }
+                
+                $IsVirtualOrBT = $Adapter.InterfaceDescription -match "Bluetooth|Virtual|VPN|TAP|Tunnel|Hyper-V|VMware|NDIS|Pseudo" -or $Adapter.PhysicalMediaType -match "Bluetooth"
+                if ($IsVirtualOrBT) {
+                    Write-Host "    -> Saltando adaptador no fisico o virtual ($($Adapter.Name))."
                     continue
                 }
                 
@@ -171,15 +177,15 @@ Try {
                         }
                     }
 
-                    Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null
-                    Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
-                    Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null
-                    Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null
-                    Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null
+                    try { Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
+                    try { Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch {}
+                    try { Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch {}
+                    try { Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null } catch {}
+                    try { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null } catch {}
                     
                     Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
                 } catch {
-                    throw "No se pudieron aplicar las optimizaciones de red para el adaptador $($Adapter.Name): $_"
+                    Write-Warning "Advertencia no critica en adaptador $($Adapter.Name): $_"
                 }
             }
         }

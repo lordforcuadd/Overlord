@@ -93,7 +93,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
       }
 
       const modulosExitosos: string[] = [];
-      let moduloFallido: string | null = null;
+      let failedModTitle = "";
+      let failedModReason = "";
+      let failedModRawError = "";
       let huboError = false;
 
       for (const modKey of modulosActivos) {
@@ -147,9 +149,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
               !l.includes("CategoryInfo") &&
               !l.includes("FullyQualifiedErrorId")
           );
-          const reason = (meaningful.length > 0 ? meaningful[0] : errStr).substring(0, 150);
-
-          moduloFallido = `${tweaksMetadata[modKey]?.title || modKey}<br><span class='text-xs text-red-500 font-mono'>Motivo: ${reason}</span>`;
+          failedModRawError = errStr;
+          failedModTitle = tweaksMetadata[modKey]?.title || modKey;
+          failedModReason = (meaningful.length > 0 ? meaningful[0] : errStr).substring(0, 150);
           huboError = true;
           break;
         }
@@ -157,12 +159,10 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
       if (huboError) {
         try {
-          // Detener el monitor dinámico en Rust
           await invoke("stop_game_priority_monitor").catch((err) => {
             console.error("[RUST MONITOR STOP FAIL ON ROLLBACK]:", err);
           });
 
-          // Desinstalar el servicio/daemon de prioridad SYSTEM
           await store.togglePriorityService(false).catch((err) => {
             console.error("[SYSTEM DAEMON UNINSTALL FAIL ON ROLLBACK]:", err);
           });
@@ -184,9 +184,31 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
         await Swal.fire({
           title: "OPTIMIZACIÓN FALLIDA",
-          html: `${textoExitos}<br><br>El módulo <b>${moduloFallido}</b> falló durante la inyección.<br><br>El sistema ha sido revertido a su estado inicial.`,
+          html: `
+            <div class='text-left text-sm text-gray-300'>
+              <p class='mb-2'>${textoExitos}</p>
+              <p class='mb-1 font-semibold text-gray-200'>El módulo <b>${failedModTitle}</b> falló durante la inyección:</p>
+              <div class='max-h-40 overflow-y-auto bg-black/50 p-3 rounded-lg border border-red-500/30 text-xs text-red-400 font-mono select-all my-2 whitespace-pre-wrap leading-relaxed'>${failedModReason}</div>
+              <p class='text-xs text-gray-400 mt-2'>El sistema ha sido revertido a su estado inicial por seguridad.</p>
+            </div>
+          `,
           icon: "error",
+          showDenyButton: true,
+          denyButtonText: "📋 Copiar Error",
+          confirmButtonText: "Entendido",
           ...overlordSwalConfig,
+        }).then((res) => {
+          if (res.isDenied) {
+            navigator.clipboard.writeText(failedModRawError);
+            Swal.fire({
+              title: "¡Copiado!",
+              text: "El detalle del error ha sido copiado al portapapeles.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+              ...overlordSwalConfig,
+            });
+          }
         });
         return;
       }

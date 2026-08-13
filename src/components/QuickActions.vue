@@ -288,9 +288,29 @@ const runAction = async (actionId: string) => {
 
     await Swal.fire({
       title: "ERROR EN ACCIÓN RÁPIDA",
-      html: `No se pudo completar la acción <b>${actionId}</b>.<br><span class='text-xs text-red-500 font-mono mt-2 block'>Motivo: ${reason}</span>`,
+      html: `
+        <div class='text-left text-sm text-gray-300'>
+          <p class='mb-1 font-semibold text-gray-200'>No se pudo completar la acción <b>${actionId}</b>:</p>
+          <div class='max-h-40 overflow-y-auto bg-black/50 p-3 rounded-lg border border-red-500/30 text-xs text-red-400 font-mono select-all my-2 whitespace-pre-wrap leading-relaxed'>${reason}</div>
+        </div>
+      `,
       icon: "error",
+      showDenyButton: true,
+      denyButtonText: "📋 Copiar Error",
+      confirmButtonText: "Entendido",
       ...overlordSwalConfig,
+    }).then((res) => {
+      if (res.isDenied) {
+        navigator.clipboard.writeText(errStr);
+        Swal.fire({
+          title: "¡Copiado!",
+          text: "El detalle del error ha sido copiado al portapapeles.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+          ...overlordSwalConfig,
+        });
+      }
     });
   } finally {
     isExecutingGlobal.value = false;
