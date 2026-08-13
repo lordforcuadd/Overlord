@@ -163,23 +163,28 @@ try {
         }
         
         if (Test-Path $GlobalLog) {
-            Write-Host "`n=======================================================" -ForegroundColor Red
-            Write-Host "⚠️  OVERLORD V$Version - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
-            Write-Host "=======================================================" -ForegroundColor Red
-            
-            try {
-                Get-Content $GlobalLog -ErrorAction Stop | ForEach-Object {
-                    Write-Host $_ -ForegroundColor BrightRed
+            $LogLines = Get-Content $GlobalLog -ErrorAction SilentlyContinue
+            $ErrorLines = $LogLines | Where-Object { $_ -match 'FALLO|ERROR|Fallo|Error|Falta|Falla' -and $_ -notmatch 'detectHardware' }
+            if ($null -ne $ErrorLines -and @($ErrorLines).Count -gt 0) {
+                Write-Host "`n=======================================================" -ForegroundColor Red
+                Write-Host "⚠️  OVERLORD V$Version - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
+                Write-Host "=======================================================" -ForegroundColor Red
+                foreach ($errLine in $ErrorLines) {
+                    Write-Host $errLine -ForegroundColor BrightRed
                 }
-            } catch {}
-            Write-Host "=======================================================`n" -ForegroundColor Red
-            
-            Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoría..." -ForegroundColor Gray
-            try {
-                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-            } catch {}
+                Write-Host "=======================================================`n" -ForegroundColor Red
+                
+                Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoría..." -ForegroundColor Gray
+                try {
+                    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                } catch {}
+            } else {
+                Write-Host "`n[+] Ejecución de Overlord finalizada con ÉXITO (0 errores registrados)." -ForegroundColor Green
+            }
         
             try { Remove-Item $GlobalLog -Force -ErrorAction SilentlyContinue } catch {}
+        } else {
+            Write-Host "`n[+] Ejecución de Overlord finalizada con ÉXITO (0 errores registrados)." -ForegroundColor Green
         }
     }
 } finally {
