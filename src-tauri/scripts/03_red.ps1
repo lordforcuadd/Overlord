@@ -177,11 +177,11 @@ Try {
                         }
                     }
 
-                    try { Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
-                    try { Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch {}
-                    try { Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch {}
-                    try { Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null } catch {}
-                    try { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null } catch {}
+                    try { Enable-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] Offload no soportado: $_" }
+                    try { Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] LSO no soportado: $_" }
+                    try { Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] RSC no soportado: $_" }
+                    try { Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] RSS no soportado: $_" }
+                    try { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] PowerManagement no soportado: $_" }
                     
                     Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
                 } catch {

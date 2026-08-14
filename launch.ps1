@@ -164,7 +164,7 @@ try {
         
         if (Test-Path $GlobalLog) {
             $LogLines = Get-Content $GlobalLog -ErrorAction SilentlyContinue
-            $ErrorLines = $LogLines | Where-Object { $_ -match 'FALLO|ERROR|Fallo|Error|Falta|Falla' -and $_ -notmatch 'detectHardware' }
+            $ErrorLines = $LogLines | Where-Object { $_ -match '^\s*(\[?FALLO|\[?ERROR|RUST PANIC)' }
             if ($null -ne $ErrorLines -and @($ErrorLines).Count -gt 0) {
                 Write-Host "`n=======================================================" -ForegroundColor Red
                 Write-Host "⚠️  OVERLORD V$Version - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black

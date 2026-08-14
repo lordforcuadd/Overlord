@@ -271,6 +271,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import Swal from "sweetalert2";
 import { overlordSwalConfig } from "./utils/swalConfig";
+import { copyToClipboard } from "./utils/styleHelpers";
 import { useOverlordStore } from "./stores/overlordStore";
 import { useOrchestrator } from "./composables/useOrchestrator";
 import QolPanel from "./components/QolPanel.vue";
@@ -324,7 +325,8 @@ async function copiarReporteErrores() {
   isCopyingLog.value = true;
   try {
     const logs = await invoke<string>("read_overlord_log");
-    await navigator.clipboard.writeText(logs);
+    const copied = await copyToClipboard(logs);
+    if (!copied) throw new Error("No se pudo escribir en el portapapeles");
     await Swal.fire({
       title: "Reporte Copiado",
       text: "El registro de errores se ha copiado al portapapeles. Pégalo en tu issue de GitHub.",

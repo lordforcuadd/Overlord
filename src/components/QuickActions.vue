@@ -173,7 +173,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Swal from "sweetalert2";
 import { overlordSwalConfig } from "../utils/swalConfig";
 import { useOverlordStore } from "../stores/overlordStore";
-import { getImpactClass } from "../utils/styleHelpers";
+import { getImpactClass, copyToClipboard } from "../utils/styleHelpers";
 
 const store = useOverlordStore();
 const isExecutingGlobal = ref(false);
@@ -299,9 +299,9 @@ const runAction = async (actionId: string) => {
       denyButtonText: "📋 Copiar Error",
       confirmButtonText: "Entendido",
       ...overlordSwalConfig,
-    }).then((res) => {
+    }).then(async (res) => {
       if (res.isDenied) {
-        navigator.clipboard.writeText(errStr);
+        await copyToClipboard(errStr);
         Swal.fire({
           title: "¡Copiado!",
           text: "El detalle del error ha sido copiado al portapapeles.",

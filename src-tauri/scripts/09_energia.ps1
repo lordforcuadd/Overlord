@@ -61,7 +61,7 @@ Try {
                     & powercfg /setactive $newGuid 2>$null
                     Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force -ErrorAction SilentlyContinue | Out-Null
                 } else {
-                    # išltimo recurso: activar plan Equilibrado de fabrica
+                    # Ultimo recurso: activar plan Equilibrado de fabrica
                     & powercfg /setactive "381b4222-f694-41f0-9685-ff5bb260df2e" 2>$null
                 }
             }

@@ -782,7 +782,7 @@ Try {
         if ($null -eq $RemainingFiles -or @($RemainingFiles).Count -eq 0) {
             Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         } else {
-            Write-Warning "No se borraron todos los respaldos, la carpeta $BackupPath no est vaca."
+            Write-Warning "No se borraron todos los respaldos, la carpeta $BackupPath no esta vacia."
         }
     }
 

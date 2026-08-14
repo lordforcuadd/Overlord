@@ -151,6 +151,9 @@
       <label class="relative inline-flex items-center cursor-pointer">
         <input
           type="checkbox"
+          role="switch"
+          :aria-label="meta.title"
+          :aria-checked="modelValue"
           :checked="modelValue"
           @change="handleToggleAttempt"
           :disabled="status === 'loading' || store.isGlobalBusy"

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
 import { buildExpectedProfileState } from "../stores/profileLogic";
+import { copyToClipboard } from "../utils/styleHelpers";
 import Swal from "sweetalert2";
 
 const cardStatus = ref<
@@ -197,9 +198,9 @@ export function useOrchestrator(overlordSwalConfig: any) {
           denyButtonText: "📋 Copiar Error",
           confirmButtonText: "Entendido",
           ...overlordSwalConfig,
-        }).then((res) => {
+        }).then(async (res) => {
           if (res.isDenied) {
-            navigator.clipboard.writeText(failedModRawError);
+            await copyToClipboard(failedModRawError);
             Swal.fire({
               title: "¡Copiado!",
               text: "El detalle del error ha sido copiado al portapapeles.",

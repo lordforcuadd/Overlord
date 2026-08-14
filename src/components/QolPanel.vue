@@ -73,6 +73,9 @@
             @click="!isScanning && applyToggle(item.id)"
             :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
+            role="switch"
+            :aria-checked="qol[item.id]"
+            :aria-label="item.title"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
@@ -127,6 +130,9 @@
             @click="!isScanning && applyToggle(item.id)"
             :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
+            role="switch"
+            :aria-checked="qol[item.id]"
+            :aria-label="item.title"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
@@ -181,6 +187,9 @@
             @click="!isScanning && applyToggle(item.id)"
             :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
+            role="switch"
+            :aria-checked="qol[item.id]"
+            :aria-label="item.title"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
@@ -235,6 +244,9 @@
             @click="!isScanning && applyToggle(item.id)"
             :disabled="isScanning || qolStatus[item.id] === 'loading' || store.isGlobalBusy"
             :class="qol[item.id] ? 'bg-yellow-500' : 'bg-neutral-700'"
+            role="switch"
+            :aria-checked="qol[item.id]"
+            :aria-label="item.title"
             class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
