@@ -118,7 +118,8 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 6. Afinidad IRQ (`06_irq_affinity.ps1`)
 
-- Recorre el árbol PCI completo via `Microsoft.Win32.Registry` para aislar dinámicamente los hilos de interrupción de **adaptadores de red** (`Class = Net`) fuera del Core 0. Implementa una **política multi-núcleo selectiva compatible con RSS** (`DevicePolicy = 4` - *SpecifiedProcessors* para procesadores con 8 o más hilos lógicos, o `DevicePolicy = 2` - *OneCloseProcessor* para menos de 8 hilos lógicos) direccionando las interrupciones a dos cores físicos independientes (hilos lógicos 4 y 6 en CPUs >=12 hilos, o hilos lógicos 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT/HT). Esto previene stutters en aplicaciones secundarias y cuellos de botella de ancho de banda en descargas de alta velocidad (Gigabit+).
+- Optimiza el procesamiento de interrupciones del bus de red reduciendo el jitter de llamadas a procedimientos diferidos (DPC Latency) en equipos de escritorio.
+- Desactiva **Interrupt Moderation** en adaptadores de red Ethernet físicos en computadoras de escritorio para forzar el procesamiento en tiempo real sin retardo de acumulación. En laptops, preserva los mecanismos nativos para proteger la gestión térmica y de batería.
 - Preserva la gestión dinámica de los **dispositivos de audio** (`Class = MEDIA`) a cargo del programador de Windows, previniendo distorsión de sonido, pops o micro-cortes en Discord/juegos cuando un núcleo afinado estáticamente se satura.
 
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
@@ -128,9 +129,8 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 - Configura la asignación de memoria de caché de metadatos NTFS a modo de alto rendimiento (`NtfsMemoryUsage = 2`) de forma adaptativa en sistemas que cuenten con un mínimo de **16 GB de RAM** para optimizar el acceso a directorios grandes.
 - Desactiva **Fast Startup** (`HiberbootEnabled = 0`), evitando el estado inconsistente de drivers entre sesiones que puede impedir que los tweaks de registro surtan efecto correctamente tras el reinicio.
 - En desktop: desactiva hibernación completa para liberar el espacio del `hiberfil.sys`.
-- Ejecuta `DISM /Cleanup-Image /StartComponentCleanup` con protección de procesos para compactar el store de componentes de Windows.
-- Limpia descargas de Windows Update verificando primero que no haya una instalación activa via `Microsoft.Update.Installer.IsBusy`.
-- Limpia caché de Delivery Optimization y carpetas temporales del sistema.
+- Limpia descargas de Windows Update y temporales de entrega sin interrumpir parches activos en ejecución.
+- La compactación profunda de componentes DISM se delega a la Acción Rápida `DeepClean` para evitar congelamientos durante la optimización.
 
 ### 8. Blindaje de Seguridad y Privacidad (`08_telemetria.ps1`)
 
@@ -158,7 +158,7 @@ Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y
 
 ### 11. Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`)
 
-- Desactiva las mitigaciones Spectre (v2) y Meltdown (`FeatureSettingsOverride = 3` y `FeatureSettingsOverrideMask = 3`) a nivel de Kernel en la colmena Memory Management de HKLM.
+- Desactiva las mitigaciones Spectre (v2), Meltdown, SSBD y L1TF (`FeatureSettingsOverride = 8259` y `FeatureSettingsOverrideMask = 8259`) a nivel de Kernel en la colmena Memory Management de HKLM.
 - **Caso de uso**: Recupera de un 10% a un 15% de throughput de CPU en procesadores legacy (Intel Core de 9.ª generación o anterior, y AMD Ryzen serie 3000 o anterior) que se ven ralentizados por los parches de seguridad de microcódigo.
 - Cuenta con respaldo y reversión simétrica en el desinstalador para restablecer las directivas de seguridad nativas del Kernel de Windows.
 

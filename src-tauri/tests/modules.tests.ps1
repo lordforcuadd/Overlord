@@ -383,7 +383,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $DebloatContent = (Get-Content -Path (Join-Path $script:ScriptsPath "02_debloat.ps1") -Raw) -replace '`\r?\n\s*', ' '
             $TelemetryContent = (Get-Content -Path (Join-Path $script:ScriptsPath "08_telemetria.ps1") -Raw) -replace '`\r?\n\s*', ' '
             
-            $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc")
+            $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc", "DoSvc")
             
             foreach ($Svc in $KnownServices) {
                 ($script:RevertContent -match "\b$Svc\b") | Should Be $true

@@ -164,7 +164,6 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
       "Desactivación del aparcamiento de núcleos (Core Parking al 0% en corriente alterna) para extrema estabilidad de 1% y 0.1% lows.",
-      "Desactivación de Dynamic Tick (requiere reinicio) para optimizar el jitter fino a nivel del kernel de Windows.",
     ],
   },
   disableMitigations: {
@@ -220,27 +219,26 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "irqAffinity",
     title: "Afinidad de Hardware (IRQ)",
     description:
-      "Aísla de forma exclusiva las cargas de interrupciones físicas de red fuera de los hilos principales del sistema operativo.",
+      "Optimiza el procesamiento de interrupciones de red reduciendo el jitter de DPC en computadoras de escritorio.",
     riesgo: "Experimental",
     evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
-      "Restauración de las llaves de configuración de adaptadores PCI y remoción de las máscaras binarias dinámicas generadas.",
+      "Restauración de las llaves de configuración de adaptadores de red y reactivación de los valores de fábrica de Interrupt Moderation.",
     hardwareRecomendado:
-      "Procesadores multinúcleo modernos (arquitecturas híbridas con P-Cores/E-Cores o multi-CCD).",
+      "Computadoras de escritorio con adaptadores de red dedicados o integrados Gigabit/2.5G.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority",
     scriptName: "06_irq_affinity.ps1",
     impactoRendimiento:
-      "Reducción masiva de la latencia de llamadas de procedimiento diferidas (DPC Latency) del bus de red.",
+      "Reducción de la latencia de llamadas de procedimiento diferidas (DPC Latency) del bus de red.",
     warning:
-      "Este módulo aísla las interrupciones del bus de red fuera del Core 0. En CPUs de >=8 hilos utiliza una política de afinación multi-núcleo selectiva (SpecifiedProcessors) para preservar la capacidad RSS y evitar cuellos de botella en descargas Gigabit.",
+      "Desactivar Interrupt Moderation en adaptadores de red de escritorio fuerza la entrega de interrupciones en tiempo real reduciendo la latencia de DPC, pero puede aumentar levemente el uso de CPU en transferencias de alta velocidad. En laptops, este módulo se omite automáticamente para proteger la autonomía.",
     details: [
-      "Cálculo topológico dinámico en tiempo de ejecución basado en el mapa de hilos físicos del procesador.",
-      "Asignación multi-núcleo selectiva en dos cores físicos independientes (SpecifiedProcessors) para conservar RSS y ancho de banda en descargas.",
-      "Selección automática de hilos P-Core optimizados (4 y 6 en CPUs >=12 hilos, o 2 y 4 en CPUs >=8 hilos) evitando hilos lógicos hermanos (SMT).",
-      "Desactivación de Interrupt Moderation en adaptadores de red (EXPERIMENTAL: Fuerza interrupciones en tiempo real reduciendo latencia DPC, pero aumenta considerablemente el uso de CPU).",
+      "Optimización de políticas de interrupción del bus PCI de adaptadores de red con delegación nativa al HAL de Windows.",
+      "Desactivación de Interrupt Moderation en adaptadores Ethernet físicos en equipos de escritorio para latencia de red en tiempo real.",
+      "Aislamiento de energía: en computadoras portátiles se preservan los mecanismos de moderación para evitar consumo de batería innecesario.",
     ],
   },
   smartStorage: {

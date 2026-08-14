@@ -94,6 +94,8 @@ Try {
             Write-Output "OK: Limpieza profunda de almacenamiento y caches completada."
         }
         "RepairOS" {
+            $DismExit = -1
+            $SfcExit = -1
             # DISM requiere wuauserv (Windows Update) habilitado e iniciado para descargar reparaciones
             $wuauserv = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
             $originalStartType = $null

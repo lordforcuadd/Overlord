@@ -7,17 +7,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Reconfigurando perfiles multimedia y afinidad de Hardware (IRQ)..."
-
-    if ($IsHybrid) {
-        Write-Host "[+] CPU Hibrida (Intel P-Core/E-Core) detectada. Asegurando asignacion de interrupciones en P-Cores..." -ForegroundColor Green
-    }
-    if ($IsX3d) {
-        Write-Host "[+] CPU AMD 3D V-Cache (X3D) detectada. Afinando interrupciones para el CCD de cache..." -ForegroundColor Green
-    }
+    Write-Host "[*] Optimizando politicas de interrupcion de red (IRQ) y baja latencia DPC..."
 
     if ($IsLaptop) {
-        Write-Host "[+] Laptop detectada. Saltando remapeo fisico de afinidades IRQ para proteger la estabilidad de buses dinamicos de energia." -ForegroundColor Green
+        Write-Host "[+] Laptop detectada. Saltando optimizaciones de interrupcion de red para proteger la autonomia y gestion de energia." -ForegroundColor Green
     } else {
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
@@ -89,32 +82,34 @@ Try {
     }
     }
 
-    Write-Host "    -> Desactivando Interrupt Moderation en adaptadores de red (Experimental)..."
-    if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
-        $NetAdapters = Get-NetAdapter -ErrorAction SilentlyContinue
-        foreach ($Adapter in $NetAdapters) {
-            if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
-                try {
-                    $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
-                    if (!(Test-Path $AdapterBackupPath)) { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null }
-                    
-                    $AdvProps = Get-NetAdapterAdvancedProperty -Name $Adapter.Name -ErrorAction SilentlyContinue
-                    if ($null -ne $AdvProps) {
-                        $IntMod = $AdvProps | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
-                        if ($null -ne $IntMod) {
-                            $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
-                            if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $IntMod.DisplayValue -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+    if (-not $IsLaptop) {
+        Write-Host "    -> Desactivando Interrupt Moderation en adaptadores de red de escritorio para baja latencia..."
+        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            $NetAdapters = Get-NetAdapter -ErrorAction SilentlyContinue
+            foreach ($Adapter in $NetAdapters) {
+                if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
+                    try {
+                        $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
+                        if (!(Test-Path $AdapterBackupPath)) { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null }
+                        
+                        $AdvProps = Get-NetAdapterAdvancedProperty -Name $Adapter.Name -ErrorAction SilentlyContinue
+                        if ($null -ne $AdvProps) {
+                            $IntMod = $AdvProps | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
+                            if ($null -ne $IntMod) {
+                                $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                                if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
+                                    Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $IntMod.DisplayValue -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                }
                             }
                         }
-                    }
-                    Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
-                } catch {}
+                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
+                    } catch {}
+                }
             }
         }
     }
 
-    Write-Host "[+] Carga equilibrada de hilos IRQ en P-Cores. Prioridades multimedia inyectadas con exito."
+    Write-Host "[+] Gestion de politicas de interrupcion (IRQ) completada con exito."
     exit 0
 } Catch {
     Write-Error "[-] Error critico en Gestion IRQ y Procesador: $_"

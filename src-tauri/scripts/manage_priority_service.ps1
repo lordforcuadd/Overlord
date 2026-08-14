@@ -3,7 +3,7 @@ param(
     [string]$GameList = ""
 )
 
-if ($null -ne $ToggleName -and $ToggleName -ne "") { $Action = $ToggleName }
+$Action = if ($null -ne $ToggleName -and $ToggleName -ne "") { $ToggleName } elseif ($null -ne $GameList -and $GameList -ne "") { $GameList } else { "status" }
 if ($null -ne $IsEnabledStr -and $IsEnabledStr -ne "") { $GameList = $IsEnabledStr }
 
 $ErrorActionPreference = "Stop"

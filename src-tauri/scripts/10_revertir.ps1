@@ -10,7 +10,9 @@ function Invoke-OverlordSafeRestore {
     param(
         [string]$TargetKey,
         [string]$ValueName,
-        [string]$BackupSubFolder
+        [string]$BackupSubFolder,
+        [string]$DefaultValue = $null,
+        [string]$DefaultType = "DWord"
     )
     if ($TargetKey -match "^HKCU:") {
         $HKCU_RestorePath = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
@@ -231,6 +233,7 @@ Try {
         "WdiServiceHost"   = "Manual"
         "WdiSystemHost"    = "Manual"
         "WerSvc"           = "Manual"
+        "DoSvc"            = "Manual"
         "wuauserv"         = "Manual"
     }
     try {
@@ -618,17 +621,6 @@ Try {
     }
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" -ValueName "PowerThrottlingOff" -BackupSubFolder "Power" -DefaultValue 0
 
-    $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
-    if (Test-Path $PerfBackupPath) {
-        $perfProps = Get-ItemProperty -Path $PerfBackupPath -ErrorAction SilentlyContinue
-        if ($null -ne $perfProps -and $null -ne $perfProps.PSObject.Properties["DynamicTickWasDisabled"]) {
-            $wasDisabled = $perfProps.DynamicTickWasDisabled
-            if ($wasDisabled -eq 0) {
-                try { & bcdedit /deletevalue disabledynamictick 2>$null } catch {}
-                Remove-ItemProperty -Path $PerfBackupPath -Name "DynamicTickWasDisabled" -ErrorAction SilentlyContinue | Out-Null
-            }
-        }
-    }
 
     $StorageBackup = "HKLM:\SOFTWARE\Overlord\Backup\Storage"
     $SavedHibernate = Get-SafeRegistryValue -Path $StorageBackup -Name "HibernateEnabled"
@@ -778,12 +770,7 @@ Try {
 
 
     if (Test-Path $BackupPath) {
-        $RemainingFiles = Get-ChildItem -Path $BackupPath -Recurse -ErrorAction SilentlyContinue
-        if ($null -eq $RemainingFiles -or @($RemainingFiles).Count -eq 0) {
-            Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        } else {
-            Write-Warning "No se borraron todos los respaldos, la carpeta $BackupPath no esta vacia."
-        }
+        Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 
     # Eliminar la clave padre principal si queda vacia tras la reversion para no dejar huella

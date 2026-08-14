@@ -331,10 +331,10 @@ export function useOrchestrator(overlordSwalConfig: any) {
         cardStatus.value[moduleKey] = isApplied ? "success" : "idle";
       });
 
-      const { isLaptop, tier } = store.hardwareInfo;
+      const { isLaptop, tier, isArm64 } = store.hardwareInfo;
       let matchedProfile = "Personalizado";
       for (const [profileName, profileMods] of Object.entries(PROFILE_CONFIGS)) {
-        const expected = buildExpectedProfileState(profileMods, { isLaptop, tier });
+        const expected = buildExpectedProfileState(profileMods, { isLaptop, tier, isArm64 });
 
         let isMatch = true;
         for (const modKey of Object.keys(expected)) {

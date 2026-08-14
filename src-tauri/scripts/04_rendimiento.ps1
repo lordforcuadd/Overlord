@@ -73,14 +73,6 @@ Try {
         }
     }
 
-    Write-Host "    -> Desactivando Dynamic Tick (requiere reinicio)..."
-    $bcdEnum = bcdedit /enum | Select-String "disabledynamictick.*Yes" -Quiet
-    if (-not $bcdEnum) {
-        $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
-        if (!(Test-Path $PerfBackupPath)) { try { New-Item -Path $PerfBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {} }
-        Set-ItemProperty -Path $PerfBackupPath -Name "DynamicTickWasDisabled" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
-    }
-    try { & bcdedit /set disabledynamictick yes 2>$null } catch {}
 
     # Las mitigaciones de CPU Spectre/Meltdown se gestionan ahora a traves del modulo independiente disableMitigations por seguridad.
 

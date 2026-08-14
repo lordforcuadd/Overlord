@@ -91,8 +91,7 @@ if (Test-Path $ProfilePath) {
     $InitialRtoVal = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "InitialRto" -ErrorAction SilentlyContinue
     
     $CoalescingOk = $true
-    $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
-    if (-not $IsLaptop -or $TotalThreads -gt 8) {
+    if (-not $IsLaptop) {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 $_.Status -eq "Up" -and $_.Virtual -eq $false -and $_.NdisPhysicalMedium -eq 14 
@@ -116,7 +115,7 @@ if (Test-Path $ProfilePath) {
         }
     }
 
-    $PnpOk = $true
+    $PwrMgmtOk = $true
     $RunningOnBattery = $false
     if ($IsLaptop) {
         $BatteryStatus = Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
@@ -125,33 +124,19 @@ if (Test-Path $ProfilePath) {
         }
     }
     
-    if (-not $RunningOnBattery) {
-        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
-            $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-                $_.Virtual -eq $false
-            } | ForEach-Object { "$($_.InterfaceGuid)" }
-            
-            if ($ActiveGuids.Count -gt 0) {
-                $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
-                if (Test-Path $NetClassPath) {
-                    $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
-                    foreach ($Adapter in $NetAdapters) {
-                        if ($Adapter.PSChildName -match "^\d{4}$") {
-                            $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
-                            if ($null -ne $Props -and $ActiveGuids -contains $Props.NetCfgInstanceId) {
-                                $PnpVal = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "PnPCapabilities" -ErrorAction SilentlyContinue
-                                if ($null -eq $PnpVal -or $PnpVal -ne 24) {
-                                    $PnpOk = $false
-                                }
-                            }
-                        }
-                    }
-                }
+    if (-not $RunningOnBattery -and (Get-Command Get-NetAdapterPowerManagement -ErrorAction SilentlyContinue)) {
+        $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+            $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan")
+        }
+        foreach ($Adapter in $Adapters) {
+            $Pwr = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction SilentlyContinue
+            if ($null -ne $Pwr -and $Pwr.AllowComputerToTurnOffDevice -match "Enabled|True|1") {
+                $PwrMgmtOk = $false
             }
         }
     }
     
-    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PnpOk) {
+    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PwrMgmtOk) {
         $Status['networkOptimized'] = $true
     }
 }
@@ -205,36 +190,6 @@ if (Test-Path $GpuPath) {
 }
 
 if (-not $IsLaptop) {
-    $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
-    if ($pciKey) {
-        foreach ($venId in $pciKey.GetSubKeyNames()) {
-            $venKey = $pciKey.OpenSubKey($venId, $false)
-            if ($venKey) {
-                foreach ($devId in $venKey.GetSubKeyNames()) {
-                    $devKey = $venKey.OpenSubKey($devId, $false)
-                    if ($devKey) {
-                        $classGuid = $devKey.GetValue("ClassGUID")
-                        if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
-                            $devParamKey = $devKey.OpenSubKey("Device Parameters\Interrupt Management\Affinity Policy", $false)
-                            if ($devParamKey) {
-                                $policy = $devParamKey.GetValue("DevicePolicy")
-                                if ($null -ne $policy -and ($policy -eq 4 -or $policy -eq 2 -or $policy -eq 0)) {
-                                    $Status['irqAffinity'] = $true
-                                }
-                                $devParamKey.Close()
-                            }
-                        }
-                        $devKey.Close()
-                    }
-                    if ($Status['irqAffinity']) { break }
-                }
-                $venKey.Close()
-            }
-            if ($Status['irqAffinity']) { break }
-        }
-        $pciKey.Close()
-    }
-} else {
     $intModDisabled = $false
     if (Get-Command Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue) {
         $AdvProps = Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
@@ -269,6 +224,8 @@ if (-not $IsLaptop) {
         }
     }
     $Status['irqAffinity'] = $intModDisabled
+} else {
+    $Status['irqAffinity'] = $false
 }
 
 
@@ -282,7 +239,7 @@ if (Test-Path $NtfsPath) {
     $NtfsMem = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue
     
     $StorageOk = $false
-    if (($Last -eq 1 -or $Last -eq 2 -or $Last -eq 3 -or $Last -eq 2147483649 -or $Last -eq 2147483650 -or $Last -eq 2147483651) -and $FastStart -eq 0 -and $Ntfs8dot3 -eq 1) {
+    if ($Last -eq 1 -and $FastStart -eq 0 -and $Ntfs8dot3 -eq 1) {
         if ($IsSsd -and $RamGB -ge 16) {
             if ($NtfsMem -eq 2) { $StorageOk = $true }
         } else {
