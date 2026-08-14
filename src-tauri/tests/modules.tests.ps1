@@ -457,5 +457,23 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                 }
             }
         }
+
+        It "Debe certificar la existencia y validez del archivo de configuracion centralizado de lanzadores" {
+            $ConfigPath = Join-Path $script:ScriptsPath "..\launchers_config.json"
+            (Test-Path $ConfigPath) | Should Be $true
+            $ConfigContent = Get-Content -Path $ConfigPath -Raw
+            $Parsed = $ConfigContent | ConvertFrom-Json
+            $null -ne $Parsed.steam | Should Be $true
+            $null -ne $Parsed.epic | Should Be $true
+            $null -ne $Parsed.gog | Should Be $true
+            $null -ne $Parsed.riot | Should Be $true
+            $null -ne $Parsed.minecraft | Should Be $true
+
+            $GamesRsContent = Get-Content -Path (Join-Path $script:ScriptsPath "..\src\games.rs") -Raw
+            ($GamesRsContent -match 'launchers_config\.json') | Should Be $true
+
+            $LocatorContent = Get-Content -Path (Join-Path $script:ScriptsPath "game_locator.psm1") -Raw
+            ($LocatorContent -match 'Get-OverlordLaunchersConfig') | Should Be $true
+        }
     }
 }

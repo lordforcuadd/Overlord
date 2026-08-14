@@ -1,0 +1,70 @@
+{
+  "steam": {
+    "registryKeys": [
+      { "hive": "HKCU", "path": "Software\\Valve\\Steam", "value": "SteamPath" },
+      { "hive": "HKLM", "path": "SOFTWARE\\Wow6432Node\\Valve\\Steam", "value": "InstallPath" }
+    ],
+    "appsRegistryPath": "Software\\Valve\\Steam\\Apps",
+    "libraryFoldersRelPath": "steamapps\\libraryfolders.vdf",
+    "commonRelPath": "steamapps\\common",
+    "programFilesSubPath": "Steam\\steamapps\\common"
+  },
+  "epic": {
+    "registryKeys": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Wow6432Node\\EpicGames\\Unreal Engine", "value": "INSTALLDIR" }
+    ],
+    "manifestsRelPath": "Epic\\EpicGamesLauncher\\Data\\Manifests",
+    "defaultFolder": "Epic Games"
+  },
+  "gog": {
+    "registryKeys": [
+      "SOFTWARE\\GOG.com\\Games",
+      "SOFTWARE\\Wow6432Node\\GOG.com\\Games"
+    ]
+  },
+  "riot": {
+    "defaultFolder": "Riot Games",
+    "games": ["VALORANT", "League of Legends"]
+  },
+  "fixedDriveRoots": [
+    "Riot Games",
+    "XboxGames",
+    "Epic Games",
+    "Games",
+    "SteamLibrary\\steamapps\\common"
+  ],
+  "defaultProgramFilesRoots": [
+    "Steam\\steamapps\\common",
+    "Epic Games",
+    "Battle.net",
+    "Overwatch",
+    "EA Games",
+    "Ubisoft"
+  ],
+  "minecraft": {
+    "userProfilePaths": [
+      "curseforge\\minecraft\\Install",
+      "curseforge\\minecraft\\Instances",
+      "curseforge\\minecraft",
+      ".modrinth"
+    ],
+    "appDataPaths": [
+      ".minecraft",
+      "PrismLauncher",
+      "PrismLauncher\\instances"
+    ],
+    "localAppDataPaths": [
+      "CurseForge",
+      "ModrinthApp",
+      "ModrinthApp\\profiles",
+      "Packages\\Microsoft.4297127D64ECE_8wekyb3d8bbwe\\LocalCache\\Local",
+      "Packages\\Microsoft.4297127D64ECE_8wekyb3d8bbwe"
+    ],
+    "javaRegistryKeys": [
+      "SOFTWARE\\JavaSoft\\Java Runtime Environment",
+      "SOFTWARE\\JavaSoft\\Java Development Kit",
+      "SOFTWARE\\WOW6432Node\\JavaSoft\\Java Runtime Environment"
+    ],
+    "javaAppPath": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\javaw.exe"
+  }
+}

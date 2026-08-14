@@ -74,6 +74,7 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
     let toggle_name_b64 = encode_utf8_base64(toggle_name);
     let is_enabled_str_b64 = encode_utf8_base64(is_enabled_str);
     let version_b64 = encode_utf8_base64(env!("CARGO_PKG_VERSION"));
+    let launchers_config_b64 = encode_utf8_base64(include_str!("../launchers_config.json"));
 
     format!(
         "$IsLaptop = ${}\n\
@@ -83,6 +84,8 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
          $ToggleName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
          $IsEnabledStr = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
          $Version = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $LaunchersConfigJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
+         $LaunchersConfig = ConvertFrom-Json -InputObject $LaunchersConfigJson\n\
          $IsHybrid = ${}\n\
          $IsX3d = ${}\n\
          $IsSsd = ${}\n\
@@ -94,6 +97,7 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
         toggle_name_b64,
         is_enabled_str_b64,
         version_b64,
+        launchers_config_b64,
         if is_hybrid { "true" } else { "false" },
         if is_x3d { "true" } else { "false" },
         if is_ssd { "true" } else { "false" }

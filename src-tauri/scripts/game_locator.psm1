@@ -1,4 +1,47 @@
+function Get-OverlordLaunchersConfig {
+    if ($null -ne $global:LaunchersConfig) {
+        return $global:LaunchersConfig
+    }
+    return [PSCustomObject]@{
+        steam = [PSCustomObject]@{
+            registryKeys = @(
+                [PSCustomObject]@{ hive = "HKCU"; path = "Software\Valve\Steam"; value = "SteamPath" },
+                [PSCustomObject]@{ hive = "HKLM"; path = "SOFTWARE\Wow6432Node\Valve\Steam"; value = "InstallPath" }
+            )
+            libraryFoldersRelPath = "steamapps\libraryfolders.vdf"
+            commonRelPath = "steamapps\common"
+            programFilesSubPath = "Steam\steamapps\common"
+        }
+        epic = [PSCustomObject]@{
+            registryKeys = @(
+                [PSCustomObject]@{ hive = "HKLM"; path = "SOFTWARE\Wow6432Node\EpicGames\Unreal Engine"; value = "INSTALLDIR" }
+            )
+            manifestsRelPath = "Epic\EpicGamesLauncher\Data\Manifests"
+            defaultFolder = "Epic Games"
+        }
+        gog = [PSCustomObject]@{
+            registryKeys = @("SOFTWARE\GOG.com\Games", "SOFTWARE\Wow6432Node\GOG.com\Games")
+        }
+        riot = [PSCustomObject]@{
+            defaultFolder = "Riot Games"
+            games = @("VALORANT", "League of Legends")
+        }
+        fixedDriveRoots = @("Riot Games", "XboxGames", "Epic Games", "Games", "SteamLibrary\steamapps\common")
+        defaultProgramFilesRoots = @(
+            "Steam\steamapps\common", "Epic Games", "Battle.net", "Overwatch", "EA Games", "Ubisoft"
+        )
+        minecraft = [PSCustomObject]@{
+            userProfilePaths = @("curseforge\minecraft\Install", "curseforge\minecraft\Instances", "curseforge\minecraft", ".modrinth")
+            appDataPaths = @(".minecraft", "PrismLauncher", "PrismLauncher\instances")
+            localAppDataPaths = @("CurseForge", "ModrinthApp", "ModrinthApp\profiles", "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe\LocalCache\Local", "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe")
+            javaRegistryKeys = @("SOFTWARE\JavaSoft\Java Runtime Environment", "SOFTWARE\JavaSoft\Java Development Kit", "SOFTWARE\WOW6432Node\JavaSoft\Java Runtime Environment")
+            javaAppPath = "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\javaw.exe"
+        }
+    }
+}
+
 function Get-LauncherRoots {
+    $cfg = Get-OverlordLaunchersConfig
     $LauncherRoots = [System.Collections.Generic.List[string]]::new()
     $SysDrive = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
@@ -8,19 +51,15 @@ function Get-LauncherRoots {
     if ([string]::IsNullOrWhiteSpace($ProgramFilesx86)) { $ProgramFilesx86 = Join-Path $SysDrive "Program Files (x86)" }
 
     $LauncherRoots.AddRange([string[]]@(
-        (Join-Path $SysDrive "Riot Games"),
+        (Join-Path $SysDrive $cfg.riot.defaultFolder),
         (Join-Path $SysDrive "XboxGames")
     ))
 
     try {
         $FixedDrives = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq 'Fixed' } | ForEach-Object { $_.Name }
         foreach ($Drive in $FixedDrives) {
-            $CandidatePaths = @(
-                (Join-Path $Drive "Riot Games"),
-                (Join-Path $Drive "Games"),
-                (Join-Path $Drive "SteamLibrary\steamapps\common")
-            )
-            foreach ($P in $CandidatePaths) {
+            foreach ($sub in $cfg.fixedDriveRoots) {
+                $P = Join-Path $Drive $sub
                 if (Test-Path $P) {
                     if (!$LauncherRoots.Contains($P)) {
                         $LauncherRoots.Add($P)
@@ -31,41 +70,59 @@ function Get-LauncherRoots {
     } catch {}
 
     # Buscar rutas de Steam en el Registro
-    $steamProps = Get-ItemProperty -Path "$global:HKCU_Path\Software\Valve\Steam" -ErrorAction SilentlyContinue
-    $SteamPathReg = if ($null -ne $steamProps) { $steamProps.SteamPath } else { $null }
-    if ($SteamPathReg) { $LauncherRoots.Add((Join-Path $SteamPathReg "steamapps\common")) }
-    $steamProps2 = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\Valve\Steam" -ErrorAction SilentlyContinue
-    $SteamPathReg2 = if ($null -ne $steamProps2) { $steamProps2.InstallPath } else { $null }
-    if ($SteamPathReg2) { $LauncherRoots.Add((Join-Path $SteamPathReg2 "steamapps\common")) }
+    $SteamPathReg = $null
+    foreach ($reg in $cfg.steam.registryKeys) {
+        $hivePrefix = if ($reg.hive -eq "HKLM") { "HKLM:" } else { if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" } }
+        $regPath = "$hivePrefix\$($reg.path)"
+        $steamProps = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+        if ($null -ne $steamProps -and $null -ne $steamProps.PSObject.Properties[$reg.value]) {
+            $val = $steamProps.$($reg.value)
+            if (![string]::IsNullOrWhiteSpace($val)) {
+                $commonP = Join-Path $val $cfg.steam.commonRelPath
+                if (!$LauncherRoots.Contains($commonP)) { $LauncherRoots.Add($commonP) }
+                if ($null -eq $SteamPathReg) { $SteamPathReg = $val }
+            }
+        }
+    }
 
     # Buscar rutas de Epic Games en el Registro
-    $epicProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Wow6432Node\EpicGames\Unreal Engine" -ErrorAction SilentlyContinue
-    $EpicPathReg = if ($null -ne $epicProps) { $epicProps.INSTALLDIR } else { $null }
-    if ($EpicPathReg) { $LauncherRoots.Add($EpicPathReg) }
+    foreach ($reg in $cfg.epic.registryKeys) {
+        $hivePrefix = if ($reg.hive -eq "HKLM") { "HKLM:" } else { if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" } }
+        $regPath = "$hivePrefix\$($reg.path)"
+        $epicProps = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+        if ($null -ne $epicProps -and $null -ne $epicProps.PSObject.Properties[$reg.value]) {
+            $val = $epicProps.$($reg.value)
+            if (![string]::IsNullOrWhiteSpace($val) -and !$LauncherRoots.Contains($val)) {
+                $LauncherRoots.Add($val)
+            }
+        }
+    }
 
     # Buscar librerias adicionales de Steam en libraryfolders.vdf
-    if ($SteamPathReg -and (Test-Path (Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"))) {
-        try {
-            $VdfPath = Join-Path $SteamPathReg "steamapps\libraryfolders.vdf"
-            $VdfContent = Get-Content -Path $VdfPath -ErrorAction SilentlyContinue
-            if ($VdfContent) {
-                foreach ($Line in $VdfContent) {
-                    if ($Line -match '"path"\s+"([^"]+)"') {
-                        $LibPath = $Matches[1] -replace '\\\\', '\'
-                        $CommonPath = Join-Path $LibPath "steamapps\common"
-                        if (Test-Path $CommonPath) {
-                            if (!$LauncherRoots.Contains($CommonPath)) { $LauncherRoots.Add($CommonPath) }
+    if ($SteamPathReg) {
+        $VdfPath = Join-Path $SteamPathReg $cfg.steam.libraryFoldersRelPath
+        if (Test-Path $VdfPath) {
+            try {
+                $VdfContent = Get-Content -Path $VdfPath -ErrorAction SilentlyContinue
+                if ($VdfContent) {
+                    foreach ($Line in $VdfContent) {
+                        if ($Line -match '"path"\s+"([^"]+)"') {
+                            $LibPath = $Matches[1] -replace '\\\\', '\'
+                            $CommonPath = Join-Path $LibPath $cfg.steam.commonRelPath
+                            if (Test-Path $CommonPath) {
+                                if (!$LauncherRoots.Contains($CommonPath)) { $LauncherRoots.Add($CommonPath) }
+                            }
                         }
                     }
                 }
-            }
-        } catch {}
+            } catch {}
+        }
     }
 
     # Buscar manifiestos de Epic Games
     $ProgDataForEpic = $env:ProgramData
     if ([string]::IsNullOrWhiteSpace($ProgDataForEpic)) { $ProgDataForEpic = "C:\ProgramData" }
-    $EpicManifestsPath = Join-Path $ProgDataForEpic "Epic\EpicGamesLauncher\Data\Manifests"
+    $EpicManifestsPath = Join-Path $ProgDataForEpic $cfg.epic.manifestsRelPath
     if (Test-Path $EpicManifestsPath) {
         try {
             $ManifestFiles = Get-ChildItem -Path $EpicManifestsPath -Filter "*.item" -ErrorAction SilentlyContinue
@@ -81,23 +138,18 @@ function Get-LauncherRoots {
         } catch {}
     }
 
-    $DefaultRoots = @(
-        (Join-Path $ProgramFiles "Steam\steamapps\common"),
-        (Join-Path $ProgramFilesx86 "Steam\steamapps\common"),
-        (Join-Path $ProgramFiles "Epic Games"),
-        (Join-Path $ProgramFilesx86 "Battle.net"),
-        (Join-Path $ProgramFiles "Overwatch"),
-        (Join-Path $ProgramFiles "EA Games"),
-        (Join-Path $ProgramFiles "Ubisoft")
-    )
-    foreach ($Root in $DefaultRoots) {
-        if (!($LauncherRoots -contains $Root)) { $LauncherRoots.Add($Root) }
+    foreach ($sub in $cfg.defaultProgramFilesRoots) {
+        $P64 = Join-Path $ProgramFiles $sub
+        $P32 = Join-Path $ProgramFilesx86 $sub
+        if (!$LauncherRoots.Contains($P64)) { $LauncherRoots.Add($P64) }
+        if (!$LauncherRoots.Contains($P32)) { $LauncherRoots.Add($P32) }
     }
 
     return $LauncherRoots
 }
 
 function Get-JavaRoots {
+    $cfg = Get-OverlordLaunchersConfig
     $SysDrive = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
     $ProgramFiles = $env:ProgramFiles
@@ -105,40 +157,53 @@ function Get-JavaRoots {
     $ProgramFilesx86 = ${env:ProgramFiles(x86)}
     if ([string]::IsNullOrWhiteSpace($ProgramFilesx86)) { $ProgramFilesx86 = Join-Path $SysDrive "Program Files (x86)" }
 
-    $JavaRoots = @(
-        (Join-Path $env:USERPROFILE "curseforge\minecraft\Install"),
-        (Join-Path $env:APPDATA ".minecraft"),
-        (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe\LocalCache\Local"),
-        (Join-Path $env:LOCALAPPDATA "PrismLauncher"),
-        (Join-Path $env:APPDATA "PrismLauncher"),
-        (Join-Path $ProgramFilesx86 "Minecraft Launcher"),
-        (Join-Path $ProgramFiles "Java")
-    )
-    
+    $JavaRoots = [System.Collections.Generic.List[string]]::new()
+    if ($env:USERPROFILE) {
+        foreach ($sub in $cfg.minecraft.userProfilePaths) {
+            $JavaRoots.Add((Join-Path $env:USERPROFILE $sub))
+        }
+    }
+    if ($env:APPDATA) {
+        foreach ($sub in $cfg.minecraft.appDataPaths) {
+            $JavaRoots.Add((Join-Path $env:APPDATA $sub))
+        }
+    }
+    if ($env:LOCALAPPDATA) {
+        foreach ($sub in $cfg.minecraft.localAppDataPaths) {
+            $JavaRoots.Add((Join-Path $env:LOCALAPPDATA $sub))
+        }
+    }
+    $JavaRoots.Add((Join-Path $ProgramFilesx86 "Minecraft Launcher"))
+    $JavaRoots.Add((Join-Path $ProgramFiles "Java"))
+
     # Búsqueda dinámica en el Registro
-    $RegPaths = @(
-        "HKLM:\SOFTWARE\JavaSoft\Java Runtime Environment",
-        "HKLM:\SOFTWARE\JavaSoft\Java Development Kit",
-        "HKLM:\SOFTWARE\WOW6432Node\JavaSoft\Java Runtime Environment"
-    )
-    foreach ($RegPath in $RegPaths) {
+    $RegPaths = if ($cfg.minecraft.javaRegistryKeys) { $cfg.minecraft.javaRegistryKeys } else {
+        @(
+            "SOFTWARE\JavaSoft\Java Runtime Environment",
+            "SOFTWARE\JavaSoft\Java Development Kit",
+            "SOFTWARE\WOW6432Node\JavaSoft\Java Runtime Environment"
+        )
+    }
+    foreach ($RegSub in $RegPaths) {
+        $RegPath = if ($RegSub -notlike "HKLM:\*") { "HKLM:\$RegSub" } else { $RegSub }
         if (Test-Path $RegPath) {
             $Versions = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
             foreach ($Version in $Versions) {
                 $VKey = "HKLM:\$Version"
                 $JavaHome = Get-SafeRegistryValue -Path $VKey -Name "JavaHome"
                 if (![string]::IsNullOrWhiteSpace($JavaHome) -and (Test-Path $JavaHome)) {
-                    $JavaRoots += $JavaHome
+                    $JavaRoots.Add($JavaHome)
                 }
             }
         }
     }
-    
-    $AppPath = Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\javaw.exe" -Name "Path"
+
+    $appKey = if ($cfg.minecraft.javaAppPath -like "HKLM:\*") { $cfg.minecraft.javaAppPath } else { "HKLM:\$($cfg.minecraft.javaAppPath)" }
+    $AppPath = Get-SafeRegistryValue -Path $appKey -Name "Path"
     if (![string]::IsNullOrWhiteSpace($AppPath) -and (Test-Path $AppPath)) {
-        $JavaRoots += $AppPath
+        $JavaRoots.Add($AppPath)
     }
-    
+
     return $JavaRoots | Select-Object -Unique
 }
 

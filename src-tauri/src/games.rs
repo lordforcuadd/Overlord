@@ -1,7 +1,83 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::sync::OnceLock;
 use winreg::enums::*;
 use winreg::RegKey;
+
+#[derive(Deserialize, Debug, Clone)]
+#[allow(dead_code)]
+pub struct RegistryKeyEntry {
+    pub hive: String,
+    pub path: String,
+    pub value: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct SteamConfig {
+    pub registry_keys: Vec<RegistryKeyEntry>,
+    pub apps_registry_path: String,
+    pub library_folders_rel_path: String,
+    pub common_rel_path: String,
+    pub program_files_sub_path: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct EpicConfig {
+    pub registry_keys: Vec<RegistryKeyEntry>,
+    pub manifests_rel_path: String,
+    pub default_folder: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct GogConfig {
+    pub registry_keys: Vec<String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct RiotConfig {
+    pub default_folder: String,
+    pub games: Vec<String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct MinecraftConfig {
+    pub user_profile_paths: Vec<String>,
+    pub app_data_paths: Vec<String>,
+    pub local_app_data_paths: Vec<String>,
+    pub java_registry_keys: Vec<String>,
+    pub java_app_path: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct LaunchersConfig {
+    pub steam: SteamConfig,
+    pub epic: EpicConfig,
+    pub gog: GogConfig,
+    pub riot: RiotConfig,
+    pub fixed_drive_roots: Vec<String>,
+    pub default_program_files_roots: Vec<String>,
+    pub minecraft: MinecraftConfig,
+}
+
+pub fn get_launchers_config() -> &'static LaunchersConfig {
+    static CONFIG: OnceLock<LaunchersConfig> = OnceLock::new();
+    CONFIG.get_or_init(|| {
+        let json_str = include_str!("../launchers_config.json");
+        serde_json::from_str(json_str).expect("launchers_config.json must be valid JSON")
+    })
+}
 
 #[derive(Serialize, Clone)]
 pub struct ScanGamesResponse {
@@ -11,28 +87,37 @@ pub struct ScanGamesResponse {
 }
 
 fn get_steam_library_paths() -> Vec<String> {
+    let config = get_launchers_config();
     let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
     let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
     let mut paths = vec![
-        format!("{}\\Steam\\steamapps\\common", program_files),
-        format!("{}\\Steam\\steamapps\\common", program_files_x86),
+        format!("{}\\{}", program_files, config.steam.program_files_sub_path),
+        format!("{}\\{}", program_files_x86, config.steam.program_files_sub_path),
     ];
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    if let Ok(steam_key) = hkcu.open_subkey("Software\\Valve\\Steam") {
-        if let Ok(steam_path) = steam_key.get_value::<String, _>("SteamPath") {
-            let path = Path::new(&steam_path).join("steamapps").join("libraryfolders.vdf");
-            if let Ok(content) = std::fs::read_to_string(path) {
-                for line in content.lines() {
-                    if line.contains("\"path\"") {
-                        let parts: Vec<&str> = line.split('"').collect();
-                        if parts.len() >= 4 {
-                            let p = parts[3].replace("\\\\", "\\");
-                            let common_path = Path::new(&p).join("steamapps").join("common");
-                            if common_path.exists() {
-                                if let Some(p_str) = common_path.to_str() {
-                                    let p_string = p_str.to_string();
-                                    if !paths.contains(&p_string) {
-                                        paths.push(p_string);
+
+    for reg_entry in &config.steam.registry_keys {
+        let root = if reg_entry.hive == "HKLM" {
+            RegKey::predef(HKEY_LOCAL_MACHINE)
+        } else {
+            RegKey::predef(HKEY_CURRENT_USER)
+        };
+
+        if let Ok(steam_key) = root.open_subkey(&reg_entry.path) {
+            if let Ok(steam_path) = steam_key.get_value::<String, _>(&reg_entry.value) {
+                let vdf_path = Path::new(&steam_path).join(&config.steam.library_folders_rel_path);
+                if let Ok(content) = std::fs::read_to_string(vdf_path) {
+                    for line in content.lines() {
+                        if line.contains("\"path\"") {
+                            let parts: Vec<&str> = line.split('"').collect();
+                            if parts.len() >= 4 {
+                                let p = parts[3].replace("\\\\", "\\");
+                                let common_path = Path::new(&p).join(&config.steam.common_rel_path);
+                                if common_path.exists() {
+                                    if let Some(p_str) = common_path.to_str() {
+                                        let p_string = p_str.to_string();
+                                        if !paths.contains(&p_string) {
+                                            paths.push(p_string);
+                                        }
                                     }
                                 }
                             }
@@ -46,9 +131,10 @@ fn get_steam_library_paths() -> Vec<String> {
 }
 
 fn get_epic_installed_games() -> Vec<(String, String)> {
+    let config = get_launchers_config();
     let mut games = Vec::new();
     let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
-    let manifests_path = Path::new(&program_data).join("Epic\\EpicGamesLauncher\\Data\\Manifests");
+    let manifests_path = Path::new(&program_data).join(&config.epic.manifests_rel_path);
     if manifests_path.exists() {
         if let Ok(entries) = std::fs::read_dir(manifests_path) {
             for entry in entries.flatten() {
@@ -146,7 +232,8 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    if let Ok(steam_key) = hkcu.open_subkey("Software\\Valve\\Steam\\Apps") {
+    let config = get_launchers_config();
+    if let Ok(steam_key) = hkcu.open_subkey(&config.steam.apps_registry_path) {
         for app_id in steam_key.enum_keys().map(|x| x.unwrap_or_default()) {
             if let Ok(app_subkey) = steam_key.open_subkey(&app_id) {
                 if let Ok(installed) = app_subkey.get_value::<u32, _>("Installed") {
@@ -235,8 +322,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    let gog_paths = ["SOFTWARE\\GOG.com\\Games", "SOFTWARE\\Wow6432Node\\GOG.com\\Games"];
-    for path in &gog_paths {
+    for path in &config.gog.registry_keys {
         if let Ok(gog_key) = hklm.open_subkey(path) {
             for subkey_name in gog_key.enum_keys().map(|x| x.unwrap_or_default()) {
                 if let Ok(subkey) = gog_key.open_subkey(&subkey_name) {
@@ -272,9 +358,9 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         }
     }
 
-    let mut common_epic_paths = vec![format!("{}\\Epic Games", program_files)];
+    let mut common_epic_paths = vec![format!("{}\\{}", program_files, config.epic.default_folder)];
     for drive in &active_drives {
-        let path = Path::new(drive).join("Epic Games");
+        let path = Path::new(drive).join(&config.epic.default_folder);
         if let Some(path_str) = path.to_str() {
             common_epic_paths.push(path_str.to_string());
         }
@@ -301,16 +387,13 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     }
 
     for drive in &active_drives {
-        let riot_path = Path::new(drive).join("Riot Games");
+        let riot_path = Path::new(drive).join(&config.riot.default_folder);
         if riot_path.exists() {
-            if riot_path.join("VALORANT").exists() {
-                for game in catalog.iter_mut() {
-                    if game.name == "VALORANT" { game.detected = true; }
-                }
-            }
-            if riot_path.join("League of Legends").exists() {
-                for game in catalog.iter_mut() {
-                    if game.name == "League of Legends" { game.detected = true; }
+            for riot_game in &config.riot.games {
+                if riot_path.join(riot_game).exists() {
+                    for game in catalog.iter_mut() {
+                        if game.name == *riot_game { game.detected = true; }
+                    }
                 }
             }
         }
@@ -322,17 +405,18 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
             let appdata = std::env::var("APPDATA").unwrap_or_default();
             let localappdata = std::env::var("LOCALAPPDATA").unwrap_or_default();
             let userprofile = std::env::var("USERPROFILE").unwrap_or_default();
-            
-            let mc_paths = [
-                Path::new(&userprofile).join("curseforge").join("minecraft"),
-                Path::new(&appdata).join(".minecraft"),
-                Path::new(&appdata).join("PrismLauncher"),
-                Path::new(&localappdata).join("CurseForge"),
-                Path::new(&localappdata).join("ModrinthApp"),
-                Path::new(&userprofile).join(".modrinth"),
-                Path::new(&localappdata).join("Packages").join("Microsoft.4297127D64ECE_8wekyb3d8bbwe"),
-            ];
-            
+
+            let mut mc_paths = Vec::new();
+            for sub in &config.minecraft.user_profile_paths {
+                if !userprofile.is_empty() { mc_paths.push(Path::new(&userprofile).join(sub)); }
+            }
+            for sub in &config.minecraft.app_data_paths {
+                if !appdata.is_empty() { mc_paths.push(Path::new(&appdata).join(sub)); }
+            }
+            for sub in &config.minecraft.local_app_data_paths {
+                if !localappdata.is_empty() { mc_paths.push(Path::new(&localappdata).join(sub)); }
+            }
+
             for path in &mc_paths {
                 if !path.as_os_str().is_empty() && path.exists() {
                     game.detected = true;
@@ -348,6 +432,15 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_launchers_config_is_valid() {
+        let config = get_launchers_config();
+        assert!(!config.steam.registry_keys.is_empty());
+        assert!(!config.epic.manifests_rel_path.is_empty());
+        assert!(!config.riot.games.is_empty());
+        assert!(!config.minecraft.app_data_paths.is_empty());
+    }
 
     #[test]
     fn test_scan_games_response() {
@@ -376,3 +469,4 @@ mod tests {
         assert!(epic.iter().all(|(name, exe)| !name.is_empty() && !exe.is_empty()));
     }
 }
+
