@@ -474,6 +474,19 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
             $LocatorContent = Get-Content -Path (Join-Path $script:ScriptsPath "game_locator.psm1") -Raw
             ($LocatorContent -match 'Get-OverlordLaunchersConfig') | Should Be $true
+
+            # Verificacion estricta de no-drift contra el fallback en game_locator.psm1
+            $JsonSteamPath = $Parsed.steam.libraryFoldersRelPath
+            ($LocatorContent -match [regex]::Escape($JsonSteamPath)) | Should Be $true
+
+            $JsonEpicManifests = $Parsed.epic.manifestsRelPath
+            ($LocatorContent -match [regex]::Escape($JsonEpicManifests)) | Should Be $true
+
+            $JsonRiotFolder = $Parsed.riot.defaultFolder
+            ($LocatorContent -match [regex]::Escape($JsonRiotFolder)) | Should Be $true
+
+            $JsonGogKey = $Parsed.gog.registryKeys[0]
+            ($LocatorContent -match [regex]::Escape($JsonGogKey)) | Should Be $true
         }
     }
 }

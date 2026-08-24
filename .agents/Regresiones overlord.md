@@ -137,3 +137,7 @@ Antes de declarar cualquier tarea completa, recorre esta lista y confirma explí
 ### 33. Corrupción de macros de Rust (include_str!) por cambio silencioso de codificación en PowerShell
 
 Al modificar archivos .ps1 mediante Set-Content u otras herramientas desde Windows PowerShell 5.1, la codificación por defecto se cambia a Windows-1252 o UTF-8 con BOM. Esto rompe instantáneamente la compilación del backend en Rust, ya que macros como include_str! exigen archivos estrictamente en UTF-8 puro (sin BOM). Se corrigió iterando sobre los archivos modificados e inyectando un objeto [System.Text.UTF8Encoding] False para forzar la escritura en UTF-8 sin BOM, asegurando compatibilidad con el compilador de Rust.
+
+### 34. Omisión deliberada de Interrupt Moderation en Laptops para proteger autonomía y C-States
+
+Desactivar Interrupt Moderation en adaptadores Wi-Fi/Ethernet en laptops (`06_irq_affinity.ps1`) incrementa la tasa de interrupciones DPC por segundo, impidiendo que el procesador entre en C-States profundos (C8/C10) e incrementando significativamente el consumo de batería y las temperaturas térmicas en chasis portátiles. Además, mantenerlo activo en laptops rompía la detección de perfiles (`profileLogic.ts`), que deliberadamente omite `irqAffinity` en portátiles. Por tanto, `06_irq_affinity.ps1`, `03_red.ps1` y `get_modules_status.ps1` deben mantener de forma estricta y deliberada el guard `if (-not $IsLaptop)` para esta optimización de latencia en tiempo real.

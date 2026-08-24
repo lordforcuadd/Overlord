@@ -103,7 +103,9 @@ Try {
                             }
                         }
                         Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
-                    } catch {}
+                    } catch {
+                        Write-Verbose "[$($Adapter.Name)] Interrupt Moderation no soportado: $_"
+                    }
                 }
             }
         }
