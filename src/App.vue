@@ -235,9 +235,9 @@
             <span class="mx-2 text-gray-600">|</span>
             Módulos:
             <span class="text-white font-bold">{{
-              Object.values(store.modules).filter((v) => v).length
+              activeModulesCount
             }}</span>
-            / {{ Object.keys(store.modules).length }}
+            / {{ totalModulesCount }}
           </p>
         </div>
       </div>
@@ -245,7 +245,7 @@
         @click="ejecutarTodo"
         :disabled="
           isExecutingAll ||
-          Object.values(store.modules).filter((v) => v).length === 0
+          activeModulesCount === 0
         "
         class="bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-4 px-10 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)] disabled:opacity-50 flex items-center gap-3"
       >
@@ -265,7 +265,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -290,7 +290,12 @@ const appVersion = ref("");
 let unlistenBackendBusy: UnlistenFn | null = null;
 const isCopyingLog = ref(false);
 
-
+const activeModulesCount = computed(
+  () => Object.values(store.modules).filter(Boolean).length
+);
+const totalModulesCount = computed(
+  () => Object.keys(store.modules).length
+);
 
 const {
   cardStatus,
@@ -311,13 +316,19 @@ const openWarningModal = (payload: { key: string; message: string }) => {
 
 const confirmDangerousTweak = () => {
   const key = pendingTweakKey.value as keyof typeof store.modules;
-  store.updateModule(key, true);
+  if (key) {
+    store.updateModule(key, true);
+  }
+  pendingTweakKey.value = "";
   warningModalOpen.value = false;
 };
 
 const cancelDangerousTweak = () => {
   const key = pendingTweakKey.value as keyof typeof store.modules;
-  store.updateModule(key, false);
+  if (key) {
+    store.updateModule(key, false);
+  }
+  pendingTweakKey.value = "";
   warningModalOpen.value = false;
 };
 
@@ -357,8 +368,10 @@ onMounted(async () => {
     await store.detectHardware();
     await store.scanGames();
     await syncModulesStatus();
+    store.isInitialized = !store.hardwareError;
   } catch (innerErr) {
     console.error("Fallo durante la sincronización inicial de hardware/módulos:", innerErr);
+    store.isInitialized = false;
     Swal.fire({
       title: "Error de Inicializacion",
       text: "No se pudo detectar el hardware o estado de modulos. Algunas funciones pueden no estar disponibles.",
@@ -378,7 +391,6 @@ onMounted(async () => {
   });
 
   store.startTelemetryPolling();
-  store.isInitialized = true;
 });
 
 onUnmounted(() => {

@@ -52,14 +52,9 @@ Try {
             }
         }
 
-        # Obtener adaptadores fisicos activos (Ethernet y Wi-Fi)
-        $ActiveGuids = @()
+        # Obtener adaptadores fisicos activos Ethernet
         $EthernetGuids = @()
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
-            $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-                $_.Virtual -eq $false
-            } | ForEach-Object { "$($_.InterfaceGuid)" }
-
             $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 $_.Virtual -eq $false -and 
                 $_.NdisPhysicalMedium -eq 14 
@@ -127,7 +122,7 @@ Try {
                     # Backup del estado original de LSO, RSC y RSS para este adaptador
                     $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
                     if (!(Test-Path $AdapterBackupPath)) { 
-                        try { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+                        try { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "Fallo al crear AdapterBackupPath: $_" }
                     }
 
                     if (Test-Path $AdapterBackupPath) {
@@ -158,8 +153,7 @@ Try {
 
                         $Chk = Get-NetAdapterChecksumOffload -Name $Adapter.Name -ErrorAction SilentlyContinue
                         if ($null -ne $Chk) {
-                            $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
-                            if ($null -eq $props -or $null -eq $props.PSObject.Properties["ChecksumIpIPv4"]) {
+                            if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["ChecksumIpIPv4"]) {
                                 if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["IpIPv4Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumIpIPv4" -Value $Chk.IpIPv4Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
                                 if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["TcpIPv4Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumTcpIPv4" -Value $Chk.TcpIPv4Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
                                 if ($null -ne $Chk -and $null -ne $Chk.PSObject.Properties["TcpIPv6Enabled"]) { Set-ItemProperty -Path $AdapterBackupPath -Name "ChecksumTcpIPv6" -Value $Chk.TcpIPv6Enabled.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null }
@@ -170,8 +164,7 @@ Try {
 
                         $PwrMgmt = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction SilentlyContinue
                         if ($null -ne $PwrMgmt) {
-                            $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
-                            if ($null -eq $props -or $null -eq $props.PSObject.Properties["AllowComputerToTurnOffDevice"]) {
+                            if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["AllowComputerToTurnOffDevice"]) {
                                 Set-ItemProperty -Path $AdapterBackupPath -Name "AllowComputerToTurnOffDevice" -Value (if ($PwrMgmt.AllowComputerToTurnOffDevice -match "Enabled|True|1") { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }

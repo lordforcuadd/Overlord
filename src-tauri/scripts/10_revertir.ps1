@@ -25,7 +25,19 @@ function Invoke-OverlordSafeRestore {
         if ($null -ne $BckVal) {
             if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
                 Restore-OverlordRegistryValue -TargetKey $TargetKey -ValueName $ValueName -BackupSubFolder $BackupSubFolder | Out-Null
+                return
             }
+        }
+    }
+    # Fallback si no existe backup pero se proporciono DefaultValue
+    if ($null -ne $DefaultValue) {
+        if (-not (Test-Path $TargetKey)) {
+            New-Item -Path $TargetKey -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        if ($DefaultType -eq "DWord") {
+            Set-ItemProperty -Path $TargetKey -Name $ValueName -Value ([int]$DefaultValue) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+        } else {
+            Set-ItemProperty -Path $TargetKey -Name $ValueName -Value $DefaultValue -Type $DefaultType -Force -ErrorAction SilentlyContinue | Out-Null
         }
     }
 }
@@ -703,7 +715,7 @@ Try {
                         }
                     }
                     if ($changed) {
-                        Set-Content -Path $IniPath -Value $newContent -Force | Out-Null
+                        Set-Content -Path $IniPath -Value $newContent -Force -Encoding utf8 | Out-Null
                         Write-Host "    -> Preferencias de pantalla originales restauradas en: $IniPath"
                     }
                     $OrigReadOnly = Get-SafeRegistryValue -Path $Key.PSPath -Name "Original_IsReadOnly"
@@ -749,7 +761,7 @@ Try {
                         }
                     }
                 }
-            } catch {}
+            } catch { Write-Verbose "Fallo al reinstalar paquetes AppX preinstalados: $_" }
         }
     }
 
@@ -782,9 +794,11 @@ Try {
         }
     }
     Write-Host "Reiniciando el entorno del Explorador de Windows..."
-    if (Get-Process -Name explorer -ErrorAction SilentlyContinue) {
-        Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 1
+    Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    $waited = 0
+    while ((Get-Process -Name explorer -ErrorAction SilentlyContinue) -and $waited -lt 5) {
+        Start-Sleep -Milliseconds 500
+        $waited += 0.5
     }
     if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
         Start-Process explorer.exe | Out-Null

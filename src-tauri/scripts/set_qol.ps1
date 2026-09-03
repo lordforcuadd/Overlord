@@ -4,7 +4,11 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$ToggleName = $ToggleName.Trim().Replace("'", "").Replace('"', "")
+$ToggleName = if ([string]::IsNullOrWhiteSpace($ToggleName)) { "" } else { $ToggleName.Trim().Replace("'", "").Replace('"', "") }
+if ($ToggleName -notmatch '^[a-zA-Z0-9_]+$') {
+    Write-Error "ERROR: Nombre de ajuste '$ToggleName' no válido o vacío."
+    exit 1
+}
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -22,7 +26,7 @@ if ($AdminToggles -contains $ToggleName -and -not $isAdmin) {
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 $Targets = @($HKCU_Path)
 
-$NormalizedInput = $IsEnabledStr.ToLower().Replace("$", "").Trim()
+$NormalizedInput = if ([string]::IsNullOrWhiteSpace($IsEnabledStr)) { "false" } else { $IsEnabledStr.ToLower().Replace("$", "").Trim() }
 $Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
 
 function Set-RegistryValue($subPath, $name, $type, $val) {
@@ -455,7 +459,7 @@ public static extern System.IntPtr SendMessageTimeout(System.IntPtr hWnd, uint M
     $result = [IntPtr]::Zero
     try {
         [Win32.User32]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, "Environment", 2, 5000, [ref] $result) | Out-Null
-    } catch {}
+    } catch { Write-Verbose "Fallo al notificar cambio de entorno via SendMessageTimeout: $_" }
     Write-Output "OK: $ToggleName establecido a $($Value -eq 1)"
 }
 exit 0

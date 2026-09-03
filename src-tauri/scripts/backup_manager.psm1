@@ -155,7 +155,7 @@ function Uninstall-OverlordPriorityDaemon {
                 }
             }
         }
-    } catch {}
+    } catch { Write-Verbose "Fallo al detener procesos residuales del daemon: $_" }
 
     # Limpieza de la carpeta raiz del daemon en ProgramData
     if (Test-Path $InstallDir) {
@@ -175,7 +175,7 @@ function Find-FileFaster {
         if ($files.Count -gt 0) {
             return [System.IO.FileInfo]::new($files[0])
         }
-    } catch {}
+    } catch { Write-Verbose "Fallo al escanear archivos en $Path : $_" }
     if ($MaxDepth -le 0) { return $null }
     try {
         $subdirs = [System.IO.Directory]::GetDirectories($Path)
@@ -183,6 +183,6 @@ function Find-FileFaster {
             $found = Find-FileFaster -Path $dir -Filter $Filter -MaxDepth ($MaxDepth - 1)
             if ($found) { return $found }
         }
-    } catch {}
+    } catch { Write-Verbose "Fallo al escanear subdirectorios en $Path : $_" }
     return $null
 }

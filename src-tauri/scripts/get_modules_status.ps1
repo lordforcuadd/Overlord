@@ -79,9 +79,8 @@ if (Test-Path $ProfilePath) {
     if (Test-Path $InterfacesPath) {
         $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
         foreach ($Key in $InterfaceKeys) {
-            $Ack = Get-ItemPropertyValue -Path $Key.PSPath -Name "TcpAckFrequency" -ErrorAction SilentlyContinue
-            $NoDelay = Get-ItemPropertyValue -Path $Key.PSPath -Name "TcpNoDelay" -ErrorAction SilentlyContinue
-            if ($Ack -eq 1 -and $NoDelay -eq 1) {
+            $Props = Get-ItemProperty -Path $Key.PSPath -ErrorAction SilentlyContinue
+            if ($null -ne $Props -and $Props.TcpAckFrequency -eq 1 -and $Props.TcpNoDelay -eq 1) {
                 $NagleOk = $true
                 break
             }
@@ -94,7 +93,7 @@ if (Test-Path $ProfilePath) {
     if (-not $IsLaptop) {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-                $_.Status -eq "Up" -and $_.Virtual -eq $false -and $_.NdisPhysicalMedium -eq 14 
+                $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.NdisPhysicalMedium -eq 14 -or $_.NdisPhysicalMedium -eq 9)
             } | ForEach-Object { "$($_.InterfaceGuid)" }
             
             if ($ActiveGuids.Count -gt 0) {
@@ -271,8 +270,7 @@ if (Test-Path $PowerSchemePath) {
     
     if (($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) -and $ThrottleVal -eq 1) {
         $Status['powerProfiles'] = $true
-    } elseif ($IsLaptop) {
-        $ActivePlan = Get-ItemPropertyValue -Path $PowerSchemePath -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
+    } elseif ($IsLaptop -and $null -ne $ActivePlan) {
         $SettingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$ActivePlan\54533251-82be-4824-96c1-47b60b740d00\94d3a615-a899-4ac5-ae2b-e4d8f634367f"
         if (Test-Path $SettingPath) {
             $AcVal = Get-ItemPropertyValue -Path $SettingPath -Name "ACSettingIndex" -ErrorAction SilentlyContinue
@@ -303,8 +301,13 @@ $DefenderExclusionsOk = $false
 $BkpProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Overlord\Backup\DefenderExclusions" -ErrorAction SilentlyContinue
 if ($null -ne $BkpProps -and $null -ne $BkpProps.AddedExclusions) {
     $PathsToCheck = $BkpProps.AddedExclusions -split ";" | Where-Object { $_ -ne "" }
-    if ($PathsToCheck.Count -gt 0) {
-        $CurrentExclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
+    if ($PathsToCheck.Count -gt 0 -and (Get-Command Get-MpPreference -ErrorAction SilentlyContinue)) {
+        $CurrentExclusions = $null
+        try {
+            $CurrentExclusions = Get-MpPreference -ErrorAction Stop | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
+        } catch {
+            Write-Verbose "Fallo al consultar Get-MpPreference (AV de terceros o Defender inactivo): $_"
+        }
         $CurrentExclusionsSet = @{}
         if ($CurrentExclusions) {
             foreach ($Path in $CurrentExclusions) {

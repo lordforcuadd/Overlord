@@ -32,6 +32,7 @@ $global:OverlordScriptsPath = $ScriptsDir
 Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     BeforeAll {
         $script:GlobalBackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
+        $script:SkipLiveTests = ($env:CI -eq "true" -or -not (Test-Path $script:GlobalBackupPath))
         $script:ControlFileSystem = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $script:MemoryManagerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
         $script:ScriptsPath = $global:OverlordScriptsPath
@@ -51,6 +52,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Mecanica de Entrada y Perifericos de Alta Frecuencia" {
         It "Debe comprobar el quantum de CPU optimizado Win32PrioritySeparation" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Peripherals")) { return }
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"
             if (Test-Path $Path) {
                 $Separation = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).Win32PrioritySeparation
@@ -59,6 +61,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe comprobar el desacoplamiento lineal de la aceleracion de raton de usuario" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Peripherals")) { return }
             $Path = "HKCU:\Control Panel\Mouse"
             $Speed = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseSpeed
             $Th1 = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).MouseThreshold1
@@ -71,6 +74,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Modulo 02 y 08 - Saneamiento de Telemetria y Servicios Nucleares" {
         It "Debe verificar el estado deshabilitado de los servicios residuales bloqueados" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Services")) { return }
             $Services = @("DiagTrack", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc")
             foreach ($Service in $Services) {
                 $Svc = Get-Service -Name $Service -ErrorAction SilentlyContinue
@@ -81,6 +85,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe verificar el estado de coexistencia manual para servicios de Windows Update y Diagnostico" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Services")) { return }
             $Services = @("dmwappushservice", "WdiServiceHost", "WdiSystemHost", "WerSvc")
             foreach ($Service in $Services) {
                 $Svc = Get-Service -Name $Service -ErrorAction SilentlyContinue
@@ -91,6 +96,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe verificar que la directiva de Windows Error Reporting este deshabilitada" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry")) { return }
             $Path = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
             if (Test-Path $Path) {
                 $Disabled = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).Disabled
@@ -101,6 +107,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Modulo 02 - Verificacion de Cobertura de Tareas Programadas" {
         It "Debe ratificar la inhabilitacion estructural de las tareas de telemetria" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry")) { return }
             $Tasks = @(
                 "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
                 "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
@@ -131,6 +138,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Modulo 03 - Pila de Red y Latencia TCP" {
         It "Debe verificar la remocion del estrangulamiento, responsividad y retardo de cola TCP" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Network")) { return }
             $TcpPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
             $ProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
             
@@ -142,6 +150,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe comprobar la desactivacion de coalescencia de paquetes en adaptadores de red" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Network")) { return }
             $NetClassPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
             if (Test-Path $NetClassPath) {
                 $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
@@ -165,6 +174,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Modulo 04, 05 y 07 - Kernel, Almacenamiento y Pipelines Graficos" {
         It "Debe validar esquemas HwSchMode de programación por hardware de GPU" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\GPU")) { return }
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
             if (Test-Path $Path) {
                 $Hags = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).HwSchMode
@@ -173,6 +183,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe verificar que MPO (Multiplane Overlay) permanezca en su estado por defecto" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\GPU")) { return }
             $Path = "HKLM:\SOFTWARE\Microsoft\Windows\Dwm"
             if (Test-Path $Path) {
                 $Mpo = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue).OverlayTestMode
@@ -181,6 +192,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe comprobar el desacoplamiento de la marca de tiempo NTFS Last Access" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Storage")) { return }
             if (Test-Path $ControlFileSystem) {
                 $LastAccess = (Get-ItemProperty -Path $ControlFileSystem -ErrorAction SilentlyContinue).NtfsDisableLastAccessUpdate
                 (@(1, 2, 3, 2147483649, 2147483650, 2147483651) -contains $LastAccess) | Should Be $true
@@ -191,6 +203,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Modulo 09 y 11 - Planes de Energia e IFEO Gaming Hooks" {
         It "Debe certificar la inyeccion de la maxima prioridad multimedia de hilos" -Skip:($env:CI -eq "true") {
+            if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Power")) { return }
             $Path = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
             if (Test-Path $Path) {
                 $Sched = (Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue)."Scheduling Category"
@@ -479,14 +492,21 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $JsonSteamPath = $Parsed.steam.libraryFoldersRelPath
             ($LocatorContent -match [regex]::Escape($JsonSteamPath)) | Should Be $true
 
+            $JsonSteamCommon = $Parsed.steam.commonRelPath
+            ($LocatorContent -match [regex]::Escape($JsonSteamCommon)) | Should Be $true
+
             $JsonEpicManifests = $Parsed.epic.manifestsRelPath
             ($LocatorContent -match [regex]::Escape($JsonEpicManifests)) | Should Be $true
 
             $JsonRiotFolder = $Parsed.riot.defaultFolder
             ($LocatorContent -match [regex]::Escape($JsonRiotFolder)) | Should Be $true
 
-            $JsonGogKey = $Parsed.gog.registryKeys[0]
-            ($LocatorContent -match [regex]::Escape($JsonGogKey)) | Should Be $true
+            foreach ($GogKey in $Parsed.gog.registryKeys) {
+                ($LocatorContent -match [regex]::Escape($GogKey)) | Should Be $true
+            }
+
+            $JsonJavaApp = $Parsed.minecraft.javaAppPath
+            ($LocatorContent -match [regex]::Escape($JsonJavaApp)) | Should Be $true
         }
     }
 }

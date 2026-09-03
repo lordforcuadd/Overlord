@@ -158,7 +158,7 @@ Try {
 
     $TasksBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Tasks"
     if (!(Test-Path $TasksBackupPath)) {
-        try { New-Item -Path $TasksBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+        try { New-Item -Path $TasksBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "Fallo al crear TasksBackupPath: $_" }
     }
 
     foreach ($Task in $Tasks) {

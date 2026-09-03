@@ -17,6 +17,14 @@ Try {
 
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
+    $vssSvc = Get-Service -Name VSS -ErrorAction SilentlyContinue
+    if ($null -ne $vssSvc -and $vssSvc.Status -ne "Running") {
+        try {
+            $vssSvc.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(3))
+        } catch {
+            Write-Verbose "Timeout esperando estado Running de VSS: $_"
+        }
+    }
     Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name vmicvss -ErrorAction SilentlyContinue
 

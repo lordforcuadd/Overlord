@@ -8,7 +8,7 @@ Try {
 
     $PowerBackup = "HKLM:\SOFTWARE\Overlord\Backup\Power"
     if (!(Test-Path $PowerBackup)) { 
-        try { New-Item -Path $PowerBackup -Force | Out-Null } catch {} 
+        try { New-Item -Path $PowerBackup -Force | Out-Null } catch { Write-Verbose "Fallo al crear PowerBackup: $_" } 
     }
 
 
@@ -22,7 +22,9 @@ Try {
             if ($null -eq $powerProps -or $null -eq $powerProps.PSObject.Properties["ActivePowerPlan"]) {
                 Set-ItemProperty -Path $PowerBackup -Name "ActivePowerPlan" -Value $CurrentGuid -Force -ErrorAction SilentlyContinue | Out-Null
             }
-        } catch {}
+        } catch {
+            Write-Verbose "Fallo al guardar ActivePowerPlan en backup: $_"
+        }
     }
 
     $IsRunningOnLaptop = $IsLaptop
@@ -31,8 +33,8 @@ Try {
         Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
         if ($null -ne $CurrentGuid) {
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "94d3a615-a899-4ac5-ae2b-e4d8f634367f" -BackupName "Power_${CurrentGuid}_94d3a615-a899-4ac5-ae2b-e4d8f634367f"
-            try { & powercfg /SETACVALUEINDEX $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 94d3a615-a899-4ac5-ae2b-e4d8f634367f 1 2>$null } catch {}
-            try { & powercfg /setactive $CurrentGuid 2>$null } catch {}
+            try { & powercfg /SETACVALUEINDEX $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 94d3a615-a899-4ac5-ae2b-e4d8f634367f 1 2>$null } catch { Write-Verbose "Fallo al ajustar índice AC en laptop: $_" }
+            try { & powercfg /setactive $CurrentGuid 2>$null } catch { Write-Verbose "Fallo al activar plan en laptop: $_" }
         }
     } else {
         Write-Host "    -> Computadora de Escritorio detectada: Seleccionando plan de Maximo Rendimiento..."
@@ -40,9 +42,16 @@ Try {
         $UltimateGUID = "e9a42b02-d5df-448d-aa00-03f14749eb61"
         $AllSchemes = powercfg /list
         
+        $UltimateActivated = $false
         if ($AllSchemes -match $UltimateGUID) {
             & powercfg /setactive $UltimateGUID 2>$null
-        } else {
+            $currentSchemeNow = powercfg /getactivescheme 2>$null
+            if ($currentSchemeNow -match $UltimateGUID) {
+                $UltimateActivated = $true
+            }
+        }
+        
+        if (-not $UltimateActivated) {
             $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
             $ExistingCustom = if ($null -ne $powerProps -and $null -ne $powerProps.PSObject.Properties["CustomPowerPlan"]) { $powerProps.CustomPowerPlan } else { $null }
             if ($null -ne $ExistingCustom -and ($AllSchemes -match $ExistingCustom)) {
@@ -117,7 +126,7 @@ Try {
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $CurrentGuid = $Matches[1]
-            try { & powercfg /setactive $CurrentGuid 2>$null } catch {}
+            try { & powercfg /setactive $CurrentGuid 2>$null } catch { Write-Verbose "Fallo al reactivar plan de energía: $_" }
         }
     }
 

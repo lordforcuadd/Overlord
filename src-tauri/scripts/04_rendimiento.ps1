@@ -26,7 +26,7 @@ Try {
         if (Get-Command Get-MMAgent -ErrorAction SilentlyContinue) {
             $PerfBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Performance"
             if (!(Test-Path $PerfBackupPath)) { 
-                try { New-Item -Path $PerfBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch {} 
+                try { New-Item -Path $PerfBackupPath -Force -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "Fallo al crear PerfBackupPath: $_" } 
             }
             
             if (Test-Path $PerfBackupPath) {
@@ -69,7 +69,7 @@ Try {
                 & powercfg -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null
                 & powercfg -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 ea062031-0e34-4ff1-9b6d-eb1059334028 100 2>$null
                 & powercfg -setactive $CurrentGuid 2>$null
-            } catch {}
+            } catch { Write-Verbose "Fallo al reactivar esquema de energia: $_" }
         }
     }
 

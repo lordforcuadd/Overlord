@@ -67,7 +67,7 @@ async fn detect_system_hardware() -> HardwareResponse {
         // 1. Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let powershell_path = crate::get_powershell_path();
         
-        // Ejecutar wmic via PowerShell sin crear ventana (usamos wmic porque es inmensamente mas rapido que Get-CimInstance en este contexto especifico)
+        // Consultar velocidad de RAM via CIM/PowerShell de forma asíncrona y sin crear ventana
         let mut ram_speed_val = None;
         let mut cmd = tokio::process::Command::new(&powershell_path);
         cmd.creation_flags(CREATE_NO_WINDOW)
@@ -77,7 +77,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
            ]);
         
-        if let Ok(output) = cmd.output().await {
+        if let Ok(Ok(output)) = tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output()).await {
             if output.status.success() {
                 let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if let Ok(speed) = text.parse::<u32>() {
@@ -172,7 +172,24 @@ async fn detect_system_hardware() -> HardwareResponse {
             let path_drive: Vec<u16> = path_drive_str.encode_utf16().chain(std::iter::once(0)).collect();
             let mut handle_ok = false;
             unsafe {
-                let handle = CreateFileW(path_drive.as_ptr(), 0x80000000, 0x00000001 | 0x00000002, std::ptr::null_mut(), 3, 0x00000080, std::ptr::null_mut());
+                const GENERIC_READ: u32 = 0x8000_0000;
+                const FILE_SHARE_READ: u32 = 0x0000_0001;
+                const FILE_SHARE_WRITE: u32 = 0x0000_0002;
+                const OPEN_EXISTING: u32 = 3;
+                const FILE_ATTRIBUTE_NORMAL: u32 = 0x0000_0080;
+                const IOCTL_STORAGE_QUERY_PROPERTY: u32 = 0x002D_1400;
+                const STORAGE_DEVICE_SEEK_PENALTY_PROPERTY: u32 = 7;
+                const PROPERTY_STANDARD_QUERY: u32 = 0;
+
+                let handle = CreateFileW(
+                    path_drive.as_ptr(),
+                    GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    std::ptr::null_mut(),
+                    OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL,
+                    std::ptr::null_mut(),
+                );
                 if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
                     handle_ok = true;
                     #[repr(C)]
@@ -180,11 +197,24 @@ async fn detect_system_hardware() -> HardwareResponse {
                     #[repr(C)]
                     struct DEVICE_SEEK_PENALTY_DESCRIPTOR { version: u32, size: u32, is_seek_penalty: u8 }
                     
-                    let mut query = STORAGE_PROPERTY_QUERY { property_id: 7, query_type: 0, additional_parameters: [0] };
+                    let mut query = STORAGE_PROPERTY_QUERY {
+                        property_id: STORAGE_DEVICE_SEEK_PENALTY_PROPERTY,
+                        query_type: PROPERTY_STANDARD_QUERY,
+                        additional_parameters: [0],
+                    };
                     let mut descriptor = DEVICE_SEEK_PENALTY_DESCRIPTOR { version: 0, size: 0, is_seek_penalty: 1 };
                     let mut bytes_returned = 0;
                     
-                    let res = DeviceIoControl(handle, 0x002D1400, &mut query as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32, &mut descriptor as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32, &mut bytes_returned, std::ptr::null_mut());
+                    let res = DeviceIoControl(
+                        handle,
+                        IOCTL_STORAGE_QUERY_PROPERTY,
+                        &mut query as *mut _ as *mut std::ffi::c_void,
+                        std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32,
+                        &mut descriptor as *mut _ as *mut std::ffi::c_void,
+                        std::mem::size_of::<DEVICE_SEEK_PENALTY_DESCRIPTOR>() as u32,
+                        &mut bytes_returned,
+                        std::ptr::null_mut(),
+                    );
                     if res != 0 {
                         if descriptor.is_seek_penalty == 0 {
                             drive_is_ssd = true;
@@ -268,19 +298,17 @@ async fn detect_system_hardware() -> HardwareResponse {
         
         if !handle_ok {
             let ps_path = crate::get_powershell_path();
-            if let Ok(out) = tokio::process::Command::new(&ps_path)
-                .creation_flags(CREATE_NO_WINDOW)
+            let mut cmd = tokio::process::Command::new(&ps_path);
+            cmd.creation_flags(CREATE_NO_WINDOW)
                 .args([
                     "-NoProfile",
                     "-Command",
                     "$SysDrv = $env:SystemDrive.Substring(0,1); $Part = Get-Partition -DriveLetter $SysDrv -ErrorAction SilentlyContinue; if ($Part) { $Disk = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $Part.DiskNumber } ; if ($Disk.MediaType -eq 'SSD') { 'True' } }",
-                ])
-                .output()
-                .await 
-            {
+                ]);
+            if let Ok(Ok(out)) = tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output()).await {
                 if out.status.success() {
                     let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                    if !text.is_empty() {
+                    if text.eq_ignore_ascii_case("true") {
                         hardware.is_ssd = true;
                     }
                 }

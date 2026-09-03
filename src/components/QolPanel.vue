@@ -540,10 +540,10 @@ onMounted(async () => {
 
 async function applyToggle(settingKey: QolKeys) {
   if (qolStatus.value[settingKey] === "loading" || store.isGlobalBusy) return;
-  const previousState = qol.value[settingKey];
-  qol.value[settingKey] = !qol.value[settingKey];
   qolStatus.value[settingKey] = "loading";
   store.setGlobalBusy(true);
+  const previousState = qol.value[settingKey];
+  qol.value[settingKey] = !previousState;
 
   try {
     const isEnabledStr = qol.value[settingKey] ? "true" : "false";

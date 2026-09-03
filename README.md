@@ -63,7 +63,7 @@ En caso de inestabilidad, el revert lee la colmena aislada `HKLM:\SOFTWARE\Overl
 
 ### Suite de Pruebas Unitarias (`modules.tests.ps1`)
 
-Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y consistencia del sistema de backup están automatizadas bajo el framework **Pester v5**.
+Las validaciones de tipos de datos, existencia de claves de Kernel modificadas y consistencia del sistema de backup están automatizadas bajo el framework **Pester** (compatible de forma nativa con Pester v3.4+ y v5+).
 
 ---
 

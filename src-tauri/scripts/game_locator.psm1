@@ -67,7 +67,9 @@ function Get-LauncherRoots {
                 }
             }
         }
-    } catch {}
+    } catch {
+        Write-Verbose "Fallo explorando unidades fijas para lanzadores: $_"
+    }
 
     # Buscar rutas de Steam en el Registro
     $SteamPathReg = $null
@@ -115,7 +117,7 @@ function Get-LauncherRoots {
                         }
                     }
                 }
-            } catch {}
+            } catch { Write-Verbose "Fallo al procesar archivo VDF de Steam: $_" }
         }
     }
 
@@ -135,7 +137,9 @@ function Get-LauncherRoots {
                     }
                 }
             }
-        } catch {}
+        } catch {
+            Write-Verbose "Fallo leyendo manifiesto de Epic Games: $_"
+        }
     }
 
     foreach ($sub in $cfg.defaultProgramFilesRoots) {
@@ -187,10 +191,9 @@ function Get-JavaRoots {
     foreach ($RegSub in $RegPaths) {
         $RegPath = if ($RegSub -notlike "HKLM:\*") { "HKLM:\$RegSub" } else { $RegSub }
         if (Test-Path $RegPath) {
-            $Versions = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
-            foreach ($Version in $Versions) {
-                $VKey = "HKLM:\$Version"
-                $JavaHome = Get-SafeRegistryValue -Path $VKey -Name "JavaHome"
+            $Versions = Get-ChildItem -Path $RegPath -ErrorAction SilentlyContinue
+            foreach ($VerItem in $Versions) {
+                $JavaHome = Get-SafeRegistryValue -Path $VerItem.PSPath -Name "JavaHome"
                 if (![string]::IsNullOrWhiteSpace($JavaHome) -and (Test-Path $JavaHome)) {
                     $JavaRoots.Add($JavaHome)
                 }
@@ -199,6 +202,13 @@ function Get-JavaRoots {
     }
 
     $appKey = if ($cfg.minecraft.javaAppPath -like "HKLM:\*") { $cfg.minecraft.javaAppPath } else { "HKLM:\$($cfg.minecraft.javaAppPath)" }
+    $AppExe = Get-SafeRegistryValue -Path $appKey -Name ""
+    if (![string]::IsNullOrWhiteSpace($AppExe) -and (Test-Path $AppExe)) {
+        $AppDir = Split-Path -Parent $AppExe
+        if (Test-Path $AppDir) {
+            $JavaRoots.Add($AppDir)
+        }
+    }
     $AppPath = Get-SafeRegistryValue -Path $appKey -Name "Path"
     if (![string]::IsNullOrWhiteSpace($AppPath) -and (Test-Path $AppPath)) {
         $JavaRoots.Add($AppPath)
@@ -251,7 +261,9 @@ function Resolve-GameExePath {
             if (Test-Path $ResolvedPath -PathType Leaf) {
                 return $ResolvedPath
             }
-        } catch {}
+        } catch {
+            Write-Verbose "Fallo resolviendo AppPath de registro: $_"
+        }
     }
 
     $ProgramFiles = $env:ProgramFiles
@@ -261,12 +273,22 @@ function Resolve-GameExePath {
     $SysDrive = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }
 
+    $cfg = Get-OverlordLaunchersConfig
     $DeepHints = [System.Collections.Generic.List[string]]::new()
-    $DeepHints.AddRange([string[]]@(
-        (Join-Path $ProgramFilesx86 "Overwatch\_retail_\$ExeName"),
-        (Join-Path $ProgramFiles "Overwatch\_retail_\$ExeName"),
-        (Join-Path $ProgramFilesx86 "Battle.net\$ExeName")
-    ))
+    if ($cfg -and $cfg.defaultProgramFilesRoots) {
+        foreach ($Root in $cfg.defaultProgramFilesRoots) {
+            $DeepHints.Add((Join-Path $ProgramFiles "$Root\_retail_\$ExeName"))
+            $DeepHints.Add((Join-Path $ProgramFiles "$Root\$ExeName"))
+            $DeepHints.Add((Join-Path $ProgramFilesx86 "$Root\_retail_\$ExeName"))
+            $DeepHints.Add((Join-Path $ProgramFilesx86 "$Root\$ExeName"))
+        }
+    } else {
+        $DeepHints.AddRange([string[]]@(
+            (Join-Path $ProgramFilesx86 "Overwatch\_retail_\$ExeName"),
+            (Join-Path $ProgramFiles "Overwatch\_retail_\$ExeName"),
+            (Join-Path $ProgramFilesx86 "Battle.net\$ExeName")
+        ))
+    }
     try {
         $FixedDrives = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq 'Fixed' } | ForEach-Object { $_.Name }
         foreach ($Drive in $FixedDrives) {
@@ -275,6 +297,7 @@ function Resolve-GameExePath {
             $DeepHints.Add((Join-Path $Drive "Riot Games\League of Legends\Game\$ExeName"))
         }
     } catch {
+        Write-Verbose "Fallo consultando unidades fijas: $_"
         $DeepHints.Add((Join-Path $SysDrive "Riot Games\$shortName\live\ShooterGame\Binaries\Win64\$ExeName"))
         $DeepHints.Add((Join-Path $SysDrive "Riot Games\League of Legends\$ExeName"))
     }

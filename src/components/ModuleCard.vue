@@ -188,7 +188,21 @@ const emit = defineEmits<{
 
 const showDoc = ref(false);
 
-const meta = computed(() => tweaksMetadata[props.id]);
+const meta = computed(() => tweaksMetadata[props.id] || {
+  id: props.id,
+  title: props.id,
+  description: "",
+  riesgo: "Seguro",
+  evidenciaImpacto: "Situacional",
+  reversible: true,
+  metodoReversion: "",
+  hardwareRecomendado: "",
+  windowsVersion: "",
+  fuenteOficial: "",
+  scriptName: "",
+  impactoRendimiento: "",
+  details: [],
+});
 
 const toggleDoc = () => {
   showDoc.value = !showDoc.value;

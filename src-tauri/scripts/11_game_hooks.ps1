@@ -188,7 +188,7 @@ try {
                         $newContent = $iniText -split "`r`n"
 
                         if ($changed) {
-                            Set-Content -Path $ini.FullName -Value $newContent -Force
+                            Set-Content -Path $ini.FullName -Value $newContent -Force -Encoding utf8
                             Write-Host "    -> Modo exclusivo forzado en $($engine.Name) ($($ini.FullName))"
                             $FullscreenForced = $true
                         } else {

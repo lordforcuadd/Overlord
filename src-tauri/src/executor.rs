@@ -16,9 +16,10 @@ use windows_sys::Win32::Foundation::{HANDLE, CloseHandle};
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 static EXECUTION_LOCK: Mutex<()> = Mutex::const_new(());
+static ACTIVE_SCRIPTS_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 pub fn is_busy() -> bool {
-    EXECUTION_LOCK.try_lock().is_err()
+    ACTIVE_SCRIPTS_COUNT.load(std::sync::atomic::Ordering::SeqCst) > 0 || EXECUTION_LOCK.try_lock().is_err()
 }
 
 static JOB_HANDLE: OnceLock<HANDLE> = OnceLock::new();
@@ -156,6 +157,15 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     };
 
     let b64_encoded = encode_utf16_base64(&unified_script);
+
+    ACTIVE_SCRIPTS_COUNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    struct ActiveGuard;
+    impl Drop for ActiveGuard {
+        fn drop(&mut self) {
+            ACTIVE_SCRIPTS_COUNT.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let _active_guard = ActiveGuard;
 
     let bootstrap_cmd = "$r = [Console]::In.ReadToEnd(); if (![string]::IsNullOrEmpty($r)) { $b = $r.Trim(); $bytes = [System.Convert]::FromBase64String($b); $script = [System.Text.Encoding]::Unicode.GetString($bytes); & ([scriptblock]::Create($script)) }";
     let powershell_path = crate::get_powershell_path();

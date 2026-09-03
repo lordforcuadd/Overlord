@@ -52,7 +52,7 @@ Try {
             # Ejecucion y control de finalizacion de cleanmgr.exe (sagerun)
             $CleanProcess = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -WindowStyle Hidden -PassThru -ErrorAction SilentlyContinue
             if ($CleanProcess) {
-                $Timeout = 60 # Ampliado a 1 minuto (60 segundos)
+                $Timeout = 180 # Ampliado a 3 minutos (180 segundos) para tolerar discos mecanicos HDD
                 $Interval = 1
                 $Waited = 0
                 while (-not $CleanProcess.HasExited -and $Waited -lt $Timeout) {
@@ -73,22 +73,17 @@ Try {
                 }
             }
             
-            # Vaciado ultra-rapido multihilo con Robocopy (ideal para sistemas con anos sin limpiar)
-            $EmptyDir = Join-Path $env:temp "OverlordEmptyDir"
-            if (!(Test-Path $EmptyDir)) {
-                New-Item -Path $EmptyDir -ItemType Directory -Force | Out-Null
-            }
-
-            if (Test-Path $env:localappdata\Temp) {
-                robocopy.exe $EmptyDir $env:localappdata\Temp /mir /w:0 /r:0 /MT:32 /njh /njs /ndl /nc /ns /np | Out-Null
-            }
-
-            if (Test-Path "$env:windir\Temp") {
-                robocopy.exe $EmptyDir "$env:windir\Temp" /mir /w:0 /r:0 /MT:32 /njh /njs /ndl /nc /ns /np | Out-Null
-            }
-
-            if (Test-Path $EmptyDir) {
-                Remove-Item -Path $EmptyDir -Force -ErrorAction SilentlyContinue | Out-Null
+            # Vaciado seguro de carpetas temporales (omite archivos en uso sin corromper datos de procesos en ejecucion)
+            $TempFolders = @("$env:localappdata\Temp", "$env:windir\Temp")
+            foreach ($TDir in $TempFolders) {
+                if (Test-Path $TDir) {
+                    Get-ChildItem -Path $TDir -File -Force -ErrorAction SilentlyContinue | ForEach-Object {
+                        Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    Get-ChildItem -Path $TDir -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object {
+                        Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                }
             }
 
             Write-Output "OK: Limpieza profunda de almacenamiento y caches completada."
@@ -121,7 +116,8 @@ Try {
                 if ($null -ne $CimSvc) {
                     $originalStartType = $CimSvc.StartMode
                 }
-                $wasRunning = ($wuauserv.Status -eq 'Running')
+                $freshWuauserv = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
+                $wasRunning = ($null -ne $freshWuauserv -and $freshWuauserv.Status -eq 'Running')
                 if ($null -ne $originalStartType -and $originalStartType -eq 'Disabled') {
                     Set-Service -Name wuauserv -StartupType Manual -ErrorAction SilentlyContinue
                 }

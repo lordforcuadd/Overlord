@@ -30,6 +30,7 @@ interface GamePayload {
   name: string;
   exe: string;
   detected: boolean;
+  optimize: boolean;
 }
 
 export const useOverlordStore = defineStore("overlord", {
@@ -230,7 +231,7 @@ export const useOverlordStore = defineStore("overlord", {
     },
     async scanGames() {
       try {
-        const games = await invoke<GamePayload[]>("fetch_games");
+        const scanned = await invoke<GamePayload[]>("get_installed_games");
         let manualGames = this.gameList.filter((g) => g.manual);
         if (manualGames.length === 0) {
           const stored = localStorage.getItem("overlord_manual_games");
@@ -242,11 +243,6 @@ export const useOverlordStore = defineStore("overlord", {
             }
           }
         }
-        const scanned = games.map((g) => ({
-          ...g,
-          optimize: g.detected,
-          manual: false,
-        }));
         this.gameList = [...scanned, ...manualGames];
       } catch (e) {
         console.error("[ERROR ESCANEANDO CATÁLOGO DE JUEGOS]:", e);
@@ -257,6 +253,7 @@ export const useOverlordStore = defineStore("overlord", {
         clearInterval(this.telemetryInterval);
       }
       this.telemetryInterval = setInterval(async () => {
+        if (typeof document !== "undefined" && document.hidden) return;
         try {
           const metrics = await invoke<TelemetryPayload>("get_live_telemetry");
           this.liveTelemetry.cpuUsage = metrics.cpu_usage;

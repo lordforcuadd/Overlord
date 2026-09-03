@@ -60,6 +60,7 @@ if (!(Test-Path $TempDir)) {
 try {
     $Acl = Get-Acl $TempDir
     $Acl.SetAccessRuleProtection($true, $false)
+    $Acl.Access | ForEach-Object { $Acl.PurgeAccessRules($_.IdentityReference) }
     $SidSystem = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-18") # SYSTEM
     $SidAdmins = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544") # Administrators
     $SidUsers  = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-545") # Users
@@ -78,22 +79,30 @@ try {
 }
 
 $ExePath = Join-Path $TempDir $FileName
+$TempExePath = Join-Path $TempDir "$FileName.new"
 $HashPath = Join-Path $TempDir "Overlord.exe.sha256"
 $GlobalLog = Join-Path $ProgData "Overlord\logs\overlord_errors.log"
 
 $ExecutionPermitted = $false
 
 if ($null -ne $DownloadUrl) {
-    if ($DownloadUrl -notmatch '^https://github\.com/') {
-        Write-Host "[-] Error critico: La URL de descarga no pertenece al dominio oficial github.com: $DownloadUrl" -ForegroundColor Red
+    if ($DownloadUrl -notmatch '^https://github\.com/lordforcuadd/Overlord/releases/') {
+        Write-Host "[-] Error critico: La URL de descarga no pertenece al repositorio oficial: $DownloadUrl" -ForegroundColor Red
         exit 1
+    }
+    if (Test-Path $ExePath) {
+        Set-ItemProperty -Path $ExePath -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue | Out-Null
+    }
+    if (Test-Path $TempExePath) {
+        Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null
     }
     try {
         Write-Host "[*] Descargando la suite Overlord v$Version..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempExePath -UseBasicParsing -ErrorAction Stop
         $ExecutionPermitted = $true
     } catch {
         Write-Host "[-] Error critico: Fallo la descarga de la suite Overlord: $_" -ForegroundColor Red
+        if (Test-Path $TempExePath) { Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null }
     }
     
     if ($ExecutionPermitted -and $null -ne $HashDownloadUrl) {
@@ -105,16 +114,19 @@ if ($null -ne $DownloadUrl) {
             if (Test-Path $HashPath) {
                 $RawHashContent = (Get-Content $HashPath -Raw -ErrorAction Stop).Trim()
                 $ExpectedHash = ""
-                if ($RawHashContent -match "([a-fA-F0-9]{64})") {
-                    $ExpectedHash = $Matches[1].ToLower()
+                if ($RawHashContent -match '^[a-fA-F0-9]{64}(?:\s+|$)') {
+                    $ExpectedHash = ($RawHashContent -split '\s+')[0].ToLower()
                 }
 
-                $CalculatedHash = (Get-FileHash -Path $ExePath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower()
+                $CalculatedHash = (Get-FileHash -Path $TempExePath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower()
 
                 if ($CalculatedHash -eq $ExpectedHash) {
                     Write-Host "[+] Validacion SHA256 Exitosa. Integridad y procedencia del binario confirmadas [100% Seguro]." -ForegroundColor Green
+                    Move-Item -Path $TempExePath -Destination $ExePath -Force -ErrorAction Stop
+                    Set-ItemProperty -Path $ExePath -Name IsReadOnly -Value $true -ErrorAction SilentlyContinue | Out-Null
                     $ExecutionPermitted = $true
                 } else {
+                    Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null
                     Write-Host "`n=======================================================" -ForegroundColor Red
                     Write-Host "🚨 ¡ALERTA CRÍTICA DE MANIPULACIÓN / CORRUPCIÓN DETECTADA!" -ForegroundColor Red -BackgroundColor Black
                     Write-Host "=======================================================" -ForegroundColor Red
@@ -125,13 +137,16 @@ if ($null -ne $DownloadUrl) {
                     Write-Host "=======================================================`n" -ForegroundColor Red
                 }
             } else {
+                if (Test-Path $TempExePath) { Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null }
                 Write-Host "[-] Firma descargada pero ilegible. Abortando ejecucion por seguridad." -ForegroundColor Red
             }
         } catch {
+            if (Test-Path $TempExePath) { Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null }
             Write-Host "[-] Error al verificar la firma SHA256: $_. Abortando ejecucion por seguridad." -ForegroundColor Red
             $ExecutionPermitted = $false
         }
     } elseif ($null -eq $HashDownloadUrl -and $null -ne $DownloadUrl) {
+        if (Test-Path $TempExePath) { Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null }
         Write-Host "[-] ERROR CRÍTICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad." -ForegroundColor Red
         $ExecutionPermitted = $false
     }
@@ -140,10 +155,12 @@ if ($null -ne $DownloadUrl) {
     if (Test-Path $ExePath) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
-        $ValidThumbprint = "4338BFA2A57459BEB3B43FB141E6BDB75C8A808A"
-        if ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Thumbprint -eq $ValidThumbprint) {
-            Write-Host "[+] Binario local validado mediante firma digital estricta (Thumbprint)." -ForegroundColor Green
+        $ExpectedThumbprint = if (![string]::IsNullOrWhiteSpace($env:OVERLORD_EXPECTED_THUMBPRINT)) { $env:OVERLORD_EXPECTED_THUMBPRINT } else { "4338BFA2A57459BEB3B43FB141E6BDB75C8A808A" }
+        $ValidCert = ($null -ne $Signature -and $Signature.Status -eq "Valid" -and ($Signature.SignerCertificate.Thumbprint -eq $ExpectedThumbprint -or $Signature.SignerCertificate.Subject -match '^CN=LordForCuadd([,]|\s|$)'))
+        if ($ValidCert) {
+            Write-Host "[+] Binario local validado mediante firma digital estricta." -ForegroundColor Green
             $ExecutionPermitted = $true
+            Set-ItemProperty -Path $ExePath -Name IsReadOnly -Value $true -ErrorAction SilentlyContinue | Out-Null
         } else {
             Write-Host "[-] ERROR CRÍTICO: El binario local no posee una firma digital válida o está corrupto/manipulado. Abortando por seguridad." -ForegroundColor Red
             $ExecutionPermitted = $false
@@ -188,6 +205,9 @@ try {
         }
     }
 } finally {
+    if (Test-Path $ExePath) {
+        Set-ItemProperty -Path $ExePath -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue | Out-Null
+    }
     if (Test-Path $TempDir) {
         try {
             Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue | Out-Null

@@ -36,7 +36,7 @@ if ([string]::IsNullOrWhiteSpace($Username)) {
 
 # Intentar obtener SID de perfil cargado activamente (excluyendo cuentas de sistema)
 try {
-    $ActiveProfile = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and $_.SID -match '^S-1-5-21-' } | Select-Object -First 1
+    $ActiveProfile = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and ($_.SID -match '^S-1-5-21-' -or $_.SID -match '^S-1-12-1-') } | Select-Object -First 1
     if ($ActiveProfile) {
         $UserSID = $ActiveProfile.SID
     }
@@ -59,7 +59,7 @@ if ([string]::IsNullOrWhiteSpace($UserSID)) {
     try {
         $HKeyUsers = [Microsoft.Win32.Registry]::Users
         foreach ($SubkeyName in $HKeyUsers.GetSubKeyNames()) {
-            if ($SubkeyName -match '^S-1-5-21-\d+-\d+-\d+-\d+$') {
+            if (($SubkeyName -match '^S-1-5-21-\d+-\d+-\d+-\d+$' -or $SubkeyName -match '^S-1-12-1-\d+-\d+-\d+-\d+$') -and $SubkeyName -notmatch '_Classes$') {
                 $VolatileKey = "Registry::HKEY_USERS\$SubkeyName\Volatile Environment"
                 if (Test-Path $VolatileKey) {
                     $UserSID = $SubkeyName

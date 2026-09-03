@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use winreg::enums::*;
 use winreg::RegKey;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[allow(dead_code)]
 pub struct RegistryKeyEntry {
     pub hive: String,
@@ -12,7 +12,7 @@ pub struct RegistryKeyEntry {
     pub value: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct SteamConfig {
@@ -23,7 +23,7 @@ pub struct SteamConfig {
     pub program_files_sub_path: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct EpicConfig {
@@ -32,14 +32,14 @@ pub struct EpicConfig {
     pub default_folder: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct GogConfig {
     pub registry_keys: Vec<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct RiotConfig {
@@ -47,7 +47,7 @@ pub struct RiotConfig {
     pub games: Vec<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct MinecraftConfig {
@@ -58,7 +58,7 @@ pub struct MinecraftConfig {
     pub java_app_path: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct LaunchersConfig {
@@ -75,7 +75,10 @@ pub fn get_launchers_config() -> &'static LaunchersConfig {
     static CONFIG: OnceLock<LaunchersConfig> = OnceLock::new();
     CONFIG.get_or_init(|| {
         let json_str = include_str!("../launchers_config.json");
-        serde_json::from_str(json_str).expect("launchers_config.json must be valid JSON")
+        serde_json::from_str(json_str).unwrap_or_else(|e| {
+            eprintln!("[OVERLORD WARNING] Error al parsear launchers_config.json: {}", e);
+            LaunchersConfig::default()
+        })
     })
 }
 

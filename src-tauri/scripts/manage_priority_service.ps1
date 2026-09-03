@@ -35,9 +35,9 @@ if ($Action -eq "install") {
     
     $Acl.AddAccessRule($SystemRule)
     $Acl.AddAccessRule($AdminsRule)
-    try { $Acl.AddAccessRule($AdminsRule2) } catch {}
+    try { $Acl.AddAccessRule($AdminsRule2) } catch { Write-Verbose "Regla AdminsRule2 no aplicable: $_" }
     $Acl.AddAccessRule($UsersRule)
-    try { $Acl.AddAccessRule($UsersRule2) } catch {}
+    try { $Acl.AddAccessRule($UsersRule2) } catch { Write-Verbose "Regla UsersRule2 no aplicable: $_" }
     
     try {
         Set-Acl -Path $InstallDir -AclObject $Acl -ErrorAction Stop
@@ -65,7 +65,9 @@ function Write-DaemonLog {
         }
         $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         "[$Timestamp] $Message" | Out-File -FilePath $LogPath -Append -Encoding utf8 -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+        # Error al escribir log de daemon no debe romper el bucle
+    }
 }
 
 Write-DaemonLog "Iniciando daemon de prioridad de juegos..."
@@ -73,15 +75,22 @@ Write-DaemonLog "Iniciando daemon de prioridad de juegos..."
 while ($true) {
     if (-not (Test-Path $ConfigPath)) {
         Write-DaemonLog "Archivo de configuracion eliminado. Deteniendo daemon."
-        exit 0
+        break
     }
     try {
-        $Games = Get-Content -Path $ConfigPath -ErrorAction Stop
-        if ($Games) {
-            $GamesList = $Games -split "," | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ -ne "" }
-            if ($GamesList) {
-                foreach ($Game in $GamesList) {
+        $ConfigLines = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
+        if ($null -ne $ConfigLines) {
+            $CriticalSystemProcesses = @("system", "idle", "registry", "smss", "csrss", "wininit", "services", "lsass", "svchost", "fontdrvhost", "winlogon", "dwm", "explorer", "sihost", "taskhostw")
+            foreach ($Game in $ConfigLines) {
+                if (-not [string]::IsNullOrWhiteSpace($Game)) {
+                    $Game = $Game.Trim()
+                    if ($Game -notmatch '^[a-z0-9_\-\.]+$') {
+                        continue
+                    }
                     $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
+                    if ($CriticalSystemProcesses -contains $ProcName.ToLower()) {
+                        continue
+                    }
                     try {
                         $Procs = [System.Diagnostics.Process]::GetProcessesByName($ProcName)
                         if ($null -ne $Procs -and $Procs.Count -gt 0) {
@@ -94,14 +103,18 @@ while ($true) {
                                             if ($Path -and ($Path.ToLower().Contains(".minecraft") -or $Path.ToLower().Contains("minecraft"))) {
                                                 $IsMinecraft = $true
                                             }
-                                        } catch {}
+                                        } catch {
+                                            Write-DaemonLog "No se pudo leer modulo de javaw ($($Proc.Id)): $_"
+                                        }
                                         if (-not $IsMinecraft) {
                                             try {
                                                 $CimProc = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $($Proc.Id)" -ErrorAction SilentlyContinue
                                                 if ($CimProc -and $CimProc.CommandLine -and ($CimProc.CommandLine.ToLower().Contains(".minecraft") -or $CimProc.CommandLine.ToLower().Contains("minecraft") -or $CimProc.CommandLine.ToLower().Contains("tlauncher") -or $CimProc.CommandLine.ToLower().Contains("prism") -or $CimProc.CommandLine.ToLower().Contains("multimc"))) {
                                                     $IsMinecraft = $true
                                                 }
-                                            } catch {}
+                                            } catch {
+                                                Write-DaemonLog "No se pudo consultar linea de comandos CIM de javaw ($($Proc.Id)): $_"
+                                            }
                                         }
                                         if (-not $IsMinecraft) {
                                             if ($null -ne $Proc) { $Proc.Dispose() }

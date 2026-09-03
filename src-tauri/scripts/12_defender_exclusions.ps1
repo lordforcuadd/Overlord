@@ -90,10 +90,26 @@ try {
 
         if (![string]::IsNullOrWhiteSpace($RealExePath) -and (Test-Path $RealExePath -PathType Leaf)) {
             $GameDir = Split-Path $RealExePath -Parent
+            $ForbiddenDirs = @(
+                $env:SystemRoot,
+                (Join-Path $env:SystemDrive "\"),
+                $env:TEMP,
+                $env:LOCALAPPDATA,
+                (Join-Path $env:USERPROFILE "Downloads"),
+                (Join-Path $env:USERPROFILE "Desktop")
+            ) | ForEach-Object { if ($_) { [System.IO.Path]::GetFullPath($_).TrimEnd('\').ToLower() } }
+
             if (![string]::IsNullOrWhiteSpace($GameDir) -and (Test-Path $GameDir -PathType Container)) {
                 $ResolvedDir = [System.IO.Path]::GetFullPath($GameDir).TrimEnd('\')
-                if (!$ExcludedPaths.Contains($ResolvedDir)) {
-                    $ExcludedPaths.Add($ResolvedDir)
+                if (-not ($ForbiddenDirs -contains $ResolvedDir.ToLower())) {
+                    if (!$ExcludedPaths.Contains($ResolvedDir)) {
+                        $ExcludedPaths.Add($ResolvedDir)
+                    }
+                } else {
+                    $ResolvedExe = [System.IO.Path]::GetFullPath($RealExePath)
+                    if (!$ExcludedPaths.Contains($ResolvedExe)) {
+                        $ExcludedPaths.Add($ResolvedExe)
+                    }
                 }
             }
         }

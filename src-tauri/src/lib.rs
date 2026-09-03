@@ -271,19 +271,20 @@ fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
 async fn is_priority_daemon_active() -> bool {
     let powershell_path = get_powershell_path();
 
-    if let Ok(output) = tokio::process::Command::new(&powershell_path)
-        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+    let mut cmd = tokio::process::Command::new(&powershell_path);
+    cmd.creation_flags(0x0800_0000) // CREATE_NO_WINDOW
         .args([
             "-NoProfile",
             "-Command",
             "(Get-ScheduledTask -TaskName OverlordPriorityMonitor -ErrorAction SilentlyContinue).State",
-        ])
-        .output().await {
-            let state = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            state == "Ready" || state == "Running"
-        } else {
-            false
-        }
+        ]);
+
+    if let Ok(Ok(output)) = tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output()).await {
+        let state = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        state == "Ready" || state == "Running"
+    } else {
+        false
+    }
 }
 
 fn is_priority_daemon_registered_native() -> bool {
@@ -353,7 +354,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                                 let is_own = if let Some(ref sid) = current_sid {
                                     does_process_belong_to_current_user(pid.as_u32(), sid)
                                 } else {
-                                    true
+                                    false
                                 };
 
                                 if is_own {
@@ -413,8 +414,9 @@ fn write_to_overlord_log(msg: &str) {
 
 #[tauri::command]
 fn log_from_js(msg: String) {
-    println!("[JS LOG]: {}", msg);
-    write_to_overlord_log(&msg);
+    let sanitized: String = msg.chars().take(1024).filter(|c| !c.is_control() || *c == ' ' || *c == '\t').collect();
+    println!("[JS LOG]: {}", sanitized);
+    write_to_overlord_log(&sanitized);
 }
 
 #[tauri::command]

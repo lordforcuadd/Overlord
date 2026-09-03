@@ -22,7 +22,9 @@ Try {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+    } catch {
+        Write-Verbose "Fallo al detener DiagTrack: $_"
+    }
 
     try {
         $DoSvcObj = Get-Service -Name "DoSvc" -ErrorAction SilentlyContinue
@@ -35,7 +37,9 @@ Try {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -ValueName "Start" -BackupSubFolder "Services\DoSvc"
         Stop-Service "DoSvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
         Set-Service "DoSvc" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+    } catch {
+        Write-Verbose "Fallo al detener DoSvc: $_"
+    }
 
     try {
         $SvcObj = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
@@ -49,7 +53,12 @@ Try {
         Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Services\WerSvc"
         # Asegurar inicio Manual para no romper Windows Update
         Set-Service "WerSvc" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+        if ($null -ne $SvcObj -and $SvcObj.Status -eq "Running") {
+            Stop-Service "WerSvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
+        }
+    } catch {
+        Write-Verbose "Fallo al ajustar WerSvc: $_"
+    }
 
     $WerPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
     if (!(Test-Path $WerPath)) { New-Item -Path $WerPath -Force | Out-Null }

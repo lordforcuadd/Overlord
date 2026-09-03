@@ -21,8 +21,7 @@ export function buildExpectedProfileState(
   profileMods.forEach((mod) => {
     if (Object.prototype.hasOwnProperty.call(expected, mod)) {
       if (mod === "irqAffinity" && hardware.isLaptop) return;
-      if (mod === "irqAffinity" && hardware.tier === "Gama Estándar") return;
-      if (mod === "disableMitigations" && (hardware.tier !== "Gama Estándar" || hardware.isArm64)) return;
+      if (mod === "disableMitigations" && hardware.isArm64) return;
       expected[mod] = true;
     }
   });

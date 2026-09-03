@@ -19,7 +19,7 @@
           <div class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-1">
             <div
               v-for="(game, index) in store.gameList"
-              :key="index"
+              :key="game.exe || index"
               class="flex items-center justify-between"
             >
               <span
