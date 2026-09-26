@@ -56,13 +56,7 @@ if ([string]::IsNullOrWhiteSpace($UserSID)) {
                 $LoadedProfiles | Where-Object { $_.LocalPath -like "*\$Username" } | Select-Object -First 1
             } else { $null }
 
-            $TargetProfile = if ($MatchedProfile) { 
-                $MatchedProfile 
-            } elseif ([string]::IsNullOrWhiteSpace($Username)) { 
-                $LoadedProfiles | Select-Object -First 1 
-            } else { 
-                $null 
-            }
+            $TargetProfile = if ($MatchedProfile) { $MatchedProfile } else { $null }
             if ($TargetProfile) {
                 $UserSID = $TargetProfile.SID
             }

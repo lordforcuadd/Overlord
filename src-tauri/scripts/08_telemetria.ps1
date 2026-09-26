@@ -110,8 +110,8 @@ Try {
             if ((Get-ItemPropertyValue -Path $LoggerKey -Name "Start" -ErrorAction SilentlyContinue) -ne 0) { 
                 throw "Fallo al asegurar el estado detenido para el logger: $Logger" 
             }
+            logman stop $Logger -ets 2>$null | Out-Null
         }
-        logman stop $Logger -ets 2>$null | Out-Null
     }
 
     # Bloqueo de Windows Recall (Directivas de Windows AI)

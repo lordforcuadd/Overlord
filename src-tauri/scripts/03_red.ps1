@@ -175,7 +175,9 @@ Try {
                     try { Disable-NetAdapterLso -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] LSO no soportado: $_" }
                     try { Disable-NetAdapterRsc -Name $Adapter.Name -IPv4 -IPv6 -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] RSC no soportado: $_" }
                     try { Set-NetAdapterRss -Name $Adapter.Name -Profile Closest -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] RSS no soportado: $_" }
-                    try { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] PowerManagement no soportado: $_" }
+                    if (-not $RunningOnBattery) {
+                        try { Set-NetAdapterPowerManagement -Name $Adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "[$($Adapter.Name)] PowerManagement no soportado: $_" }
+                    }
                     
                     Write-Host "    -> Aislamiento de latencia inyectado en adaptador: $($Adapter.Name)"
                 } catch {

@@ -33,6 +33,20 @@ try {
     $localAppDataFolders = Get-ChildItem -Path $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue
     $ExcludedPaths = [System.Collections.Generic.List[string]]::new()
 
+    $UserDir = $null
+    $UserSidVal = if (Get-Variable -Name "UserSID" -Scope "global" -ErrorAction SilentlyContinue) { $global:UserSID } else { $null }
+    if (-not [string]::IsNullOrWhiteSpace($UserSidVal)) {
+        try {
+            $userProf = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.SID -eq $UserSidVal } | Select-Object -First 1
+            if ($userProf -and $userProf.LocalPath) {
+                $UserDir = $userProf.LocalPath
+            }
+        } catch { }
+    }
+    if ([string]::IsNullOrWhiteSpace($UserDir)) {
+        $UserDir = $env:USERPROFILE
+    }
+
     foreach ($Game in $Games) {
         if ([string]::IsNullOrWhiteSpace($Game)) { continue }
         
@@ -95,6 +109,11 @@ try {
                 (Join-Path $env:SystemDrive "\"),
                 $env:TEMP,
                 $env:LOCALAPPDATA,
+                $UserDir,
+                (Join-Path $UserDir "AppData\Local\Temp"),
+                (Join-Path $UserDir "AppData\Local"),
+                (Join-Path $UserDir "Downloads"),
+                (Join-Path $UserDir "Desktop"),
                 (Join-Path $env:USERPROFILE "Downloads"),
                 (Join-Path $env:USERPROFILE "Desktop")
             ) | ForEach-Object { if ($_) { [System.IO.Path]::GetFullPath($_).TrimEnd('\').ToLower() } }

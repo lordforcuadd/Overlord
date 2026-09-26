@@ -90,25 +90,27 @@ switch ($ToggleName) {
             if (-not $hasEP -and -not $hasSAB) {
                 Write-Output "ADVERTENCIA: Para habilitar el menu clasico en compilaciones >= 26000 se requiere ExplorerPatcher o StartAllBack instalado."
             } else {
-                if ($Value -eq 1) {
-                    if ($hasEP) {
-                        $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
-                        if (Test-Path $epConfig) {
-                            $content = Get-Content $epConfig -Raw
-                            $content = $content -replace 'ControlInterface=.*', 'ControlInterface=1'
-                            Set-Content $epConfig -Value $content -Force
-                            $RequiresExplorerRestart = $true
+                if ($hasEP) {
+                    $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+                    if (Test-Path $epConfig) {
+                        $QolEpBackup = "HKLM:\SOFTWARE\Overlord\Backup\QoL\ExplorerPatcher"
+                        if (-not (Test-Path $QolEpBackup)) { New-Item -Path $QolEpBackup -Force | Out-Null }
+                        $existingEpBackup = Get-ItemProperty -Path $QolEpBackup -ErrorAction SilentlyContinue
+                        if ($null -eq $existingEpBackup -or $null -eq $existingEpBackup.PSObject.Properties["ControlInterface"]) {
+                            $rawEp = Get-Content $epConfig -Raw -ErrorAction SilentlyContinue
+                            $currentCi = if ($rawEp -match '(?m)^ControlInterface=(\d+)') { $Matches[1] } else { '_ABSENT_' }
+                            Set-ItemProperty -Path $QolEpBackup -Name "ControlInterface" -Value $currentCi -Type String -Force | Out-Null
                         }
-                    }
-                } else {
-                    if ($hasEP) {
-                        $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
-                        if (Test-Path $epConfig) {
-                            $content = Get-Content $epConfig -Raw
-                            $content = $content -replace 'ControlInterface=.*', 'ControlInterface=0'
-                            Set-Content $epConfig -Value $content -Force
-                            $RequiresExplorerRestart = $true
+
+                        $targetCi = if ($Value -eq 1) { '1' } else { '0' }
+                        $content = Get-Content $epConfig -Raw
+                        if ($content -match '(?m)^ControlInterface=.*$') {
+                            $content = $content -replace '(?m)^ControlInterface=.*$', "ControlInterface=$targetCi"
+                        } else {
+                            $content = $content.TrimEnd() + "`r`nControlInterface=$targetCi`r`n"
                         }
+                        Set-Content $epConfig -Value $content -Force -Encoding utf8
+                        $RequiresExplorerRestart = $true
                     }
                 }
             }

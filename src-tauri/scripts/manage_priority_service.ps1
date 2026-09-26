@@ -60,7 +60,11 @@ function Write-DaemonLog {
         if (Test-Path $LogPath) {
             $File = Get-Item $LogPath -ErrorAction SilentlyContinue
             if ($null -ne $File -and $File.Length -gt 500KB) {
-                Clear-Content -Path $LogPath -ErrorAction SilentlyContinue
+                $OldLogPath = Join-Path $InstallDir "daemon.old.log"
+                if (Test-Path $OldLogPath) {
+                    Remove-Item -Path $OldLogPath -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                Move-Item -Path $LogPath -Destination $OldLogPath -Force -ErrorAction SilentlyContinue | Out-Null
             }
         }
         $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -139,7 +143,6 @@ while ($true) {
                     }
                 }
             }
-        }
     } catch {
         Write-DaemonLog "Error general en el ciclo del daemon: $_"
     }

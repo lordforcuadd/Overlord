@@ -6,7 +6,6 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Iniciando mantenimiento y optimización de almacenamiento..."
 
     if ($IsSsd) {

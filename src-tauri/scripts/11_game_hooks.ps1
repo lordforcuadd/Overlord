@@ -143,6 +143,18 @@ try {
                         if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_IsReadOnly"]) {
                             Set-ItemProperty -Path $GameBackupPath -Name "Original_IsReadOnly" -Value $(if ($origReadOnly) { 1 } else { 0 }) -Force | Out-Null
                         }
+                        if ($null -eq $gameProps -or $null -eq $gameProps.PSObject.Properties["Original_Encoding"]) {
+                            $iniBytes = [System.IO.File]::ReadAllBytes($ini.FullName)
+                            $detectedEncoding = "utf8"
+                            if ($iniBytes.Length -ge 2 -and $iniBytes[0] -eq 0xFF -and $iniBytes[1] -eq 0xFE) {
+                                $detectedEncoding = "Unicode"
+                            } elseif ($iniBytes.Length -ge 2 -and $iniBytes[0] -eq 0xFE -and $iniBytes[1] -eq 0xFF) {
+                                $detectedEncoding = "BigEndianUnicode"
+                            }
+                            Set-ItemProperty -Path $GameBackupPath -Name "Original_Encoding" -Value $detectedEncoding -Force | Out-Null
+                        } else {
+                            $detectedEncoding = $gameProps.Original_Encoding
+                        }
 
                         # Construir el nuevo contenido
                         # Construir el nuevo contenido (Refactorizado sin boolean-spaghetti)
@@ -188,7 +200,7 @@ try {
                         $newContent = $iniText -split "`r`n"
 
                         if ($changed) {
-                            Set-Content -Path $ini.FullName -Value $newContent -Force -Encoding utf8
+                            Set-Content -Path $ini.FullName -Value $newContent -Force -Encoding $detectedEncoding
                             Write-Host "    -> Modo exclusivo forzado en $($engine.Name) ($($ini.FullName))"
                             $FullscreenForced = $true
                         } else {
@@ -210,13 +222,17 @@ try {
                 if (!(Test-Path (Split-Path $IfeoBackup -Parent))) {
                     New-Item -Path (Split-Path $IfeoBackup -Parent) -Force | Out-Null
                 }
-                Copy-Item -Path $OldIfeo -Destination $IfeoBackup -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-                $PropsToRemove = @("CpuPriorityClass", "IoPriority", "PagePriorityClass")
-                foreach ($Prop in $PropsToRemove) {
-                    Remove-ItemProperty -Path $OldIfeo -Name $Prop -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                if (Test-Path "$OldIfeo\PerfOptions") {
-                    Remove-Item -Path "$OldIfeo\PerfOptions" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                try {
+                    Copy-Item -Path $OldIfeo -Destination $IfeoBackup -Recurse -Force -ErrorAction Stop | Out-Null
+                    $PropsToRemove = @("CpuPriorityClass", "IoPriority", "PagePriorityClass")
+                    foreach ($Prop in $PropsToRemove) {
+                        Remove-ItemProperty -Path $OldIfeo -Name $Prop -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    if (Test-Path "$OldIfeo\PerfOptions") {
+                        Remove-Item -Path "$OldIfeo\PerfOptions" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
+                } catch {
+                    Write-Warning "Fallo al respaldar IFEO legacy para ${ExeName}, omitiendo modificacion: $_"
                 }
             } else {
                 # Guardar marcador de ausente para saber que no existia originalmente
@@ -233,14 +249,13 @@ try {
                 $LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
                 if (!(Test-Path $LayersPath)) { New-Item -Path $LayersPath -Force | Out-Null }
 
-
-
                 $layersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
                 $ExistingLayers = if ($null -ne $layersProps -and $null -ne $layersProps.PSObject.Properties[$RealExePath]) { $layersProps.$RealExePath } else { $null }
                 $BackupRegistryCheck = Get-ItemProperty -Path $GameBackupPath -ErrorAction SilentlyContinue
                 
-                if ($ExistingLayers -and ($null -eq $BackupRegistryCheck -or $null -eq $BackupRegistryCheck.PSObject.Properties["PreviousLayers"])) {
-                    Set-ItemProperty -Path $GameBackupPath -Name "PreviousLayers" -Value $ExistingLayers -Force | Out-Null
+                if ($null -eq $BackupRegistryCheck -or $null -eq $BackupRegistryCheck.PSObject.Properties["PreviousLayers"]) {
+                    $layersVal = if ($ExistingLayers) { $ExistingLayers } else { "_ABSENT_" }
+                    Set-ItemProperty -Path $GameBackupPath -Name "PreviousLayers" -Value $layersVal -Force | Out-Null
                 }
                 if ($null -eq $BackupRegistryCheck -or $null -eq $BackupRegistryCheck.PSObject.Properties["Path"]) {
                     Set-ItemProperty -Path $GameBackupPath -Name "Path" -Value $RealExePath -Force | Out-Null
@@ -256,11 +271,7 @@ try {
                     if ($FilteredLayers) { $NewFlagsList.AddRange([string[]]$FilteredLayers) }
                 }
                 
-                $DpiVal = Get-ItemPropertyValue -Path "$HKCU_Path\Control Panel\Desktop" -Name "LogPixels" -ErrorAction SilentlyContinue
-                $IsDpi100 = $null -eq $DpiVal -or $DpiVal -eq 96
-                if (-not $IsDpi100) {
-                    $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
-                }
+                $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
                 
                 $FinalFlagsValue = ($NewFlagsList -join " ").Trim()
 

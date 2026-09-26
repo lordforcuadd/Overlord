@@ -33,8 +33,10 @@ Try {
         Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
         if ($null -ne $CurrentGuid) {
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "94d3a615-a899-4ac5-ae2b-e4d8f634367f" -BackupName "Power_${CurrentGuid}_94d3a615-a899-4ac5-ae2b-e4d8f634367f"
-            try { & powercfg /SETACVALUEINDEX $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 94d3a615-a899-4ac5-ae2b-e4d8f634367f 1 2>$null } catch { Write-Verbose "Fallo al ajustar índice AC en laptop: $_" }
-            try { & powercfg /setactive $CurrentGuid 2>$null } catch { Write-Verbose "Fallo al activar plan en laptop: $_" }
+            & powercfg /SETACVALUEINDEX $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 94d3a615-a899-4ac5-ae2b-e4d8f634367f 1 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { Write-Verbose "Fallo al ajustar índice AC en laptop" }
+            & powercfg /setactive $CurrentGuid 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { Write-Verbose "Fallo al activar plan en laptop" }
         }
     } else {
         Write-Host "    -> Computadora de Escritorio detectada: Seleccionando plan de Maximo Rendimiento..."
@@ -66,9 +68,9 @@ Try {
 
                 if ($dupOut -match "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
                     $newGuid = $Matches[1]
-                    & powercfg /changename $newGuid "Overlord Maximo Rendimiento" 2>$null
-                    & powercfg /setactive $newGuid 2>$null
-                    Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force -ErrorAction SilentlyContinue | Out-Null
+                    & powercfg /changename $newGuid "Overlord Maximo Rendimiento" 2>$null | Out-Null
+                    & powercfg /setactive $newGuid 2>$null | Out-Null
+                    Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force | Out-Null
                 } else {
                     # Ultimo recurso: activar plan Equilibrado de fabrica
                     & powercfg /setactive "381b4222-f694-41f0-9685-ff5bb260df2e" 2>$null

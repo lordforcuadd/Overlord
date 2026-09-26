@@ -219,7 +219,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "irqAffinity",
     title: "Afinidad de Hardware (IRQ)",
     description:
-      "Optimiza el procesamiento de interrupciones de red reduciendo el jitter de DPC en computadoras de escritorio.",
+      "Ajusta la política de interrupciones del bus PCI al valor nativo del sistema (MachineDefault) y deshabilita la moderación de interrupciones en equipos de escritorio.",
     riesgo: "Experimental",
     evidenciaImpacto: "Comprobado",
     reversible: true,

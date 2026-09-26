@@ -246,6 +246,28 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "FontSmoothing" -BackupSubFolder "QoL\Visuals" -DefaultValue "2" -DefaultType "String"
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "FontSmoothingType" -BackupSubFolder "QoL\Visuals" -DefaultValue 2
 
+    $QolEpBackup = "$BackupPath\QoL\ExplorerPatcher"
+    if (Test-Path $QolEpBackup) {
+        $epConfig = "$env:APPDATA\ExplorerPatcher\ep_setup.ini"
+        if (Test-Path $epConfig) {
+            $SavedCi = Get-SafeRegistryValue -Path $QolEpBackup -Name "ControlInterface"
+            if ($null -ne $SavedCi) {
+                $content = Get-Content $epConfig -Raw -ErrorAction SilentlyContinue
+                if ($SavedCi -eq '_ABSENT_') {
+                    $content = $content -replace '(?m)^ControlInterface=.*\r?\n?', ''
+                } else {
+                    if ($content -match '(?m)^ControlInterface=.*$') {
+                        $content = $content -replace '(?m)^ControlInterface=.*$', "ControlInterface=$SavedCi"
+                    } else {
+                        $content = $content.TrimEnd() + "`r`nControlInterface=$SavedCi`r`n"
+                    }
+                }
+                Set-Content $epConfig -Value $content -Force -Encoding utf8
+            }
+        }
+        Remove-ItemProperty -Path $QolEpBackup -Name "ControlInterface" -ErrorAction SilentlyContinue | Out-Null
+    }
+
     $StartTypeMap = @{ 2 = "Automatic"; 3 = "Manual"; 4 = "Disabled" }
     $ServicesFallback = @{
         "DiagTrack"        = "Automatic"
@@ -302,6 +324,7 @@ Try {
     }
 
     try {
+        Get-NetFirewallRule -Name "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
         Get-NetFirewallRule -DisplayName "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
     } catch {
         Write-Error "No se pudieron remover las reglas del Firewall de Windows: $_"
@@ -404,8 +427,14 @@ Try {
                     }
                     if ($null -ne $props.PSObject.Properties["InterruptModerationVal"]) {
                         $Val = $props.InterruptModerationVal
-                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue $Val -ErrorAction SilentlyContinue | Out-Null
+                        $SavedKey = if ($null -ne $props.PSObject.Properties["InterruptModerationKey"]) { $props.InterruptModerationKey } else { "*InterruptModeration" }
+                        if ($SavedKey -and $SavedKey.StartsWith("*")) {
+                            Set-NetAdapterAdvancedProperty -Name $Adapter.Name -RegistryKeyword $SavedKey -RegistryValue $Val -ErrorAction SilentlyContinue | Out-Null
+                        } else {
+                            Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName $SavedKey -DisplayValue $Val -ErrorAction SilentlyContinue | Out-Null
+                        }
                         Remove-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -ErrorAction SilentlyContinue | Out-Null
+                        Remove-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationKey" -ErrorAction SilentlyContinue | Out-Null
                     }
                 }
             }
@@ -665,7 +694,7 @@ Try {
             if (![string]::IsNullOrWhiteSpace($GamePath)) {
                 $LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
                 if (Test-Path $LayersPath) {
-                    if (![string]::IsNullOrWhiteSpace($PreviousLayers)) {
+                    if (![string]::IsNullOrWhiteSpace($PreviousLayers) -and $PreviousLayers -ne "_ABSENT_") {
                         Set-ItemProperty -Path $LayersPath -Name $GamePath -Type String -Value $PreviousLayers -Force | Out-Null
                     } else {
                         Remove-ItemProperty -Path $LayersPath -Name $GamePath -ErrorAction SilentlyContinue | Out-Null
@@ -730,7 +759,9 @@ Try {
                         }
                     }
                     if ($changed) {
-                        Set-Content -Path $IniPath -Value $newContent -Force -Encoding utf8 | Out-Null
+                        $SavedEncoding = Get-SafeRegistryValue -Path $Key.PSPath -Name "Original_Encoding"
+                        $EncodingToUse = if (![string]::IsNullOrWhiteSpace($SavedEncoding)) { $SavedEncoding } else { "utf8" }
+                        Set-Content -Path $IniPath -Value $newContent -Force -Encoding $EncodingToUse | Out-Null
                         Write-Host "    -> Preferencias de pantalla originales restauradas en: $IniPath"
                     }
                     $OrigReadOnly = Get-SafeRegistryValue -Path $Key.PSPath -Name "Original_IsReadOnly"

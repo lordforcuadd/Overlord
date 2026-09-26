@@ -165,7 +165,7 @@ function Uninstall-OverlordPriorityDaemon {
 
     # Matar de forma explicita procesos PowerShell huerfanos del daemon (CIM compatible con PS 5.1)
     try {
-        $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%Overlord\\priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
+        $DaemonProcs = Get-CimInstance -ClassName Win32_Process -Filter "(Name='powershell.exe' OR Name='pwsh.exe') AND CommandLine LIKE '%priority_monitor_daemon.ps1%'" -ErrorAction SilentlyContinue
         if ($null -ne $DaemonProcs) {
             foreach ($P in $DaemonProcs) {
                 $pidToKill = $null
