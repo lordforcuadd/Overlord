@@ -205,7 +205,8 @@ export const useOverlordStore = defineStore("overlord", {
       }
     },
     async togglePriorityService(enable: boolean) {
-      this.setGlobalBusy(true);
+      const wasBusy = this.isGlobalBusy;
+      if (!wasBusy) this.setGlobalBusy(true);
       try {
         const gameListOpt = this.gameList
           .filter((g) => g.optimize)
@@ -226,7 +227,7 @@ export const useOverlordStore = defineStore("overlord", {
         console.error(`[ERROR TOGGLING PRIORITY SERVICE ${enable}]:`, e);
         await this.checkPriorityServiceStatus();
       } finally {
-        this.setGlobalBusy(false);
+        if (!wasBusy) this.setGlobalBusy(false);
       }
     },
     async scanGames() {
@@ -243,7 +244,23 @@ export const useOverlordStore = defineStore("overlord", {
             }
           }
         }
-        this.gameList = [...scanned, ...manualGames];
+        const seenExes = new Set<string>();
+        const combined: GamePayload[] = [];
+        for (const g of scanned) {
+          const norm = (g.exe || "").toLowerCase().trim();
+          if (norm && !seenExes.has(norm)) {
+            seenExes.add(norm);
+            combined.push(g);
+          }
+        }
+        for (const g of manualGames) {
+          const norm = (g.exe || "").toLowerCase().trim();
+          if (norm && !seenExes.has(norm)) {
+            seenExes.add(norm);
+            combined.push(g);
+          }
+        }
+        this.gameList = combined;
       } catch (e) {
         console.error("[ERROR ESCANEANDO CATÁLOGO DE JUEGOS]:", e);
       }

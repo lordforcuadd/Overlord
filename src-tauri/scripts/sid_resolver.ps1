@@ -34,27 +34,43 @@ if ([string]::IsNullOrWhiteSpace($Username)) {
     $Username = $env:USERNAME
 }
 
-# Intentar obtener SID de perfil cargado activamente (excluyendo cuentas de sistema)
-try {
-    $ActiveProfile = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and ($_.SID -match '^S-1-5-21-' -or $_.SID -match '^S-1-12-1-') } | Select-Object -First 1
-    if ($ActiveProfile) {
-        $UserSID = $ActiveProfile.SID
-    }
-} catch { Write-Warning "Fallback SID [4] fallido: $_" }
-
-# Fallback: Traducir a SID a partir del Username si no se obtuvo
-if ([string]::IsNullOrWhiteSpace($UserSID) -and -not [string]::IsNullOrWhiteSpace($Username)) {
+# 1. Si tenemos $Username, traducir de forma directa y determinista a SID
+if (-not [string]::IsNullOrWhiteSpace($Username)) {
     try {
         $NtAccount = New-Object System.Security.Principal.NTAccount($Username)
         $UserSID = $NtAccount.Translate([System.Security.Principal.SecurityIdentifier]).Value
-    } catch { Write-Warning "Fallback SID [5] fallido: $_"
+    } catch { 
+        Write-Warning "Fallback SID [Traducir NTAccount] fallido para ${Username}: $_"
         try {
             $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $Username }).SID
-        } catch { Write-Warning "Fallback SID [6] fallido: $_" }
+        } catch { Write-Warning "Fallback SID [Win32_UserAccount] fallido para ${Username}: $_" }
     }
 }
 
-# Fallback 5: Encontrar subclave de usuario en HKEY_USERS con Volatile Environment
+# 2. Si no se obtuvo SID por traducción, buscar perfil cargado activamente vinculando a $Username si está disponible
+if ([string]::IsNullOrWhiteSpace($UserSID)) {
+    try {
+        $LoadedProfiles = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and ($_.SID -match '^S-1-5-21-' -or $_.SID -match '^S-1-12-1-') }
+        if ($LoadedProfiles) {
+            $MatchedProfile = if (-not [string]::IsNullOrWhiteSpace($Username)) {
+                $LoadedProfiles | Where-Object { $_.LocalPath -like "*\$Username" } | Select-Object -First 1
+            } else { $null }
+
+            $TargetProfile = if ($MatchedProfile) { 
+                $MatchedProfile 
+            } elseif ([string]::IsNullOrWhiteSpace($Username)) { 
+                $LoadedProfiles | Select-Object -First 1 
+            } else { 
+                $null 
+            }
+            if ($TargetProfile) {
+                $UserSID = $TargetProfile.SID
+            }
+        }
+    } catch { Write-Warning "Fallback SID [Win32_UserProfile] fallido: $_" }
+}
+
+# 3. Fallback: Encontrar subclave de usuario en HKEY_USERS con Volatile Environment
 if ([string]::IsNullOrWhiteSpace($UserSID)) {
     try {
         $HKeyUsers = [Microsoft.Win32.Registry]::Users
@@ -62,12 +78,20 @@ if ([string]::IsNullOrWhiteSpace($UserSID)) {
             if (($SubkeyName -match '^S-1-5-21-\d+-\d+-\d+-\d+$' -or $SubkeyName -match '^S-1-12-1-\d+-\d+-\d+-\d+$') -and $SubkeyName -notmatch '_Classes$') {
                 $VolatileKey = "Registry::HKEY_USERS\$SubkeyName\Volatile Environment"
                 if (Test-Path $VolatileKey) {
-                    $UserSID = $SubkeyName
-                    break
+                    if (-not [string]::IsNullOrWhiteSpace($Username)) {
+                        $VolatileUser = (Get-ItemProperty -Path $VolatileKey -Name "USERNAME" -ErrorAction SilentlyContinue).USERNAME
+                        if ($VolatileUser -and $VolatileUser -eq $Username) {
+                            $UserSID = $SubkeyName
+                            break
+                        }
+                    } else {
+                        $UserSID = $SubkeyName
+                        break
+                    }
                 }
             }
         }
-    } catch { Write-Warning "Fallback SID [7] fallido: $_" }
+    } catch { Write-Warning "Fallback SID [Volatile Environment] fallido: $_" }
 }
 
 # Definir la variable global de ruta de usuario

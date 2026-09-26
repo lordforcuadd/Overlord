@@ -293,7 +293,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                 is_x3d: false,
                 is_ssd: false,
                 is_arm64: is_arm64(),
-            }, true)
+            }, false)
         });
         
         if !handle_ok {

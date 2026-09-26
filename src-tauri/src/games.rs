@@ -76,7 +76,7 @@ pub fn get_launchers_config() -> &'static LaunchersConfig {
     CONFIG.get_or_init(|| {
         let json_str = include_str!("../launchers_config.json");
         serde_json::from_str(json_str).unwrap_or_else(|e| {
-            eprintln!("[OVERLORD WARNING] Error al parsear launchers_config.json: {}", e);
+            crate::write_to_overlord_log(&format!("[OVERLORD ERROR] Error al parsear launchers_config.json: {}", e));
             LaunchersConfig::default()
         })
     })

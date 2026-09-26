@@ -15,8 +15,15 @@ Try {
     $WddmSupported = $false
     
     if ($BuildNum -ge 19041) {
-        if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-            $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+        $Controllers = if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+            Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+        } elseif (Get-Command Get-WmiObject -ErrorAction SilentlyContinue) {
+            Get-WmiObject Win32_VideoController -ErrorAction SilentlyContinue
+        } else {
+            $null
+        }
+
+        if ($null -ne $Controllers) {
             foreach ($Controller in $Controllers) {
                 $DriverVer = $Controller.DriverVersion
                 # El formato DCH de drivers (NVIDIA/AMD/Intel) mapea el WDDM major en el primer segmento
@@ -27,9 +34,6 @@ Try {
                     }
                 }
             }
-        } else {
-            # Fallback defensivo si no está CIM disponible pero el SO es moderno
-            $WddmSupported = $true
         }
     }
 

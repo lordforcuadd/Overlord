@@ -93,7 +93,7 @@ if (Test-Path $ProfilePath) {
     if (-not $IsLaptop) {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-                $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.NdisPhysicalMedium -eq 14 -or $_.NdisPhysicalMedium -eq 9)
+                $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
             } | ForEach-Object { "$($_.InterfaceGuid)" }
             
             if ($ActiveGuids.Count -gt 0) {
@@ -118,8 +118,9 @@ if (Test-Path $ProfilePath) {
     $RunningOnBattery = $false
     if ($IsLaptop) {
         $BatteryStatus = Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
-        if ($null -ne $BatteryStatus -and $BatteryStatus.PowerOnline -eq $false) {
-            $RunningOnBattery = $true
+        if ($null -ne $BatteryStatus) {
+            $HasAC = @($BatteryStatus | Where-Object { $_.PowerOnline -eq $true }).Count -gt 0
+            $RunningOnBattery = -not $HasAC
         }
     }
     

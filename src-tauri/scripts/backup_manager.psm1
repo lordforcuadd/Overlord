@@ -40,7 +40,12 @@ function Backup-OverlordRegistryValue {
                 if ($null -ne $RegKey) {
                     $Kind = $RegKey.GetValueKind($ValueName)
                     Set-ItemProperty -Path $GlobalBackupPath -Name "${ValueName}_Kind" -Value $Kind.ToString() -Force | Out-Null
-                    Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value $OrigValue -Force | Out-Null
+                    if ($Kind -eq [Microsoft.Win32.RegistryValueKind]::ExpandString) {
+                        $RawValue = $RegKey.GetValue($ValueName, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                        Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value $RawValue -Force | Out-Null
+                    } else {
+                        Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value $OrigValue -Force | Out-Null
+                    }
                 }
             } elseif ($null -eq $OrigValue -and $null -eq $ExistingBackup) {
                 Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value '_ABSENT_' -Force | Out-Null
@@ -82,10 +87,26 @@ function Restore-OverlordRegistryValue {
                          throw "Windows bloqueo la eliminacion (Restore) de $ValueName"
                      }
                 } else {
-                    if (!(Test-Path $TargetKey)) { New-Item -Path $TargetKey -Force | Out-Null }
-                    $Type = if ($SavedKind) { $SavedKind } else { "DWord" }
+                    $Type = if ($SavedKind) { 
+                        $SavedKind 
+                    } elseif ($BackupValue -is [byte[]]) {
+                        "Binary"
+                    } elseif ($BackupValue -is [string[]] -or ($BackupValue -is [System.Collections.IEnumerable] -and -not ($BackupValue -is [string]))) {
+                        "MultiString"
+                    } elseif ($BackupValue -is [int] -or $BackupValue -is [long]) {
+                        "DWord"
+                    } elseif ($BackupValue -is [string]) {
+                        if ($BackupValue -match '^\d+$') { "DWord" } else { "String" }
+                    } else { 
+                        "DWord" 
+                    }
                     Set-ItemProperty -Path $TargetKey -Name $ValueName -Type $Type -Value $BackupValue -Force | Out-Null
-                    $ChkVal = Get-SafeRegistryValue -Path $TargetKey -Name $ValueName
+                    $ChkVal = if ($Type -eq "ExpandString") {
+                        $ck = Get-Item -Path $TargetKey -ErrorAction SilentlyContinue
+                        if ($null -ne $ck) { $ck.GetValue($ValueName, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) } else { $null }
+                    } else {
+                        Get-SafeRegistryValue -Path $TargetKey -Name $ValueName
+                    }
                     if ($null -eq $ChkVal -or ([string]::Join(',', $ChkVal) -ne [string]::Join(',', $BackupValue))) {
                         throw "Windows bloqueo la restauracion del valor $ValueName"
                     }

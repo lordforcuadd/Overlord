@@ -183,7 +183,7 @@ Try {
         Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
         $checkTask = Get-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue
         if ($null -ne $checkTask -and $checkTask.State -ne "Disabled") {
-            throw "Fallo de validacion: No se pudo deshabilitar la tarea $TName"
+            Write-Warning "Fallo de validacion: No se pudo deshabilitar la tarea $TName"
         }
     }
 

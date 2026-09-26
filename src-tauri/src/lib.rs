@@ -287,11 +287,6 @@ async fn is_priority_daemon_active() -> bool {
     }
 }
 
-fn is_priority_daemon_registered_native() -> bool {
-    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-    hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree\\OverlordPriorityMonitor").is_ok()
-}
-
 #[tauri::command]
 async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String> {
     validate_game_list(&game_list_raw)?;
@@ -318,7 +313,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
 
     // Cancel dynamic game monitor if it is already running
     {
-        let mut guard = MONITOR_CANCELLER.lock().map_err(|e| e.to_string())?;
+        let mut guard = MONITOR_CANCELLER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if let Some(tx) = guard.take() {
             let _ = tx.send(()); // Tell the old loop to stop
         }
@@ -337,7 +332,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
                         // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        if tokio::task::spawn_blocking(is_priority_daemon_registered_native).await.unwrap_or(false) {
+                        if is_priority_daemon_active().await {
                             println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado. Se detiene el monitor dinámico de Rust.");
                             break;
                         }
@@ -386,7 +381,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
 
 #[tauri::command]
 fn stop_game_priority_monitor() -> Result<(), String> {
-    let mut guard = MONITOR_CANCELLER.lock().map_err(|e| e.to_string())?;
+    let mut guard = MONITOR_CANCELLER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     if let Some(tx) = guard.take() {
         let _ = tx.send(());
         println!("[RUST MONITOR]: Hilo dinámico de prioridad detenido.");
@@ -394,7 +389,7 @@ fn stop_game_priority_monitor() -> Result<(), String> {
     Ok(())
 }
 
-fn write_to_overlord_log(msg: &str) {
+pub(crate) fn write_to_overlord_log(msg: &str) {
     let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
     let log_path = std::path::Path::new(&program_data).join("Overlord").join("logs").join("overlord_errors.log");
     if let Some(parent) = log_path.parent() {
@@ -403,6 +398,9 @@ fn write_to_overlord_log(msg: &str) {
     if let Ok(metadata) = std::fs::metadata(&log_path) {
         if metadata.len() > 100_000 {
             let old_log_path = log_path.with_extension("old.log");
+            if old_log_path.exists() {
+                let _ = std::fs::remove_file(&old_log_path);
+            }
             let _ = std::fs::rename(&log_path, &old_log_path);
         }
     }
@@ -424,7 +422,13 @@ fn read_overlord_log() -> Result<String, String> {
     let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
     let log_path = std::path::Path::new(&program_data).join("Overlord").join("logs").join("overlord_errors.log");
     if log_path.exists() {
-        std::fs::read_to_string(&log_path).map_err(|e| e.to_string())
+        let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
+        if content.len() > 50_000 {
+            let start = content.len() - 50_000;
+            Ok(content[start..].to_string())
+        } else {
+            Ok(content)
+        }
     } else {
         Ok("No se encontraron registros de errores.".to_string())
     }

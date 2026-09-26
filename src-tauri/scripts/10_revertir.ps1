@@ -31,11 +31,28 @@ function Invoke-OverlordSafeRestore {
     }
     # Fallback si no existe backup pero se proporciono DefaultValue
     if ($null -ne $DefaultValue) {
+        if ($DefaultValue -eq '_ABSENT_') {
+            if (Test-Path $TargetKey) {
+                Remove-ItemProperty -Path $TargetKey -Name $ValueName -ErrorAction SilentlyContinue | Out-Null
+            }
+            return
+        }
         if (-not (Test-Path $TargetKey)) {
             New-Item -Path $TargetKey -Force -ErrorAction SilentlyContinue | Out-Null
         }
         if ($DefaultType -eq "DWord") {
             Set-ItemProperty -Path $TargetKey -Name $ValueName -Value ([int]$DefaultValue) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+        } elseif ($DefaultType -eq "Binary") {
+            if ($DefaultValue -is [byte[]]) {
+                Set-ItemProperty -Path $TargetKey -Name $ValueName -Value $DefaultValue -Type Binary -Force -ErrorAction SilentlyContinue | Out-Null
+            } else {
+                try {
+                    $bytes = [byte[]]($DefaultValue -split '[, ]+' | Where-Object { $_ -ne '' } | ForEach-Object { [Convert]::ToByte($_, 16) })
+                    Set-ItemProperty -Path $TargetKey -Name $ValueName -Value $bytes -Type Binary -Force -ErrorAction SilentlyContinue | Out-Null
+                } catch {
+                    Set-ItemProperty -Path $TargetKey -Name $ValueName -Value $DefaultValue -Type Binary -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
         } else {
             Set-ItemProperty -Path $TargetKey -Name $ValueName -Value $DefaultValue -Type $DefaultType -Force -ErrorAction SilentlyContinue | Out-Null
         }
@@ -161,7 +178,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
@@ -209,7 +226,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -ValueName "DisableFileSyncNGSC" -BackupSubFolder "QoL\System" -DefaultValue 0
@@ -245,7 +262,7 @@ Try {
         "WdiServiceHost"   = "Manual"
         "WdiSystemHost"    = "Manual"
         "WerSvc"           = "Manual"
-        "DoSvc"            = "Manual"
+        "DoSvc"            = "Automatic"
         "wuauserv"         = "Manual"
     }
     try {
@@ -341,7 +358,7 @@ Try {
         Invoke-OverlordSafeRestore -TargetKey $GamesPath -ValueName "SFIO Priority" -BackupSubFolder "Performance" -DefaultValue "Normal" -DefaultType "String"
         Invoke-OverlordSafeRestore -TargetKey $GamesPath -ValueName "Priority" -BackupSubFolder "Performance" -DefaultValue 2 -DefaultType "DWord"
         Invoke-OverlordSafeRestore -TargetKey $GamesPath -ValueName "GPU Priority" -BackupSubFolder "Performance" -DefaultValue 8 -DefaultType "DWord"
-        Invoke-OverlordSafeRestore -TargetKey $GamesPath -ValueName "Clock Rate" -BackupSubFolder "Performance" -DefaultValue 10 -DefaultType "DWord"
+        Invoke-OverlordSafeRestore -TargetKey $GamesPath -ValueName "Clock Rate" -BackupSubFolder "Performance" -DefaultValue 10000 -DefaultType "DWord"
     }
 
     # Revertir configuraciones especificas de interfaces de red
@@ -540,7 +557,6 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage" -DefaultValue 3
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -ValueName "Start" -BackupSubFolder "Services\DoSvc" -DefaultValue 2
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry" -DefaultValue 1
 
@@ -622,10 +638,9 @@ Try {
 
         
         if (![string]::IsNullOrWhiteSpace($SavedActiveGuid)) {
-            try {
-                powercfg /setactive $SavedActiveGuid 2>$null | Out-Null
-            } catch {
-                powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e 2>$null | Out-Null
+            & powercfg /setactive $SavedActiveGuid 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                & powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e 2>$null | Out-Null
             }
         }
 

@@ -72,7 +72,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     warning:
       "Requiere reconectar los periféricos USB o reiniciar el equipo para aplicar la desactivación del modo de suspensión selectiva.",
     details: [
-      "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores USB, GPU y de sonido (Class MEDIA y AudioEndpoint).",
+      "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores USB (en PCs de escritorio), GPU y de sonido (Class MEDIA y AudioEndpoint).",
       "Ajuste del programador de CPU (Win32PrioritySeparation = 26) para establecer Quanta Corta y Fija, evitando micro-stutters.",
       "Eliminación absoluta de la aceleración por software de Windows (MouseSpeed = 0).",
       "Optimización de la latencia y repetición del teclado (FilterKeys con retraso a 200ms y repetición a 15ms).",
@@ -125,7 +125,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "https://learn.microsoft.com/en-us/windows-server/networking/technologies/tcp-ip/tcp-ip-performance-tuning",
     scriptName: "03_red.ps1",
     impactoRendimiento:
-      "Reducción y estabilización del ping de juegos, erradicación de micro-cortes por estrangulamiento de paquetes.",
+      "Estabilización de latencia en conexiones TCP, erradicación de micro-cortes por estrangulamiento de paquetes y optimización de colas de red.",
     warning:
       "El beneficio real de desactivar el algoritmo de Nagle (TcpNoDelay y TcpAckFrequency) en pilas TCP modernas es marginal o disputado para juegos online, y podría aumentar ligeramente el overhead del router local al disparar demasiados paquetes pequeños.",
     details: [
@@ -210,7 +210,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Eliminación de stutters por superposiciones de GameBar y optimización de latencia en la cola gráfica.",
     details: [
-      "Establece HwSchMode a 2 para activar la programación de GPU acelerada por hardware (HAGS).",
+      "Activa la programación de GPU acelerada por hardware (HAGS, HwSchMode = 2) en sistemas y controladores compatibles con WDDM 2.7+.",
       "Desactivación de GameBarPresenceWriter a nivel de directivas de usuario para prevenir congelamientos temporales.",
       "Desactivación del grabador de aplicaciones AppCaptureEnabled para liberar ciclos del codificador de vídeo.",
     ],
@@ -325,7 +325,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "gameHooks",
     title: "Prioridad Absoluta para Juegos",
     description:
-      "Fuerza el bypass gráfico de pantalla completa optimizada e inicializa el monitor dinámico de hilos en memoria RAM.",
+      "Fuerza el bypass gráfico de optimizaciones de pantalla completa y configura prioridades IFEO para los juegos detectados.",
     riesgo: "Seguro",
     evidenciaImpacto: "Situacional",
     reversible: true,

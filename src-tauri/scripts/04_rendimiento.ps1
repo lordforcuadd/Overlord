@@ -8,8 +8,9 @@ Try {
     $RunningOnBattery = $false
     if ($IsLaptop) {
         $BatteryStatus = Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
-        if ($null -ne $BatteryStatus -and $BatteryStatus.PowerOnline -eq $false) {
-            $RunningOnBattery = $true
+        if ($null -ne $BatteryStatus) {
+            $HasAC = @($BatteryStatus | Where-Object { $_.PowerOnline -eq $true }).Count -gt 0
+            $RunningOnBattery = -not $HasAC
         }
     }
 
@@ -87,7 +88,7 @@ Try {
         Set-ItemProperty -Path $GamesPath -Name "SFIO Priority" -Type String -Value "High" -Force | Out-Null
         $PRIORITY_HIGH_6 = 6
         $GPU_PRIORITY_8 = 8
-        $CLOCK_RATE_100_PERCENT = 10
+        $CLOCK_RATE_100_PERCENT = 10000
 
         Set-ItemProperty -Path $GamesPath -Name "Priority" -Type DWord -Value $PRIORITY_HIGH_6 -Force | Out-Null
         Set-ItemProperty -Path $GamesPath -Name "GPU Priority" -Type DWord -Value $GPU_PRIORITY_8 -Force | Out-Null

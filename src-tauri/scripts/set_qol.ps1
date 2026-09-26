@@ -308,7 +308,9 @@ switch ($ToggleName) {
                     break
                 }
             }
-            Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue
+            foreach ($base in $Targets) {
+                Remove-ItemProperty -Path (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Run") -Name "OneDrive" -ErrorAction SilentlyContinue
+            }
             $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
             try {
                 $OldEAP = $ErrorActionPreference

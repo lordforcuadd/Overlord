@@ -5,6 +5,7 @@ import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
 import { buildExpectedProfileState } from "../stores/profileLogic";
 import { copyToClipboard } from "../utils/styleHelpers";
 import Swal from "sweetalert2";
+import DOMPurify from "dompurify";
 
 const cardStatus = ref<
   Record<string, "idle" | "loading" | "success" | "error">
@@ -174,22 +175,34 @@ export function useOrchestrator(overlordSwalConfig: any) {
             ramGb: store.hardwareInfo.ramGb || 8,
             gameList: "",
           });
+          store.restorePointCreated = false;
+          store.isMonitorRunning = false;
         } catch (rollbackErr) {
           console.error("[AUTO-ROLLBACK FAIL]:", rollbackErr);
         }
 
+        await syncModulesStatus().catch(() => {
+          Object.keys(cardStatus.value).forEach((key) => {
+            cardStatus.value[key] = "idle";
+            store.modules[key as keyof typeof store.modules] = false;
+          });
+        });
+
         const textoExitos =
           modulosExitosos.length > 0
-            ? `Los módulos <b>${modulosExitosos.join(", ")}</b> se habían aplicado, pero se ejecutó un rollback automático por seguridad.`
+            ? `Los módulos <b>${DOMPurify.sanitize(modulosExitosos.join(", "))}</b> se habían aplicado, pero se ejecutó un rollback automático por seguridad.`
             : "Ningún módulo previo pudo completarse.";
+
+        const sanitizedTitle = DOMPurify.sanitize(failedModTitle);
+        const sanitizedReason = DOMPurify.sanitize(failedModReason);
 
         await Swal.fire({
           title: "OPTIMIZACIÓN FALLIDA",
           html: `
             <div class='text-left text-sm text-gray-300'>
               <p class='mb-2'>${textoExitos}</p>
-              <p class='mb-1 font-semibold text-gray-200'>El módulo <b>${failedModTitle}</b> falló durante la inyección:</p>
-              <div class='max-h-40 overflow-y-auto bg-black/50 p-3 rounded-lg border border-red-500/30 text-xs text-red-400 font-mono select-all my-2 whitespace-pre-wrap leading-relaxed'>${failedModReason}</div>
+              <p class='mb-1 font-semibold text-gray-200'>El módulo <b>${sanitizedTitle}</b> falló durante la inyección:</p>
+              <div class='max-h-40 overflow-y-auto bg-black/50 p-3 rounded-lg border border-red-500/30 text-xs text-red-400 font-mono select-all my-2 whitespace-pre-wrap leading-relaxed'>${sanitizedReason}</div>
               <p class='text-xs text-gray-400 mt-2'>El sistema ha sido revertido a su estado inicial por seguridad.</p>
             </div>
           `,

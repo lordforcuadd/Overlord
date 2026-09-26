@@ -368,13 +368,21 @@ onMounted(async () => {
     await store.detectHardware();
     await store.scanGames();
     await syncModulesStatus();
-    store.isInitialized = !store.hardwareError;
+    if (store.hardwareError) {
+      Swal.fire({
+        title: "Detección Parcial de Hardware",
+        text: "No se pudieron consultar todos los componentes de hardware con precisión. Se aplicarán valores seguros por defecto.",
+        icon: "warning",
+        ...overlordSwalConfig,
+      });
+    }
+    store.isInitialized = true;
   } catch (innerErr) {
     console.error("Fallo durante la sincronización inicial de hardware/módulos:", innerErr);
-    store.isInitialized = false;
+    store.isInitialized = true;
     Swal.fire({
-      title: "Error de Inicializacion",
-      text: "No se pudo detectar el hardware o estado de modulos. Algunas funciones pueden no estar disponibles.",
+      title: "Error de Inicialización",
+      text: "No se pudo sincronizar el hardware o estado de módulos. Se cargaron los valores seguros por defecto.",
       icon: "error",
       ...overlordSwalConfig,
     });

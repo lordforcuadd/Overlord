@@ -37,7 +37,7 @@ Try {
                 Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
                 Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
             } catch {
-                throw "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
+                Write-Warning "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
             }
         }
     }
@@ -47,8 +47,9 @@ Try {
         $RunningOnBattery = $false
         if ($IsLaptop) {
             $BatteryStatus = Get-CimInstance -Namespace root\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
-            if ($null -ne $BatteryStatus -and $BatteryStatus.PowerOnline -eq $false) {
-                $RunningOnBattery = $true
+            if ($null -ne $BatteryStatus) {
+                $HasAC = @($BatteryStatus | Where-Object { $_.PowerOnline -eq $true }).Count -gt 0
+                $RunningOnBattery = -not $HasAC
             }
         }
 
@@ -57,7 +58,7 @@ Try {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 $_.Virtual -eq $false -and 
-                $_.NdisPhysicalMedium -eq 14 
+                ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
             } | ForEach-Object { "$($_.InterfaceGuid)" }
         }
 
@@ -72,7 +73,7 @@ Try {
                         
                         # Desactivar Coalescencia, Moderacion de Interrupcion y Control de Flujo unicamente en PCs de Escritorio con >8 hilos logicos
                         $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
-                        if (-not $IsLaptop -or $TotalThreads -gt 8) {
+                        if (-not $IsLaptop -and $TotalThreads -gt 8) {
                             $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
                         }
 

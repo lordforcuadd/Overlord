@@ -30,14 +30,16 @@ try {
     Backup-OverlordRegistryValue -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance"
 
     # Constante oficial Microsoft: 8259 (0x2043) deshabilita mitigaciones Spectre v2, Meltdown, SSBD y L1TF
+    # La mascara oficial de Microsoft es 3 (bits 0 y 1 para Spectre v2 y Meltdown)
     $SPECTRE_MELTDOWN_DISABLE_FLAGS = 8259
+    $SPECTRE_MELTDOWN_MASK = 3
     Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverride" -Type DWord -Value $SPECTRE_MELTDOWN_DISABLE_FLAGS -Force | Out-Null
-    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value $SPECTRE_MELTDOWN_DISABLE_FLAGS -Force | Out-Null
+    Set-ItemProperty -Path $MemPath -Name "FeatureSettingsOverrideMask" -Type DWord -Value $SPECTRE_MELTDOWN_MASK -Force | Out-Null
 
     if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue) -ne $SPECTRE_MELTDOWN_DISABLE_FLAGS) { 
         throw "Fallo al escribir FeatureSettingsOverride" 
     }
-    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue) -ne $SPECTRE_MELTDOWN_DISABLE_FLAGS) { 
+    if ((Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue) -ne $SPECTRE_MELTDOWN_MASK) { 
         throw "Fallo al escribir FeatureSettingsOverrideMask" 
     }
 

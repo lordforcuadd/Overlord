@@ -286,13 +286,15 @@ const runAction = async (actionId: string) => {
         !l.includes("FullyQualifiedErrorId")
     );
     const reason = (meaningful.length > 0 ? meaningful[0] : errStr).substring(0, 150);
+    const sanitizedActionId = DOMPurify.sanitize(actionId);
+    const sanitizedReason = DOMPurify.sanitize(reason);
 
     await Swal.fire({
       title: "ERROR EN ACCIÓN RÁPIDA",
       html: `
         <div class='text-left text-sm text-gray-300'>
-          <p class='mb-1 font-semibold text-gray-200'>No se pudo completar la acción <b>${actionId}</b>:</p>
-          <div class='max-h-40 overflow-y-auto bg-black/50 p-3 rounded-lg border border-red-500/30 text-xs text-red-400 font-mono select-all my-2 whitespace-pre-wrap leading-relaxed'>${reason}</div>
+          <p class='mb-1 font-semibold text-gray-200'>No se pudo completar la acción <b>${sanitizedActionId}</b>:</p>
+          <div class='max-h-40 overflow-y-auto bg-black/50 p-3 rounded-lg border border-red-500/30 text-xs text-red-400 font-mono select-all my-2 whitespace-pre-wrap leading-relaxed'>${sanitizedReason}</div>
         </div>
       `,
       icon: "error",

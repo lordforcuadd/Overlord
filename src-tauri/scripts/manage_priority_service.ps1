@@ -79,8 +79,10 @@ while ($true) {
     }
     try {
         $ConfigLines = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
-        if ($null -ne $ConfigLines) {
-            $CriticalSystemProcesses = @("system", "idle", "registry", "smss", "csrss", "wininit", "services", "lsass", "svchost", "fontdrvhost", "winlogon", "dwm", "explorer", "sihost", "taskhostw")
+            $CriticalSystemProcesses = @(
+                "system", "idle", "registry", "smss", "csrss", "wininit", "services", "lsass", "svchost", "fontdrvhost", "winlogon", "dwm", "explorer", "sihost", "taskhostw",
+                "msmpeng", "searchindexer", "audiodg", "spoolsv", "runtimebroker", "dllhost", "conhost", "wudfhost"
+            )
             foreach ($Game in $ConfigLines) {
                 if (-not [string]::IsNullOrWhiteSpace($Game)) {
                     $Game = $Game.Trim()
@@ -150,7 +152,7 @@ while ($true) {
     if ($null -eq $ExistingTask) {
         $PowerShellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
         if (-not (Test-Path $PowerShellExe)) { $PowerShellExe = "$PSHOME\powershell.exe" }
-        $ActionCmd = New-ScheduledTaskAction -Execute $PowerShellExe -Argument "-WindowStyle Hidden -NoProfile -File `"$DaemonScript`""
+        $ActionCmd = New-ScheduledTaskAction -Execute $PowerShellExe -Argument "-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$DaemonScript`""
         $Trigger = New-ScheduledTaskTrigger -AtStartup
         $Principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest
         $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

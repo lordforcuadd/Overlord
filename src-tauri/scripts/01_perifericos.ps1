@@ -77,7 +77,7 @@ Try {
                                     }
                                 }
                             } catch {
-                                throw "El SO bloqueó MSI para el dispositivo PCI $devId (sin permisos): $_"
+                                Write-Warning "No se pudo configurar MSI/Priority para el dispositivo PCI ${devId}: $_"
                             } finally {
                                 if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
                                 if ($null -ne $interruptKey) { $interruptKey.Close(); $interruptKey = $null }
