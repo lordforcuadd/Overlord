@@ -186,6 +186,8 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
+    let catalog_lowers: Vec<String> = catalog.iter().map(|g| g.name.to_lowercase()).collect();
+
     // 1. Scan Uninstall registry keys (64-bit and 32-bit) in HKLM and HKCU
     let registry_paths = [
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
@@ -198,15 +200,14 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                 if let Ok(subkey) = uninstall_key.open_subkey(&subkey_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         let lower_name = display_name.to_lowercase();
-                        for game in catalog.iter_mut() {
-                            let game_lower = game.name.to_lowercase();
+                        for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                             let matches = if game_lower == "rust" {
                                 lower_name == "rust"
                             } else {
-                                lower_name.contains(&game_lower)
+                                lower_name.contains(game_lower)
                             };
                             if matches {
-                                game.detected = true;
+                                catalog[idx].detected = true;
                             }
                         }
                     }
@@ -218,15 +219,14 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                 if let Ok(subkey) = uninstall_key.open_subkey(&subkey_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         let lower_name = display_name.to_lowercase();
-                        for game in catalog.iter_mut() {
-                            let game_lower = game.name.to_lowercase();
+                        for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                             let matches = if game_lower == "rust" {
                                 lower_name == "rust"
                             } else {
-                                lower_name.contains(&game_lower)
+                                lower_name.contains(game_lower)
                             };
                             if matches {
-                                game.detected = true;
+                                catalog[idx].detected = true;
                             }
                         }
                     }
@@ -243,15 +243,14 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if installed == 1 {
                         if let Ok(name) = app_subkey.get_value::<String, _>("Name") {
                             let lower_steam_name = name.to_lowercase();
-                            for game in catalog.iter_mut() {
-                                let game_lower = game.name.to_lowercase();
+                            for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                                 let matches = if game_lower == "rust" {
                                     lower_steam_name == "rust"
                                 } else {
-                                    lower_steam_name.contains(&game_lower)
+                                    lower_steam_name.contains(game_lower)
                                 };
                                 if matches {
-                                    game.detected = true;
+                                    catalog[idx].detected = true;
                                 }
                             }
                         }
@@ -282,16 +281,15 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                             if let Some(dir_name) = inst_dir {
                                 let full_game_path = Path::new(path).join(&dir_name);
                                 if full_game_path.exists() {
-                                    for game in catalog.iter_mut() {
-                                        let game_lower = game.name.to_lowercase();
-                                        let dir_lower = dir_name.to_lowercase();
+                                    let dir_lower = dir_name.to_lowercase();
+                                    for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                                         let matches = if game_lower == "rust" {
                                             dir_lower == "rust"
                                         } else {
-                                            dir_lower.contains(&game_lower) || game_lower.contains(&dir_lower)
+                                            dir_lower.contains(game_lower) || game_lower.contains(&dir_lower)
                                         };
                                         if matches {
-                                            game.detected = true;
+                                            catalog[idx].detected = true;
                                         }
                                     }
                                 }
@@ -312,15 +310,14 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     for (folder_name, install_loc) in &epic_games {
         let lower_folder = folder_name.to_lowercase();
         let lower_loc = install_loc.to_lowercase();
-        for game in catalog.iter_mut() {
-            let lower_game_name = game.name.to_lowercase();
+        for (idx, lower_game_name) in catalog_lowers.iter().enumerate() {
             let matches = if lower_game_name == "rust" {
                 lower_folder == "rust" || lower_loc.ends_with("\\rust") || lower_loc.ends_with("/rust")
             } else {
-                lower_folder.contains(&lower_game_name) || lower_loc.contains(&lower_game_name)
+                lower_folder.contains(lower_game_name) || lower_loc.contains(lower_game_name)
             };
             if matches {
-                game.detected = true;
+                catalog[idx].detected = true;
             }
         }
     }
@@ -331,14 +328,13 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                 if let Ok(subkey) = gog_key.open_subkey(&subkey_name) {
                     if let Ok(title) = subkey.get_value::<String, _>("title") {
                         let lower_title = title.to_lowercase();
-                        for game in catalog.iter_mut() {
-                            let game_lower = game.name.to_lowercase();
+                        for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                             let matches = if game_lower == "rust" {
                                 lower_title == "rust"
                             } else {
-                                lower_title.contains(&game_lower)
+                                lower_title.contains(game_lower)
                             };
-                            if matches { game.detected = true; }
+                            if matches { catalog[idx].detected = true; }
                         }
                     }
                 }

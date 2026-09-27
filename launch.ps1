@@ -191,10 +191,12 @@ try {
                 }
                 Write-Host "=======================================================`n" -ForegroundColor Red
                 
-                Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoría..." -ForegroundColor Gray
-                try {
-                    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-                } catch {}
+                if ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+                    Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoría..." -ForegroundColor Gray
+                    try {
+                        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                    } catch {}
+                }
             } else {
                 Write-Host "`n[+] Ejecución de Overlord finalizada con ÉXITO (0 errores registrados)." -ForegroundColor Green
             }

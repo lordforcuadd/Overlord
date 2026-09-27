@@ -2,7 +2,7 @@ $ErrorActionPreference = "Continue"
 
 
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
-$Targets = @($HKCU_Path, "HKCU:")
+$Targets = @($HKCU_Path, "HKCU:") | Select-Object -Unique
 
 function Get-RegistryValue($basePath, $subPath, $name, $expectedValue) {
     $paths = @()

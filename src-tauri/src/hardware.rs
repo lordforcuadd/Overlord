@@ -56,9 +56,14 @@ pub async fn get_system_hardware(force_refresh: bool) -> HardwareResponse {
         }
     }
 
-    let hw = detect_system_hardware().await;
-
     let mut cache = HARDWARE_CACHE.write().await;
+    if !force_refresh {
+        if let Some(ref hw) = *cache {
+            return hw.clone();
+        }
+    }
+
+    let hw = detect_system_hardware().await;
     *cache = Some(hw.clone());
     hw
 }

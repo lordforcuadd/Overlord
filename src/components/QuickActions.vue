@@ -319,7 +319,9 @@ const runAction = async (actionId: string) => {
     isExecutingGlobal.value = false;
     store.setGlobalBusy(false);
     setTimeout(() => {
-      status.value[actionId] = "idle";
+      if (status.value[actionId] !== "loading") {
+        status.value[actionId] = "idle";
+      }
     }, 3500);
   }
 };

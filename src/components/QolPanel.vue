@@ -529,6 +529,9 @@ async function fetchQolStatus() {
     windowsBuild.value = build || 0;
   } catch (e) {
     console.error("[CRITICAL QOL SCAN ERROR]:", e);
+    invoke("log_from_js", {
+      msg: `[CRITICAL QOL SCAN ERROR]: ${String(e)}`,
+    }).catch(() => {});
   } finally {
     isScanning.value = false;
   }

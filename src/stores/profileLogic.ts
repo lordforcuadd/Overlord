@@ -1,7 +1,7 @@
 
 export function buildExpectedProfileState(
   profileMods: string[],
-  hardware: { isLaptop: boolean; tier: string; isArm64?: boolean }
+  hardware: { isLaptop: boolean; tier?: string; isArm64?: boolean }
 ): Record<string, boolean> {
   const expected: Record<string, boolean> = {
     peripheralLatency: false,

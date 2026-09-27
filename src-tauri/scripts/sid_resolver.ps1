@@ -52,11 +52,11 @@ if ([string]::IsNullOrWhiteSpace($UserSID)) {
     try {
         $LoadedProfiles = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and ($_.SID -match '^S-1-5-21-' -or $_.SID -match '^S-1-12-1-') }
         if ($LoadedProfiles) {
-            $MatchedProfile = if (-not [string]::IsNullOrWhiteSpace($Username)) {
+            $TargetProfile = if (-not [string]::IsNullOrWhiteSpace($Username)) {
                 $LoadedProfiles | Where-Object { $_.LocalPath -like "*\$Username" } | Select-Object -First 1
-            } else { $null }
-
-            $TargetProfile = if ($MatchedProfile) { $MatchedProfile } else { $null }
+            } else {
+                $LoadedProfiles | Select-Object -First 1
+            }
             if ($TargetProfile) {
                 $UserSID = $TargetProfile.SID
             }
