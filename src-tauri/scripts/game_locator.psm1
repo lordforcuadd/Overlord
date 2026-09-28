@@ -2,6 +2,27 @@ function Get-OverlordLaunchersConfig {
     if ($null -ne $global:LaunchersConfig) {
         return $global:LaunchersConfig
     }
+
+    # Fallback dinámico: intentar cargar launchers_config.json desde disco
+    $possiblePaths = @(
+        (Join-Path $PSScriptRoot "..\launchers_config.json"),
+        (Join-Path $PSScriptRoot "launchers_config.json")
+    )
+    foreach ($path in $possiblePaths) {
+        if (Test-Path $path) {
+            try {
+                $content = Get-Content -Path $path -Raw -Encoding UTF8 -ErrorAction Stop
+                $parsed = $content | ConvertFrom-Json -ErrorAction Stop
+                if ($null -ne $parsed) {
+                    $global:LaunchersConfig = $parsed
+                    return $parsed
+                }
+            } catch {
+                # Fallback al objeto predeterminado si falla la lectura/parseo
+            }
+        }
+    }
+
     return [PSCustomObject]@{
         steam = [PSCustomObject]@{
             registryKeys = @(

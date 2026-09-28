@@ -13,11 +13,15 @@ export function getImpactClass(evidencia: string): string {
 
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    if (navigator.clipboard && window.isSecureContext) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
       return true;
     }
-  } catch {}
+  } catch (err) {
+    console.warn("navigator.clipboard.writeText falló, intentando fallback:", err);
+  }
+
+  if (typeof document === "undefined") return false;
 
   const textArea = document.createElement("textarea");
   try {
@@ -25,6 +29,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     textArea.style.position = "fixed";
     textArea.style.left = "-999999px";
     textArea.style.top = "-999999px";
+    textArea.setAttribute("readonly", "");
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();

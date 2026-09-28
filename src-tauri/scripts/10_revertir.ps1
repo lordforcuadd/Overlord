@@ -62,6 +62,7 @@ function Invoke-OverlordSafeRestore {
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
     Write-Host "[*] Iniciando reversion simetrica de Overlord con helpers globales..."
+    Write-Host "[*] [1/12] Restaurando latencia de perifericos y respuesta de teclado..."
 
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup"
     $MsiBackupKey = "$BackupPath\MSI"
@@ -84,6 +85,10 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility" -DefaultValue "1000" -DefaultType "String"
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "BounceTime" -BackupSubFolder "Accessibility" -DefaultValue "0" -DefaultType "String"
 
+    Write-Host "[*] [2/12] Restaurando afinidad de interrupciones (IRQ) y modos MSI de dispositivos PCI..."
+    $msiProps = if (Test-Path $MsiBackupKey) { Get-ItemProperty -Path $MsiBackupKey -ErrorAction SilentlyContinue } else { $null }
+    $netProps = if (Test-Path $NetBackupKey) { Get-ItemProperty -Path $NetBackupKey -ErrorAction SilentlyContinue } else { $null }
+
     $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
     if ($pciKey) {
         foreach ($venId in $pciKey.GetSubKeyNames()) {
@@ -98,9 +103,8 @@ Try {
 
                         if ($classGuid -eq "{4d36e968-e325-11ce-bfc1-08002be10318}" -or $classGuid -eq "{36fc9e60-c465-11cf-8056-444553540000}" -or $classGuid -eq "{4d36e97c-e325-11ce-bfc1-08002be10318}" -or $classGuid -eq "{c166523b-fe0c-4a94-a586-f1a8096b7efe}") {
                             try {
-                                if (Test-Path $MsiBackupKey) {
-                                    $msiProps = Get-ItemProperty -Path $MsiBackupKey -ErrorAction SilentlyContinue
-                                    $savedMsi = if ($null -ne $msiProps -and $null -ne $msiProps.PSObject.Properties[$deviceRegID]) { $msiProps.$deviceRegID } else { $null }
+                                if ($null -ne $msiProps) {
+                                    $savedMsi = if ($null -ne $msiProps.PSObject.Properties[$deviceRegID]) { $msiProps.$deviceRegID } else { $null }
                                     if ($null -ne $savedMsi) {
                                         $MsiSubKey = "$paramPath\Interrupt Management\MessageSignaledInterruptProperties"
                                         if ($savedMsi -eq '_ABSENT_') {
@@ -113,7 +117,7 @@ Try {
                                     
                                     # Revertir prioridad de interrupcion
                                     $priorityRegID = "PCI_${venId}_${devId}_DevicePriority"
-                                    $savedPriority = if ($null -ne $msiProps -and $null -ne $msiProps.PSObject.Properties[$priorityRegID]) { $msiProps.$priorityRegID } else { $null }
+                                    $savedPriority = if ($null -ne $msiProps.PSObject.Properties[$priorityRegID]) { $msiProps.$priorityRegID } else { $null }
                                     if ($null -ne $savedPriority) {
                                         $AffinitySubKey = "$paramPath\Interrupt Management\Affinity Policy"
                                         if ($savedPriority -eq '_ABSENT_') {
@@ -131,9 +135,8 @@ Try {
 
                         if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
                             try {
-                                if (Test-Path $NetBackupKey) {
-                                    $netProps = Get-ItemProperty -Path $NetBackupKey -ErrorAction SilentlyContinue
-                                    $savedPolicy   = if ($null -ne $netProps -and $null -ne $netProps.PSObject.Properties["${deviceRegID}_Policy"]) { $netProps."${deviceRegID}_Policy" } else { $null }
+                                if ($null -ne $netProps) {
+                                    $savedPolicy   = if ($null -ne $netProps.PSObject.Properties["${deviceRegID}_Policy"]) { $netProps."${deviceRegID}_Policy" } else { $null }
                                     $savedOverride = if ($null -ne $netProps -and $null -ne $netProps.PSObject.Properties["${deviceRegID}_Override"]) { $netProps."${deviceRegID}_Override" } else { $null }
 
                                     if ($null -ne $savedPolicy) {
@@ -167,6 +170,7 @@ Try {
         $pciKey.Close()
     }
 
+    Write-Host "[*] [3/12] Restaurando directivas de telemetria, Edge y Copilot..."
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -ValueName "Disabled" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
@@ -184,6 +188,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
 
     # --- Reversion de Modulo de Personalizacion y QoL ---
+    Write-Host "[*] [4/12] Restaurando personalizaciones de Calidad de Vida (QoL) y explorador..."
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "AppsUseLightTheme" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "SystemUsesLightTheme" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "HideFileExt" -BackupSubFolder "QoL\User" -DefaultValue 1
@@ -268,6 +273,7 @@ Try {
         Remove-ItemProperty -Path $QolEpBackup -Name "ControlInterface" -ErrorAction SilentlyContinue | Out-Null
     }
 
+    Write-Host "[*] [5/12] Restaurando tipos de inicio y ejecucion de servicios de Windows..."
     $StartTypeMap = @{ 2 = "Automatic"; 3 = "Manual"; 4 = "Disabled" }
     $ServicesFallback = @{
         "DiagTrack"        = "Automatic"
@@ -323,6 +329,7 @@ Try {
         Write-Error "No se pudo restaurar el estado de los servicios: $_"
     }
 
+    Write-Host "[*] [6/12] Limpiando reglas de bloqueo de telemetria en Firewall..."
     try {
         Get-NetFirewallRule -Name "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
         Get-NetFirewallRule -DisplayName "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
@@ -330,6 +337,7 @@ Try {
         Write-Error "No se pudieron remover las reglas del Firewall de Windows: $_"
     }
 
+    Write-Host "[*] [7/12] Habilitando tareas programadas de telemetria y diagnostico..."
     $Tasks = @(
         "Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
         "Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
@@ -371,6 +379,7 @@ Try {
         }
     }
 
+    Write-Host "[*] [8/12] Restaurando configuracion avanzada de red, interfaces y QoS..."
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -ValueName "NetworkThrottlingIndex" -BackupSubFolder "Network" -DefaultValue 10
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -ValueName "SystemResponsiveness" -BackupSubFolder "Network" -DefaultValue 20
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ValueName "InitialRto" -BackupSubFolder "Network" -DefaultValue 3000
@@ -539,6 +548,7 @@ Try {
         }
     }
 
+    Write-Host "[*] [9/12] Restaurando parametros de Kernel, GPU y mitigaciones del procesador..."
     $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
     $ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance" -DefaultValue 0
@@ -574,6 +584,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -ValueName "AllowGameDVR" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU" -DefaultValue 1
 
+    Write-Host "[*] [10/12] Restaurando configuracion de almacenamiento NTFS y cache de sistema..."
     $NtfsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
     $PrefetchPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"
     $FastStartPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power"
@@ -595,6 +606,7 @@ Try {
         Invoke-OverlordSafeRestore -TargetKey "$LoggersPath\$Logger" -ValueName "Start" -BackupSubFolder "Telemetry\Loggers\$Logger" -DefaultValue 1
     }
 
+    Write-Host "[*] [11/12] Restaurando planes de energia, CPU core unparking y suspension USB..."
     $PowerBackup = "$BackupPath\Power"
     if (Test-Path $PowerBackup) {
         $Data = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
@@ -685,7 +697,7 @@ Try {
     }
 
     if (Test-Path $GameHooksBackup) {
-        Write-Host "[*] Revirtiendo capas de compatibilidad grafica y configuraciones de juegos..."
+        Write-Host "[*] [12/12] Revirtiendo capas de compatibilidad grafica, juegos y exclusiones..."
         $SubKeys = Get-ChildItem -Path $GameHooksBackup -ErrorAction SilentlyContinue
         foreach ($Key in $SubKeys) {
             $GamePath = Get-SafeRegistryValue -Path $Key.PSPath -Name "Path"
