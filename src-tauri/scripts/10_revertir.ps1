@@ -657,6 +657,13 @@ Try {
                             }
                         } else {
                             & powercfg /SETACVALUEINDEX $SchemeGuid $SubGroupGuid $SettingGuid $Val 2>$null | Out-Null
+                            $dcPropName = "$($Prop.Name)_DC"
+                            if ($null -ne $Data.PSObject.Properties[$dcPropName]) {
+                                $dcVal = $Data.$dcPropName
+                                if ($null -ne $dcVal -and $dcVal -ne '_ABSENT_') {
+                                    & powercfg /SETDCVALUEINDEX $SchemeGuid $SubGroupGuid $SettingGuid $dcVal 2>$null | Out-Null
+                                }
+                            }
                         }
                     }
                 }
@@ -758,7 +765,9 @@ Try {
                                     $changed = $true
                                 } else {
                                     $targetValue = "$K=$($RestoredValues[$K])"
-                                    if ($line.Trim() -notmatch "^\s*$K\s*=\s*$($RestoredValues[$K])\s*$") {
+                                    $escapedVal = [regex]::Escape($RestoredValues[$K])
+                                    $escapedK = [regex]::Escape($K)
+                                    if ($line.Trim() -notmatch "^\s*$escapedK\s*=\s*$escapedVal\s*$") {
                                         $modified = $targetValue
                                         $changed = $true
                                     }
@@ -814,9 +823,6 @@ Try {
                     $ManifestPath = Join-Path $Dir.FullName "AppXManifest.xml"
                     if (Test-Path $ManifestPath) {
                         Add-AppxPackage -DisableDevelopmentMode -Register $ManifestPath -ErrorAction SilentlyContinue | Out-Null
-                        if (Get-Command Add-AppxProvisionedPackage -ErrorAction SilentlyContinue) {
-                            Add-AppxProvisionedPackage -Online -PackagePath $Dir.FullName -DependencyPackagePath @() -LicensePath "" -ErrorAction SilentlyContinue | Out-Null
-                        }
                     }
                 }
             } catch { Write-Verbose "Fallo al reinstalar paquetes AppX preinstalados: $_" }
@@ -828,7 +834,7 @@ Try {
     if (Test-Path $DefenderBackup) {
         $AddedExclusions = Get-SafeRegistryValue -Path $DefenderBackup -Name "AddedExclusions"
         if (![string]::IsNullOrWhiteSpace($AddedExclusions)) {
-            $Paths = $AddedExclusions -split ";" | Where-Object { $_ -ne "" }
+            $Paths = $AddedExclusions -split ";" | ForEach-Object { $_.Trim() } | Where-Object { !([string]::IsNullOrWhiteSpace($_)) }
             foreach ($Path in $Paths) {
                 Remove-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue | Out-Null
                 Write-Host "    [-] Exclusion de Windows Defender removida: $Path"

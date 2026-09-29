@@ -72,8 +72,7 @@ Try {
                     & powercfg /setactive $newGuid 2>$null | Out-Null
                     Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $newGuid -Force | Out-Null
                 } else {
-                    # Ultimo recurso: activar plan Equilibrado de fabrica
-                    & powercfg /setactive "381b4222-f694-41f0-9685-ff5bb260df2e" 2>$null
+                    Write-Warning "No se pudo duplicar un esquema de energia base para Overlord; se mantendra el plan actual del sistema."
                 }
             }
         }
@@ -128,7 +127,8 @@ Try {
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $CurrentGuid = $Matches[1]
-            try { & powercfg /setactive $CurrentGuid 2>$null } catch { Write-Verbose "Fallo al reactivar plan de energía: $_" }
+            & powercfg /setactive $CurrentGuid 2>$null
+            if ($LASTEXITCODE -ne 0) { Write-Warning "Fallo al reactivar plan de energía: $CurrentGuid" }
         }
     }
 

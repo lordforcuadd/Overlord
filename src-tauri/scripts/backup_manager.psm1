@@ -49,11 +49,13 @@ function Backup-OverlordRegistryValue {
                 }
             } elseif ($null -eq $OrigValue -and $null -eq $ExistingBackup) {
                 Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value '_ABSENT_' -Force | Out-Null
+                Set-ItemProperty -Path $GlobalBackupPath -Name "${ValueName}_Kind" -Value 'Absent' -Force | Out-Null
             }
         } else {
             $ExistingBackup = Get-SafeRegistryValue -Path $GlobalBackupPath -Name $ValueName
             if ($null -eq $ExistingBackup) {
                 Set-ItemProperty -Path $GlobalBackupPath -Name $ValueName -Value '_ABSENT_' -Force | Out-Null
+                Set-ItemProperty -Path $GlobalBackupPath -Name "${ValueName}_Kind" -Value 'Absent' -Force | Out-Null
             }
         }
     } catch {
@@ -81,7 +83,8 @@ function Restore-OverlordRegistryValue {
             $SavedKind = Get-SafeRegistryValue -Path $GlobalBackupPath -Name "${ValueName}_Kind"
             
             if ($null -ne $BackupValue) {
-                if ($BackupValue -eq '_ABSENT_') {
+                $isAbsent = ($SavedKind -eq 'Absent') -or ($null -eq $SavedKind -and $BackupValue -eq '_ABSENT_')
+                if ($isAbsent) {
                      Remove-ItemProperty -Path $TargetKey -Name $ValueName -ErrorAction SilentlyContinue | Out-Null
                      if ($null -ne (Get-SafeRegistryValue -Path $TargetKey -Name $ValueName)) {
                          throw "Windows bloqueo la eliminacion (Restore) de $ValueName"
@@ -135,15 +138,20 @@ function Backup-OverlordPowerSetting {
         
         # Lectura directa del registro (locale-independiente y siempre funciona)
         $RegPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$SchemeGuid\$SubGroupGuid\$SettingGuid"
+        $DCValue = $null
         if (Test-Path $RegPath) {
             $regProps = Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue
             if ($null -ne $regProps) {
                 $Value = $regProps.ACSettingIndex
+                $DCValue = $regProps.DCSettingIndex
             }
         }
         
         $BckVal = if ($null -eq $Value) { '_ABSENT_' } else { $Value }
         Set-ItemProperty -Path $PowerBackup -Name $BackupName -Value $BckVal -Force -ErrorAction SilentlyContinue | Out-Null
+        if ($null -ne $DCValue) {
+            Set-ItemProperty -Path $PowerBackup -Name "${BackupName}_DC" -Value $DCValue -Force -ErrorAction SilentlyContinue | Out-Null
+        }
     }
 }
 

@@ -41,7 +41,9 @@ try {
             if ($userProf -and $userProf.LocalPath) {
                 $UserDir = $userProf.LocalPath
             }
-        } catch { }
+        } catch { 
+            Write-Verbose "Fallo al consultar Win32_UserProfile para SID ${UserSidVal} - Error: $_" 
+        }
     }
     if ([string]::IsNullOrWhiteSpace($UserDir)) {
         $UserDir = $env:USERPROFILE

@@ -11,6 +11,16 @@ Try {
         if ($null -ne $BatteryStatus) {
             $HasAC = @($BatteryStatus | Where-Object { $_.PowerOnline -eq $true }).Count -gt 0
             $RunningOnBattery = -not $HasAC
+        } else {
+            # Fallback defensivo a Win32_Battery si root\wmi no esta disponible
+            $Win32Bat = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
+            if ($null -ne $Win32Bat) {
+                $HasAC = @($Win32Bat | Where-Object { $_.BatteryStatus -ne 1 }).Count -gt 0
+                $RunningOnBattery = -not $HasAC
+            } else {
+                # Postura fail-safe para laptops si no se puede determinar la alimentacion: no forzar Core Parking de AC
+                $RunningOnBattery = $true
+            }
         }
     }
 
@@ -35,10 +45,12 @@ Try {
                 if ($null -ne $Agent) {
                     $perfProps = Get-ItemProperty -Path $PerfBackupPath -ErrorAction SilentlyContinue
                     if ($null -eq $perfProps -or $null -eq $perfProps.PSObject.Properties["MemoryCompression"]) {
-                        Set-ItemProperty -Path $PerfBackupPath -Name "MemoryCompression" -Value (if ($Agent.MemoryCompression) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                        $memVal = if ($Agent.MemoryCompression) { 1 } else { 0 }
+                        Set-ItemProperty -Path $PerfBackupPath -Name "MemoryCompression" -Value $memVal -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                     }
                     if ($null -eq $perfProps -or $null -eq $perfProps.PSObject.Properties["PageCombining"]) {
-                        Set-ItemProperty -Path $PerfBackupPath -Name "PageCombining" -Value (if ($Agent.PageCombining) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                        $pageVal = if ($Agent.PageCombining) { 1 } else { 0 }
+                        Set-ItemProperty -Path $PerfBackupPath -Name "PageCombining" -Value $pageVal -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                     }
                 }
             }

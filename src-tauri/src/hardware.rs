@@ -196,7 +196,6 @@ async fn detect_system_hardware() -> HardwareResponse {
                     std::ptr::null_mut(),
                 );
                 if handle != (-1isize as *mut std::ffi::c_void) && !handle.is_null() {
-                    handle_ok = true;
                     #[repr(C)]
                     struct STORAGE_PROPERTY_QUERY { property_id: u32, query_type: u32, additional_parameters: [u8; 1] }
                     #[repr(C)]
@@ -221,6 +220,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                         std::ptr::null_mut(),
                     );
                     if res != 0 {
+                        handle_ok = true;
                         if descriptor.is_seek_penalty == 0 {
                             drive_is_ssd = true;
                         }
@@ -304,6 +304,7 @@ async fn detect_system_hardware() -> HardwareResponse {
         if !handle_ok {
             let ps_path = crate::get_powershell_path();
             let mut cmd = tokio::process::Command::new(&ps_path);
+            cmd.kill_on_drop(true);
             cmd.creation_flags(CREATE_NO_WINDOW)
                 .args([
                     "-NoProfile",

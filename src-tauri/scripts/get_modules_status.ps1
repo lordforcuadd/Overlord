@@ -37,10 +37,13 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
 
 $ServicesToCheck = @("AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry")
 $ServicesOk = $true
-foreach ($SvcName in $ServicesToCheck) {
-    $Svc = Get-Service -Name $SvcName -ErrorAction SilentlyContinue
-    if ($null -ne $Svc -and $Svc.StartType -ne "Disabled") {
-        $ServicesOk = $false
+$FoundSvcs = Get-Service -Name $ServicesToCheck -ErrorAction SilentlyContinue
+if ($null -ne $FoundSvcs) {
+    foreach ($Svc in $FoundSvcs) {
+        if ($Svc.StartType -ne "Disabled") {
+            $ServicesOk = $false
+            break
+        }
     }
 }
 $BgAppPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
@@ -121,12 +124,20 @@ if (Test-Path $ProfilePath) {
         if ($null -ne $BatteryStatus) {
             $HasAC = @($BatteryStatus | Where-Object { $_.PowerOnline -eq $true }).Count -gt 0
             $RunningOnBattery = -not $HasAC
+        } else {
+            $Win32Bat = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
+            if ($null -ne $Win32Bat) {
+                $HasAC = @($Win32Bat | Where-Object { $_.BatteryStatus -ne 1 }).Count -gt 0
+                $RunningOnBattery = -not $HasAC
+            } else {
+                $RunningOnBattery = $true
+            }
         }
     }
     
     if (-not $RunningOnBattery -and (Get-Command Get-NetAdapterPowerManagement -ErrorAction SilentlyContinue)) {
         $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-            $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan")
+            $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
         }
         foreach ($Adapter in $Adapters) {
             $Pwr = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction SilentlyContinue

@@ -115,7 +115,7 @@ Try {
             Set-Service -Name $Service -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
             $checkSvc = Get-Service -Name $Service -ErrorAction SilentlyContinue
             if ($null -ne $checkSvc -and $checkSvc.StartType -ne "Disabled") {
-                throw "Fallo de validacion: No se pudo deshabilitar el servicio $Service"
+                Write-Warning "No se pudo deshabilitar el servicio protegido $Service (omitiendo sin abortar el resto de servicios)"
             }
         }
     }

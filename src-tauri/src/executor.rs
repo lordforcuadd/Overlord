@@ -2,7 +2,6 @@ use tokio::process::Command;
 use std::process::Stdio;
 use tokio::sync::Mutex;
 use tokio::io::AsyncWriteExt;
-use std::sync::OnceLock;
 use windows_sys::Win32::System::JobObjects::{
     CreateJobObjectW, SetInformationJobObject, JobObjectExtendedLimitInformation,
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
@@ -22,10 +21,17 @@ pub fn is_busy() -> bool {
     ACTIVE_SCRIPTS_COUNT.load(std::sync::atomic::Ordering::SeqCst) > 0 || EXECUTION_LOCK.try_lock().is_err()
 }
 
-static JOB_HANDLE: OnceLock<HANDLE> = OnceLock::new();
+static JOB_HANDLE: std::sync::Mutex<Option<HANDLE>> = std::sync::Mutex::new(None);
 
 fn get_job_handle() -> HANDLE {
-    *JOB_HANDLE.get_or_init(|| unsafe {
+    let mut lock = match JOB_HANDLE.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Some(handle) = *lock {
+        return handle;
+    }
+    unsafe {
         let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
         if handle != 0 {
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
@@ -36,9 +42,12 @@ fn get_job_handle() -> HANDLE {
                 &info as *const _ as *const _,
                 std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
             );
+            *lock = Some(handle);
+            handle
+        } else {
+            0
         }
-        handle
-    })
+    }
 }
 
 fn assign_child_to_job(pid: u32) {

@@ -90,7 +90,7 @@ Try {
                                 }
                                 $checkVal = Get-ItemPropertyValue -Path $Adapter.PSPath -Name $PKey -ErrorAction SilentlyContinue
                                 if ($null -ne $checkVal -and "$checkVal".Trim() -ne "0" -and -not ($IsLaptop -and ($PKey -eq "*PacketCoalescing" -or $PKey -eq "PacketCoalescing"))) {
-                                    throw "Fallo de validacion: No se pudo establecer $PKey en 0 para el adaptador $($Adapter.PSChildName)"
+                                    Write-Warning "No se pudo establecer $PKey en 0 para el adaptador $($Adapter.PSChildName) (omitiendo)"
                                 }
                             }
                         }

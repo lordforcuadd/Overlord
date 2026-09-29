@@ -315,6 +315,7 @@ export function useOrchestrator(overlordSwalConfig: any) {
       });
     } catch (error) {
       console.error("[FALLO EN REVERSIÓN]:", error);
+      await syncModulesStatus().catch(() => {});
       await Swal.fire({
         title: "ERROR EN REVERSIÓN",
         text: `No se pudo restaurar el estado de fábrica de Windows: ${error}`,

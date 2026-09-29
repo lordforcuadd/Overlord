@@ -183,6 +183,13 @@ fn purge_ram_native() -> Result<String, String> {
             CloseHandle(token);
             return Err(format!("No se pudieron ajustar privilegios del token: {}", err));
         }
+        let last_err = std::io::Error::last_os_error();
+        const ERROR_NOT_ALL_ASSIGNED: i32 = 1300;
+        if last_err.raw_os_error() == Some(ERROR_NOT_ALL_ASSIGNED) {
+            eprintln!("[OVERLORD ERROR] AdjustTokenPrivileges: SeProfileSingleProcessPrivilege no fue asignado");
+            CloseHandle(token);
+            return Err("El sistema denegó la asignación del privilegio SeProfileSingleProcessPrivilege".to_string());
+        }
         CloseHandle(token);
         
         // DOCUMENTACIÓN TÉCNICA DE REVERSING (Origen: ReactOS / Geoff Chappell NT API Research):
@@ -272,6 +279,7 @@ async fn is_priority_daemon_active() -> bool {
     let powershell_path = get_powershell_path();
 
     let mut cmd = tokio::process::Command::new(&powershell_path);
+    cmd.kill_on_drop(true);
     cmd.creation_flags(0x0800_0000) // CREATE_NO_WINDOW
         .args([
             "-NoProfile",
@@ -424,7 +432,10 @@ fn read_overlord_log() -> Result<String, String> {
     if log_path.exists() {
         let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
         if content.len() > 50_000 {
-            let start = content.len() - 50_000;
+            let mut start = content.len() - 50_000;
+            while !content.is_char_boundary(start) && start < content.len() {
+                start += 1;
+            }
             Ok(content[start..].to_string())
         } else {
             Ok(content)

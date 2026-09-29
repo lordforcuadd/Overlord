@@ -13,8 +13,14 @@ Try {
             # Papelera de reciclaje
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue | Out-Null
 
-            # Compactacion del almacen de componentes DISM
-            Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+            # Compactacion del almacen de componentes DISM con limite de tiempo (5 min)
+            $dismProc = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -PassThru -ErrorAction SilentlyContinue
+            if ($null -ne $dismProc) {
+                if (-not $dismProc.WaitForExit(300000)) {
+                    Stop-Process -Id $dismProc.Id -Force -ErrorAction SilentlyContinue
+                    Write-Warning "DISM StartComponentCleanup excedio el tiempo maximo de 5 minutos y fue detenido"
+                }
+            }
 
             # Purga directa de Cache de Shaders (DirectX, NVIDIA, AMD, Intel)
             $ShaderPaths = @(
