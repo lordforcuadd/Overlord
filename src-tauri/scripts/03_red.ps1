@@ -29,15 +29,32 @@ Try {
     
     $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
     if (Test-Path $InterfacesPath) {
+        $ActiveGuids = @()
+        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+                $_.Virtual -eq $false -and 
+                ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
+            } | ForEach-Object { "$($_.InterfaceGuid)" }
+        }
+
         $InterfaceKeys = Get-ChildItem -Path $InterfacesPath -ErrorAction SilentlyContinue
         foreach ($Key in $InterfaceKeys) {
-            try {
-                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
-                Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
-                Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
-                Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
-            } catch {
-                Write-Warning "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
+            $ipVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "DhcpIPAddress" -ErrorAction SilentlyContinue
+            if ([string]::IsNullOrWhiteSpace($ipVal) -or $ipVal -eq "0.0.0.0") {
+                $ipVal = Get-ItemPropertyValue -Path $Key.PSPath -Name "IPAddress" -ErrorAction SilentlyContinue
+            }
+            $hasValidIp = $null -ne $ipVal -and ("$ipVal".Trim() -ne "0.0.0.0") -and ("$ipVal".Trim() -ne "")
+            $isPhysicalActive = $ActiveGuids.Count -gt 0 -and $ActiveGuids -contains $Key.PSChildName
+
+            if ($hasValidIp -or $isPhysicalActive) {
+                try {
+                    Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
+                    Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
+                    Set-ItemProperty -Path $Key.PSPath -Name "TcpAckFrequency" -Type DWord -Value 1 -Force | Out-Null
+                    Set-ItemProperty -Path $Key.PSPath -Name "TcpNoDelay" -Type DWord -Value 1 -Force | Out-Null
+                } catch {
+                    Write-Warning "No se pudo configurar TcpAckFrequency/TcpNoDelay para la interfaz $($Key.PSChildName): $_"
+                }
             }
         }
     }

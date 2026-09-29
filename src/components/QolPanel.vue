@@ -598,8 +598,6 @@ async function applyToggle(settingKey: QolKeys) {
       }
     }
 
-    await fetchQolStatus();
-
     setTimeout(() => {
       if (qolStatus.value[settingKey] === "success")
         qolStatus.value[settingKey] = "idle";

@@ -365,16 +365,13 @@ Try {
             $TName = Split-Path $Task -Leaf
             $TaskKeyName = $Task -replace '\\', '_'
             
-            $WasEnabled = 1 # Por defecto habilitada si no hay backup (comportamiento seguro de stock)
             $SavedState = if ($null -ne $props -and $null -ne $props.PSObject.Properties[$TaskKeyName]) { $props.PSObject.Properties[$TaskKeyName].Value } else { $null }
             if ($null -ne $SavedState) {
-                $WasEnabled = $SavedState
-            }
-            
-            if ($WasEnabled -eq 1) {
-                Enable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
-            } else {
-                Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
+                if ($SavedState -eq 1) {
+                    Enable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
+                } else {
+                    Disable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null
+                }
             }
         }
     }

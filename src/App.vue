@@ -270,6 +270,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import Swal from "sweetalert2";
+import DOMPurify from "dompurify";
 import { overlordSwalConfig } from "./utils/swalConfig";
 import { copyToClipboard } from "./utils/styleHelpers";
 import { useOverlordStore } from "./stores/overlordStore";
@@ -391,7 +392,7 @@ onMounted(async () => {
   unlistenBackendBusy = await listen("backend-busy-warning", () => {
     Swal.fire({
       title: "OPERACIÓN CRÍTICA EN CURSO",
-      html: "Hay una operación crítica en curso (ej. SFC/DISM). No puedes cerrar la aplicación hasta que termine para evitar corromper la imagen del sistema operativo Windows.",
+      html: DOMPurify.sanitize("Hay una operación crítica en curso (ej. SFC/DISM). No puedes cerrar la aplicación hasta que termine para evitar corromper la imagen del sistema operativo Windows."),
       icon: "warning",
       confirmButtonText: "ENTENDIDO",
       ...overlordSwalConfig,

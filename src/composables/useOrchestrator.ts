@@ -366,6 +366,15 @@ export function useOrchestrator(overlordSwalConfig: any) {
       store.activeProfile = matchedProfile;
     } catch (e) {
       console.error("[ERROR AL CARGAR ESTADOS INICIALES]:", e);
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 4000,
+        title: "Aviso: No se pudo consultar el estado inicial de los módulos.",
+        icon: "warning",
+        ...overlordSwalConfig,
+      });
     }
   }
 

@@ -62,12 +62,17 @@ async fn fetch_hardware(force: Option<bool>) -> HardwareResponse {
 }
 
 #[tauri::command]
-async fn fetch_games() -> Vec<ScanGamesResponse> {
+async fn fetch_games() -> Result<Vec<ScanGamesResponse>, String> {
     tokio::task::spawn_blocking(move || {
         collect_installed_games()
     })
     .await
-    .unwrap_or_else(|_| Vec::new())
+    .map_err(|e| format!("Fallo al ejecutar el escaneo de juegos en segundo plano: {}", e))
+}
+
+#[tauri::command]
+async fn get_installed_games() -> Result<Vec<ScanGamesResponse>, String> {
+    fetch_games().await
 }
 
 #[tauri::command]
@@ -76,18 +81,9 @@ fn get_live_telemetry(cache: State<'_, SystemStateCache>) -> LiveMetricsResponse
     get_live_metrics(&cache)
 }
 
-fn validate_game_list(s: &str) -> Result<(), String> {
-    for c in s.chars() {
-        if !c.is_alphanumeric() && c != '.' && c != '-' && c != '_' && c != ',' && c != ':' && c != '&' && c != '\'' && c != '+' && !c.is_whitespace() {
-            return Err(format!("Caracter no permitido en la lista de juegos: '{}'", c));
-        }
-    }
-    Ok(())
-}
-
 #[tauri::command]
 async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u32, game_list: String) -> Result<String, String> {
-    validate_game_list(&game_list)?;
+    crate::executor::validate_input_string(&game_list)?;
     let hw = get_system_hardware(false).await;
     let is_hybrid = hw.is_hybrid;
     let is_x3d = hw.is_x3d;
@@ -130,7 +126,7 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
     };
 
     if let Err(ref err) = res {
-        write_to_overlord_log(&format!("[FALLO EN SCRIPT {}]: {}", script_name, err));
+        write_to_overlord_log_async(format!("[FALLO EN SCRIPT {}]: {}", script_name, err)).await;
     }
 
     res
@@ -297,7 +293,7 @@ async fn is_priority_daemon_active() -> bool {
 
 #[tauri::command]
 async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String> {
-    validate_game_list(&game_list_raw)?;
+    crate::executor::validate_input_string(&game_list_raw)?;
     if game_list_raw.trim().is_empty() { return Ok(()); }
 
     // Evitar iniciar el monitor redundante si el daemon de Scheduled Task de PowerShell ya está activo
@@ -306,7 +302,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
         return Ok(());
     }
 
-    let games: Vec<String> = game_list_raw
+    let games: std::collections::HashSet<String> = game_list_raw
         .split(',')
         .map(|s| {
             let clean = s.trim().to_lowercase();
@@ -332,6 +328,7 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
         tokio::spawn(async move {
             let current_sid = get_current_user_sid();
             let mut sys = System::new_all();
+            let mut tick_count = 0u32;
             loop {
                 tokio::select! {
                     _ = &mut rx => {
@@ -339,8 +336,9 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         break;
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
-                        // Evitar continuar ejecutándose si el daemon de Scheduled Task de PowerShell se activó
-                        if is_priority_daemon_active().await {
+                        tick_count += 1;
+                        // Evitar continuar si el daemon de Scheduled Task de PowerShell se activó (revisar cada 60s)
+                        if tick_count % 4 == 0 && is_priority_daemon_active().await {
                             println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado. Se detiene el monitor dinámico de Rust.");
                             break;
                         }
@@ -397,6 +395,9 @@ fn stop_game_priority_monitor() -> Result<(), String> {
     Ok(())
 }
 
+const MAX_LOG_SIZE_BYTES: u64 = 100_000;
+const MAX_LOG_READ_BYTES: usize = 50_000;
+
 pub(crate) fn write_to_overlord_log(msg: &str) {
     let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
     let log_path = std::path::Path::new(&program_data).join("Overlord").join("logs").join("overlord_errors.log");
@@ -404,7 +405,7 @@ pub(crate) fn write_to_overlord_log(msg: &str) {
         let _ = std::fs::create_dir_all(parent);
     }
     if let Ok(metadata) = std::fs::metadata(&log_path) {
-        if metadata.len() > 100_000 {
+        if metadata.len() > MAX_LOG_SIZE_BYTES {
             let old_log_path = log_path.with_extension("old.log");
             if old_log_path.exists() {
                 let _ = std::fs::remove_file(&old_log_path);
@@ -416,6 +417,12 @@ pub(crate) fn write_to_overlord_log(msg: &str) {
         use std::io::Write;
         let _ = writeln!(file, "{}", msg);
     }
+}
+
+pub(crate) async fn write_to_overlord_log_async(msg: String) {
+    let _ = tokio::task::spawn_blocking(move || {
+        write_to_overlord_log(&msg);
+    }).await;
 }
 
 #[tauri::command]
@@ -431,8 +438,8 @@ fn read_overlord_log() -> Result<String, String> {
     let log_path = std::path::Path::new(&program_data).join("Overlord").join("logs").join("overlord_errors.log");
     if log_path.exists() {
         let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
-        if content.len() > 50_000 {
-            let mut start = content.len() - 50_000;
+        if content.len() > MAX_LOG_READ_BYTES {
+            let mut start = content.len() - MAX_LOG_READ_BYTES;
             while !content.is_char_boundary(start) && start < content.len() {
                 start += 1;
             }
@@ -475,6 +482,7 @@ pub fn run() {
             check_backup_exists,
             fetch_hardware,
             fetch_games,
+            get_installed_games,
             get_live_telemetry,
             run_optimization_script,
             purge_ram_native,

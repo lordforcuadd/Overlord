@@ -96,17 +96,23 @@ Try {
                         if ($null -ne $AdvProps) {
                             $IntMod = $AdvProps | Where-Object { $_.RegistryKeyword -match "^\*?InterruptModeration$" -or $_.DisplayName -match "Interrupt Moderation|Moderaci[oó]n de interrupciones" } | Select-Object -First 1
                             if ($null -ne $IntMod) {
-                                $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
-                                if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
-                                    $valToSave = if ($null -ne $IntMod.RegistryValue) { $IntMod.RegistryValue.ToString() } else { $IntMod.DisplayValue }
-                                    Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $valToSave -Type String -Force -ErrorAction SilentlyContinue | Out-Null
-                                    $keyToSave = if ($IntMod.RegistryKeyword) { $IntMod.RegistryKeyword } else { $IntMod.DisplayName }
-                                    Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationKey" -Value $keyToSave -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                if (Test-Path $AdapterBackupPath) {
+                                    $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue
+                                    if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
+                                        $valToSave = if ($null -ne $IntMod.RegistryValue) { $IntMod.RegistryValue.ToString() } else { $IntMod.DisplayValue }
+                                        Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $valToSave -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                        $keyToSave = if ($IntMod.RegistryKeyword) { $IntMod.RegistryKeyword } else { $IntMod.DisplayName }
+                                        Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationKey" -Value $keyToSave -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                    }
                                 }
                                 if ($IntMod.RegistryKeyword) {
                                     Set-NetAdapterAdvancedProperty -Name $Adapter.Name -RegistryKeyword $IntMod.RegistryKeyword -RegistryValue "0" -ErrorAction SilentlyContinue | Out-Null
                                 } else {
-                                    Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName $IntMod.DisplayName -DisplayValue "Disabled" -ErrorAction SilentlyContinue | Out-Null
+                                    try {
+                                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName $IntMod.DisplayName -DisplayValue "Disabled" -ErrorAction Stop | Out-Null
+                                    } catch {
+                                        Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName $IntMod.DisplayName -DisplayValue "0" -ErrorAction SilentlyContinue | Out-Null
+                                    }
                                 }
                             }
                         }

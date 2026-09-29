@@ -90,13 +90,18 @@ if (Test-Path $ProfilePath) {
         }
     }
     
+    function Test-IsPhysicalEthernetAdapter {
+        param($Adapter)
+        return ($Adapter.Status -eq "Up" -and $Adapter.Virtual -eq $false -and ($Adapter.NdisPhysicalMedium -eq 14 -or ($Adapter.PhysicalMediaType -notmatch "802.11" -and $Adapter.MediaType -notmatch "Wireless" -and $Adapter.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth")))
+    }
+
     $InitialRtoVal = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "InitialRto" -ErrorAction SilentlyContinue
     
     $CoalescingOk = $true
     if (-not $IsLaptop) {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-                $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
+                Test-IsPhysicalEthernetAdapter $_
             } | ForEach-Object { "$($_.InterfaceGuid)" }
             
             if ($ActiveGuids.Count -gt 0) {
@@ -105,10 +110,12 @@ if (Test-Path $ProfilePath) {
                     $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
                     foreach ($Adapter in $NetAdapters) {
                         if ($Adapter.PSChildName -match "^\d{4}$") {
-                            $Props = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
-                            if ($null -ne $Props -and $ActiveGuids -contains $Props.NetCfgInstanceId) {
-                                if ($null -ne $Props."*PacketCoalescing" -and $Props."*PacketCoalescing" -ne "0") { $CoalescingOk = $false }
-                                if ($null -ne $Props.PacketCoalescing -and $Props.PacketCoalescing -ne "0") { $CoalescingOk = $false }
+                            $instanceId = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue
+                            if ($null -ne $instanceId -and $ActiveGuids -contains $instanceId) {
+                                $c1 = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "*PacketCoalescing" -ErrorAction SilentlyContinue
+                                if ($null -ne $c1 -and "$c1".Trim() -ne "0") { $CoalescingOk = $false }
+                                $c2 = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "PacketCoalescing" -ErrorAction SilentlyContinue
+                                if ($null -ne $c2 -and "$c2".Trim() -ne "0") { $CoalescingOk = $false }
                             }
                         }
                     }
@@ -137,7 +144,7 @@ if (Test-Path $ProfilePath) {
     
     if (-not $RunningOnBattery -and (Get-Command Get-NetAdapterPowerManagement -ErrorAction SilentlyContinue)) {
         $Adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
-            $_.Status -eq "Up" -and $_.Virtual -eq $false -and ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
+            Test-IsPhysicalEthernetAdapter $_
         }
         foreach ($Adapter in $Adapters) {
             $Pwr = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction SilentlyContinue

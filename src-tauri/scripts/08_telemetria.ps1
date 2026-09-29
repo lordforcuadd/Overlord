@@ -22,6 +22,10 @@ Try {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
         Set-Service "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
+        $diagStart = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -Name "Start" -ErrorAction SilentlyContinue
+        if ($diagStart -ne 4) {
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -Name "Start" -Type DWord -Value 4 -Force -ErrorAction SilentlyContinue | Out-Null
+        }
     } catch {
         Write-Verbose "Fallo al detener DiagTrack: $_"
     }

@@ -246,8 +246,7 @@ switch ($ToggleName) {
             $actual = Get-ItemPropertyValue -Path $Path -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue
             if ($null -eq $actual -or $actual.ToString() -ne $Value.ToString()) { throw "Bloqueado por el SO" }
         } catch {
-            Write-Error "[-] Error al desactivar Copilot en HKLM: $_"
-            exit 1
+            Write-Warning "[-] Advertencia al configurar Copilot en HKLM: $_"
         } finally {
             $ErrorActionPreference = $OldEAP
         }
@@ -274,8 +273,7 @@ switch ($ToggleName) {
             $allowEnablementVal = if ($Value -eq 1) { 0 } else { 1 }
             Set-ItemProperty -Path $Path -Name "AllowRecallEnablement" -Type DWord -Value $allowEnablementVal -Force | Out-Null
         } catch {
-            Write-Error "[-] Error al desactivar Recall en HKLM: $_"
-            exit 1
+            Write-Warning "[-] Advertencia al configurar Recall en HKLM: $_"
         } finally {
             $ErrorActionPreference = $OldEAP
         }
@@ -320,8 +318,7 @@ switch ($ToggleName) {
                 if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
                 Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value 1 -Force | Out-Null
             } catch {
-                Write-Error "[-] Error al desactivar OneDrive en HKLM: $_"
-                exit 1
+                Write-Warning "[-] Advertencia al desactivar directiva de OneDrive en HKLM: $_"
             } finally {
                 $ErrorActionPreference = $OldEAP
             }
@@ -334,8 +331,7 @@ switch ($ToggleName) {
                     Remove-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue | Out-Null
                 }
             } catch {
-                Write-Error "[-] Error al habilitar OneDrive en HKLM: $_"
-                exit 1
+                Write-Warning "[-] Advertencia al habilitar directiva de OneDrive en HKLM: $_"
             } finally {
                 $ErrorActionPreference = $OldEAP
             }
@@ -360,8 +356,7 @@ switch ($ToggleName) {
             if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
             Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value $widgetsVal -Force | Out-Null
         } catch {
-            Write-Error "[-] Error al desactivar Widgets en HKLM: $_"
-            exit 1
+            Write-Warning "[-] Advertencia al configurar Widgets en HKLM: $_"
         } finally {
             $ErrorActionPreference = $OldEAP
         }

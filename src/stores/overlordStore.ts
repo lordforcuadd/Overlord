@@ -246,7 +246,7 @@ export const useOverlordStore = defineStore("overlord", {
         }
         const seenExes = new Set<string>();
         const combined: GamePayload[] = [];
-        for (const g of scanned) {
+        for (const g of (scanned || [])) {
           const norm = (g.exe || "").toLowerCase().trim();
           if (norm && !seenExes.has(norm)) {
             seenExes.add(norm);

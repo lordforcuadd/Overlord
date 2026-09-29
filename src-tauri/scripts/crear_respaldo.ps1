@@ -13,20 +13,25 @@ Try {
     $Description = "Overlord v$AppVersion - Punto Seguro"
 
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage"
-    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage"
+    if (Test-Path "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss") {
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage"
+    }
 
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue
     Start-Service -Name VSS -ErrorAction SilentlyContinue
     $vssSvc = Get-Service -Name VSS -ErrorAction SilentlyContinue
     if ($null -ne $vssSvc -and $vssSvc.Status -ne "Running") {
         try {
-            $vssSvc.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(3))
+            $vssSvc.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(6))
         } catch {
             Write-Verbose "Timeout esperando estado Running de VSS: $_"
         }
     }
-    Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue
-    Start-Service -Name vmicvss -ErrorAction SilentlyContinue
+    $vmicvssSvc = Get-Service -Name vmicvss -ErrorAction SilentlyContinue
+    if ($null -ne $vmicvssSvc) {
+        Set-Service -Name vmicvss -StartupType Manual -ErrorAction SilentlyContinue
+        Start-Service -Name vmicvss -ErrorAction SilentlyContinue
+    }
 
     $SysDrive = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($SysDrive)) { $SysDrive = "C:" }

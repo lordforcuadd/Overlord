@@ -62,6 +62,7 @@ Try {
 
     # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
+    $IsServiceRunning = $false
     try {
         # El objeto COM Microsoft.Update.Installer.IsBusy es local, por lo que verificamos procesos activos
         # de instaladores en caliente (TiWorker, TrustedInstaller) que denotan parches activos.
@@ -74,16 +75,19 @@ Try {
                 Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
             }
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-            if ($IsServiceRunning) {
-                Start-Service wuauserv -ErrorAction SilentlyContinue
-            }
         } else {
             # TiWorker o TrustedInstaller están activos. Borrar solo temporales no bloqueados sin apagar el servicio.
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
     } catch {
-        # Evitamos apagar wuauserv por seguridad. Se borran únicamente los temporales no bloqueados.
-        Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+        Write-Warning "Fallo no crítico gestionando limpieza de SoftwareDistribution: $_"
+    } finally {
+        if ($IsServiceRunning) {
+            $curStatus = (Get-Service -Name "wuauserv" -ErrorAction SilentlyContinue).Status
+            if ($curStatus -ne "Running") {
+                Start-Service wuauserv -ErrorAction SilentlyContinue
+            }
+        }
     }
 
     try {
