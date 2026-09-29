@@ -56,6 +56,15 @@ fn get_job_handle() -> HANDLE {
     }
 }
 
+/// Asigna un proceso hijo (PowerShell) al Job Object de la aplicación para garantizar
+/// su terminación automática (kill-on-close) si Overlord llega a cerrarse abruptamente.
+///
+/// NOTA DE ARQUITECTURA / LIMITACIÓN CONOCIDA:
+/// En entornos corporativos restringidos, sandboxes o máquinas con directivas locales de Windows (GPO)
+/// donde la creación o configuración de Job Objects esté bloqueada, `get_job_handle()` retornará 0.
+/// En dicho escenario, el proceso hijo no dispondrá de kill-on-close a nivel kernel; no obstante,
+/// la aplicación continúa protegida por el evento de ventana `CloseRequested` y el guard `is_busy()`,
+/// previniendo el cierre prematuro mientras haya scripts en ejecución.
 fn assign_child_to_job(pid: u32) {
     let handle = get_job_handle();
     if handle != 0 {
@@ -69,6 +78,11 @@ fn assign_child_to_job(pid: u32) {
                 CloseHandle(proc_handle);
             }
         }
+    } else {
+        eprintln!(
+            "[OVERLORD WARN] JobObject no disponible en este entorno; proceso PID {} sin aislamiento kill-on-close (protegido por guard is_busy)",
+            pid
+        );
     }
 }
 
