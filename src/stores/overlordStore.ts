@@ -223,6 +223,9 @@ export const useOverlordStore = defineStore("overlord", {
 
         this.isPriorityServiceInstalled = status.trim() === "installed";
         this.priorityServiceSelected = this.isPriorityServiceInstalled;
+        if (this.isPriorityServiceInstalled) {
+          await invoke("stop_game_priority_monitor").catch(() => {});
+        }
       } catch (e) {
         console.error(`[ERROR TOGGLING PRIORITY SERVICE ${enable}]:`, e);
         await this.checkPriorityServiceStatus();

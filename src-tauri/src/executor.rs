@@ -36,14 +36,20 @@ fn get_job_handle() -> HANDLE {
         if handle != 0 {
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
             info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            SetInformationJobObject(
+            let res = SetInformationJobObject(
                 handle,
                 JobObjectExtendedLimitInformation,
-                &info as *const _ as *const _,
+                &raw const info as *const _,
                 std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
             );
-            *lock = Some(handle);
-            handle
+            if res != 0 {
+                *lock = Some(handle);
+                handle
+            } else {
+                eprintln!("[OVERLORD ERROR] Fallo al configurar límites en JobObject");
+                CloseHandle(handle);
+                0
+            }
         } else {
             0
         }
@@ -56,7 +62,10 @@ fn assign_child_to_job(pid: u32) {
         unsafe {
             let proc_handle = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, 0, pid);
             if proc_handle != 0 {
-                AssignProcessToJobObject(handle, proc_handle);
+                let res = AssignProcessToJobObject(handle, proc_handle);
+                if res == 0 {
+                    eprintln!("[OVERLORD ERROR] Fallo al asignar proceso PID {} a JobObject", pid);
+                }
                 CloseHandle(proc_handle);
             }
         }
@@ -87,7 +96,8 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
     let launchers_config_b64 = encode_utf8_base64(include_str!("../launchers_config.json"));
 
     format!(
-        "$IsLaptop = ${}\n\
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8\n\
+         $IsLaptop = ${}\n\
          $RamGB = {}\n\
          $GameList = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
          $ActionId = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\

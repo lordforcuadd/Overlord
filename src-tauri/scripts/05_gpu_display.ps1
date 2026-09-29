@@ -25,6 +25,7 @@ Try {
 
         if ($null -ne $Controllers) {
             foreach ($Controller in $Controllers) {
+                if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\") { continue }
                 $DriverVer = $Controller.DriverVersion
                 # El formato DCH de drivers (NVIDIA/AMD/Intel) mapea el WDDM major en el primer segmento
                 if ($DriverVer -and $DriverVer -match "^(\d+)\.") {

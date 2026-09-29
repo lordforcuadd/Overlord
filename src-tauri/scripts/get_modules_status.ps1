@@ -110,12 +110,10 @@ if (Test-Path $ProfilePath) {
                     $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
                     foreach ($Adapter in $NetAdapters) {
                         if ($Adapter.PSChildName -match "^\d{4}$") {
-                            $instanceId = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "NetCfgInstanceId" -ErrorAction SilentlyContinue
-                            if ($null -ne $instanceId -and $ActiveGuids -contains $instanceId) {
-                                $c1 = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "*PacketCoalescing" -ErrorAction SilentlyContinue
-                                if ($null -ne $c1 -and "$c1".Trim() -ne "0") { $CoalescingOk = $false }
-                                $c2 = Get-ItemPropertyValue -Path $Adapter.PSPath -Name "PacketCoalescing" -ErrorAction SilentlyContinue
-                                if ($null -ne $c2 -and "$c2".Trim() -ne "0") { $CoalescingOk = $false }
+                            $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
+                            if ($null -ne $adapterProps -and $ActiveGuids -contains $adapterProps.NetCfgInstanceId) {
+                                if ($null -ne $adapterProps."*PacketCoalescing" -and "$($adapterProps.'*PacketCoalescing')".Trim() -ne "0") { $CoalescingOk = $false }
+                                if ($null -ne $adapterProps.PacketCoalescing -and "$($adapterProps.PacketCoalescing)".Trim() -ne "0") { $CoalescingOk = $false }
                             }
                         }
                     }

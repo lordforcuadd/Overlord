@@ -271,7 +271,16 @@ fn does_process_belong_to_current_user(pid: u32, current_sid: &[u8]) -> bool {
     }
 }
 
+fn is_priority_daemon_task_present_on_disk() -> bool {
+    let windir = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+    std::path::Path::new(&windir).join("System32\\Tasks\\OverlordPriorityMonitor").exists()
+}
+
 async fn is_priority_daemon_active() -> bool {
+    if !is_priority_daemon_task_present_on_disk() {
+        return false;
+    }
+
     let powershell_path = get_powershell_path();
 
     let mut cmd = tokio::process::Command::new(&powershell_path);
@@ -328,7 +337,6 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
         tokio::spawn(async move {
             let current_sid = get_current_user_sid();
             let mut sys = System::new_all();
-            let mut tick_count = 0u32;
             loop {
                 tokio::select! {
                     _ = &mut rx => {
@@ -336,9 +344,9 @@ async fn start_game_priority_monitor(game_list_raw: String) -> Result<(), String
                         break;
                     }
                     () = tokio::time::sleep(Duration::from_secs(15)) => {
-                        tick_count += 1;
-                        // Evitar continuar si el daemon de Scheduled Task de PowerShell se activó (revisar cada 60s)
-                        if tick_count % 4 == 0 && is_priority_daemon_active().await {
+                        // Evitar continuar si el daemon de Scheduled Task de PowerShell se activó
+                        // Gracias al fast-path de disco, no spawnea procesos de PowerShell si la tarea no existe.
+                        if is_priority_daemon_active().await {
                             println!("[RUST MONITOR]: Daemon de prioridad (Scheduled Task) activo detectado. Se detiene el monitor dinámico de Rust.");
                             break;
                         }
