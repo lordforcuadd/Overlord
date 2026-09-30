@@ -134,7 +134,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación del algoritmo de Nagle (TcpNoDelay = 1 y TcpAckFrequency = 1) en las interfaces de red activas.",
       "Desactivación de Large Send Offload (LSO) y Receive Segment Coalescing (RSC) en adaptadores de red para eliminar jitter (Advertencia: puede reducir el ancho de banda pico en transferencias masivas).",
       "Configuración del perfil RSS a Closest para minimizar fallos de caché L3 de la CPU al procesar interrupciones.",
-      "Desactivación de modos de ahorro Ethernet (EEE, Green Energy), coalescencia de paquetes y control de flujo.",
+      "Desactivación de modos de ahorro Ethernet (EEE, Green Energy) y coalescencia de paquetes (preservando control de flujo para estabilidad).",
       "Desactivación del Power Management del adaptador de red (AllowComputerToTurnOffDevice) para reducir varianza/jitter de ping (Aviso: reduce levemente la autonomía en WiFi).",
     ],
   },
@@ -156,6 +156,8 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     scriptName: "04_rendimiento.ps1",
     impactoRendimiento:
       "Disminución de stutters provocados por procesos de reorganización de memoria y codificación de vídeo en segundo plano.",
+    warning:
+      "Scheduling Category = High en la rama Games de MMCSS prioriza hilos de juegos frente a otros procesos multimedia. Reversible en cualquier momento para entornos de producción de audio (DAW).",
     details: [
       "Desactivación de Page Combining en MMAgent para mitigar micro-stutters generados por el escaneo de páginas, manteniendo Memory Compression activa contra desbordamientos OOM.",
       "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
@@ -315,7 +317,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Importación e inyección del esquema de energía personalizado Overlord Performance.",
       "Ajuste del estacionamiento de núcleos (Core Parking) al 100% para evitar caídas y fluctuaciones de frecuencias.",
       "Optimización adaptativa de la preferencia de rendimiento energético (EPP = 0) y CPU Boost (Agresivo).",
-      "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación global de Power Throttling.",
+      "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación de Power Throttling en PCs de escritorio (preservando EcoQoS en laptops para autonomía y control térmico).",
     ],
   },
   gameHooks: {

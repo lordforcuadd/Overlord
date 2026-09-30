@@ -29,7 +29,7 @@ Try {
 
             if ($null -ne $Controllers) {
                 foreach ($Controller in $Controllers) {
-                    if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\|PCI\\VEN_1AF4") { continue }
+                    if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\|PCI\\VEN_1AF4|PCI\\VEN_1B36|PCI\\VEN_15AD|PCI\\VEN_80EE") { continue }
                     $Name = if ($Controller.Name) { $Controller.Name } else { "" }
                     # Descartar GPUs legacy que reportan drivers >= 27 pero no tienen hardware HAGS (evita pantalla negra)
                     if ($Name -match "HD Graphics|UHD Graphics\s*(6[0-9]{2}|G[0-9])|Iris Plus" -and $Name -notmatch "Arc") { continue }
