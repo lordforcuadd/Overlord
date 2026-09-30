@@ -237,6 +237,35 @@ if (-not $IsLaptop) {
             $classKey.Close()
         }
     }
+    if (-not $intModDisabled) {
+        $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
+        if ($pciKey) {
+            foreach ($venId in $pciKey.GetSubKeyNames()) {
+                $venKey = $pciKey.OpenSubKey($venId, $false)
+                if ($venKey) {
+                    foreach ($devId in $venKey.GetSubKeyNames()) {
+                        $devKey = $venKey.OpenSubKey($devId, $false)
+                        if ($devKey) {
+                            if ($devKey.GetValue("ClassGUID") -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") {
+                                $affKey = $devKey.OpenSubKey("Device Parameters\Interrupt Management\Affinity Policy", $false)
+                                if ($affKey) {
+                                    $pol = $affKey.GetValue("DevicePolicy")
+                                    $override = $affKey.GetValue("AssignmentSetOverride")
+                                    if ($null -ne $pol -and $pol -eq 4 -and $null -ne $override) {
+                                        $intModDisabled = $true
+                                    }
+                                    $affKey.Close()
+                                }
+                            }
+                            $devKey.Close()
+                        }
+                    }
+                    $venKey.Close()
+                }
+            }
+            $pciKey.Close()
+        }
+    }
     $Status['irqAffinity'] = $intModDisabled
 } else {
     $Status['irqAffinity'] = $false
