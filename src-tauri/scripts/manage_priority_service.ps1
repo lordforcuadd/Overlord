@@ -76,6 +76,29 @@ function Write-DaemonLog {
 
 Write-DaemonLog "Iniciando daemon de prioridad de juegos..."
 
+$IsDualCcdX3d = $false
+[int64]$X3dAffinityMask = 0
+
+try {
+    $CpuName = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Name)
+    if ($CpuName -and $CpuName.ToLower().Contains("x3d")) {
+        $logicalProcs = [Environment]::ProcessorCount
+        if ($logicalProcs -ge 32) {
+            # Ryzen 9 7950X3D / 9950X3D (16c/32t): CCD0 (V-Cache) = hilos 0-15 (0x0000FFFF)
+            $IsDualCcdX3d = $true
+            $X3dAffinityMask = 0xFFFF
+            Write-DaemonLog "CPU AMD Ryzen Dual-CCD X3D detectada ($logicalProcs hilos). Enrutamiento a 3D V-Cache (CCD0) activo."
+        } elseif ($logicalProcs -ge 24) {
+            # Ryzen 9 7900X3D / 9900X3D (12c/24t): CCD0 (V-Cache) = hilos 0-11 (0x00000FFF)
+            $IsDualCcdX3d = $true
+            $X3dAffinityMask = 0x0FFF
+            Write-DaemonLog "CPU AMD Ryzen Dual-CCD X3D detectada ($logicalProcs hilos). Enrutamiento a 3D V-Cache (CCD0) activo."
+        }
+    }
+} catch {
+    Write-DaemonLog "No se pudo determinar topologia X3D: $_"
+}
+
 while ($true) {
     if (-not (Test-Path $ConfigPath)) {
         Write-DaemonLog "Archivo de configuracion eliminado. Deteniendo daemon."
@@ -131,6 +154,17 @@ while ($true) {
                                     if ($Proc.PriorityClass -ne 'High') {
                                         $Proc.PriorityClass = 'High'
                                         Write-DaemonLog "Establecida prioridad ALTA para el proceso: $($Proc.Name) (PID: $($Proc.Id))"
+                                    }
+                                    if ($IsDualCcdX3d -and $X3dAffinityMask -gt 0) {
+                                        try {
+                                            $targetAffinity = [IntPtr]$X3dAffinityMask
+                                            if ($Proc.ProcessorAffinity -ne $targetAffinity) {
+                                                $Proc.ProcessorAffinity = $targetAffinity
+                                                Write-DaemonLog "Afinidad fijada a CCD0 3D V-Cache (0x$($X3dAffinityMask.ToString('X'))) para $($Proc.Name) (PID: $($Proc.Id))"
+                                            }
+                                        } catch {
+                                            Write-DaemonLog "No se pudo fijar afinidad X3D para $($Proc.Name) ($($Proc.Id)): $_"
+                                        }
                                     }
                                 } catch {
                                     Write-DaemonLog "No se pudo cambiar la prioridad del proceso $($Proc.Name): $_"

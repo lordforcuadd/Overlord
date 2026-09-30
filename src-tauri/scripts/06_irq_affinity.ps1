@@ -16,10 +16,37 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # Para asegurar máxima compatibilidad con cualquier topología (Intel Hybrid, AMD X3D, 4-cores)
-    # dejamos que el sistema operativo balancee de forma nativa (IrqPolicyMachineDefault)
+    # Configuración de políticas de interrupción:
+    # En procesadores AMD Ryzen Dual-CCD X3D (7900X3D, 7950X3D, 9900X3D, 9950X3D), enrutamos las interrupciones
+    # de red al CCD1 (frecuencia) para blindar el CCD0 (3D V-Cache) exclusivamente para el renderizado del juego.
+    # En el resto de topologías (Intel, Ryzen single CCD, etc.), delegamos de forma nativa al HAL (IrqPolicyMachineDefault).
     $DevicePolicyValue = 0 # IrqPolicyMachineDefault
     [uint64]$NetBitmask = 0
+
+    $logicalProcs = [Environment]::ProcessorCount
+    $isDualCcdX3dDetected = $false
+    if ($IsX3d) {
+        $isDualCcdX3dDetected = ($logicalProcs -ge 24)
+    } else {
+        try {
+            $cpuName = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Name)
+            if ($null -ne $cpuName -and $cpuName.ToLower().Contains("x3d") -and $logicalProcs -ge 24) {
+                $isDualCcdX3dDetected = $true
+            }
+        } catch { }
+    }
+
+    if ($isDualCcdX3dDetected) {
+        Write-Host "    -> Topologia AMD Ryzen Dual-CCD X3D detectada ($logicalProcs hilos). Enrutando interrupciones de red a CCD1 para blindar la 3D V-Cache (CCD0)..." -ForegroundColor Cyan
+        $DevicePolicyValue = 4 # IrqPolicySpecifiedProcessors
+        if ($logicalProcs -ge 32) {
+            # Ryzen 9 7950X3D / 9950X3D (16c/32t): CCD0 = hilos 0-15 (V-Cache). Red a CCD1 (hilos 16-31).
+            $NetBitmask = [uint64]0xFFFF0000
+        } else {
+            # Ryzen 9 7900X3D / 9900X3D (12c/24t): CCD0 = hilos 0-11 (V-Cache). Red a CCD1 (hilos 12-23).
+            $NetBitmask = [uint64]0x00FFF000
+        }
+    }
 
     $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)
 

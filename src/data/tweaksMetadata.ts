@@ -218,24 +218,25 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "irqAffinity",
     title: "Afinidad de Hardware (IRQ)",
     description:
-      "Ajusta la política de interrupciones del bus PCI al valor nativo del sistema (MachineDefault) y deshabilita la moderación de interrupciones en equipos de escritorio.",
+      "Ajusta la política de interrupciones del bus PCI al valor nativo del sistema o enruta a CCD1 en procesadores AMD Ryzen X3D para blindar la 3D V-Cache, y deshabilita la moderación de interrupciones en equipos de escritorio.",
     riesgo: "Experimental",
     evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Restauración de las llaves de configuración de adaptadores de red y reactivación de los valores de fábrica de Interrupt Moderation.",
     hardwareRecomendado:
-      "Computadoras de escritorio con adaptadores de red dedicados o integrados Gigabit/2.5G.",
+      "Computadoras de escritorio con adaptadores de red dedicados o integrados Gigabit/2.5G y procesadores AMD Ryzen o Intel.",
     windowsVersion: "Windows 10 / Windows 11",
     fuenteOficial:
       "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/interrupt-affinity-and-priority",
     scriptName: "06_irq_affinity.ps1",
     impactoRendimiento:
-      "Reducción de la latencia de llamadas de procedimiento diferidas (DPC Latency) del bus de red.",
+      "Reducción de la latencia de llamadas de procedimiento diferidas (DPC Latency) del bus de red y eliminación de contención de interrupciones en núcleos 3D V-Cache.",
     warning:
       "Desactivar Interrupt Moderation en adaptadores de red de escritorio fuerza la entrega de interrupciones en tiempo real reduciendo la latencia de DPC, pero puede aumentar levemente el uso de CPU en transferencias de alta velocidad. En laptops, este módulo se omite automáticamente para proteger la autonomía.",
     details: [
       "Optimización de políticas de interrupción del bus PCI de adaptadores de red con delegación nativa al HAL de Windows.",
+      "Enrutamiento adaptativo de interrupciones en procesadores AMD Ryzen Dual-CCD X3D hacia el CCD secundario de frecuencia (CCD1), blindando el CCD0 (3D V-Cache) para renderizado exclusivo de juegos.",
       "Desactivación de Interrupt Moderation en adaptadores Ethernet físicos en equipos de escritorio para latencia de red en tiempo real.",
       "Aislamiento de energía: en computadoras portátiles se preservan los mecanismos de moderación para evitar consumo de batería innecesario.",
     ],
