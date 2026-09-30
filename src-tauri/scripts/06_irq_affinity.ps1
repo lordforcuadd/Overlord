@@ -83,11 +83,13 @@ Try {
     }
 
     if (-not $IsLaptop) {
-        Write-Host "    -> Desactivando Interrupt Moderation en adaptadores de red de escritorio para baja latencia..."
+        Write-Host "    -> Desactivando Interrupt Moderation en adaptadores Ethernet fisicos de escritorio para baja latencia..."
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $NetAdapters = Get-NetAdapter -ErrorAction SilentlyContinue
             foreach ($Adapter in $NetAdapters) {
-                if ($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) {
+                $isEthernet = ($Adapter.Virtual -eq $false) -and 
+                              ($Adapter.NdisPhysicalMedium -eq 14 -or ($Adapter.PhysicalMediaType -notmatch "802.11" -and $Adapter.MediaType -notmatch "Wireless" -and $Adapter.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
+                if (($Adapter.Status -eq "Up" -or $Adapter.HardwareInterface -eq $true) -and $isEthernet) {
                     try {
                         $AdapterBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Network\Adapters_State\$($Adapter.InterfaceGuid)"
                         if (!(Test-Path $AdapterBackupPath)) { New-Item -Path $AdapterBackupPath -Force -ErrorAction SilentlyContinue | Out-Null }

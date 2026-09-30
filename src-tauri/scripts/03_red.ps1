@@ -46,7 +46,7 @@ Try {
             $hasValidIp = $null -ne $ipVal -and ("$ipVal".Trim() -ne "0.0.0.0") -and ("$ipVal".Trim() -ne "")
             $isPhysicalActive = $ActiveGuids.Count -gt 0 -and $ActiveGuids -contains $Key.PSChildName
 
-            if ($hasValidIp -or $isPhysicalActive) {
+            if ($isPhysicalActive -or ($ActiveGuids.Count -eq 0 -and $hasValidIp)) {
                 try {
                     Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpAckFrequency" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
                     Backup-OverlordRegistryValue -TargetKey $Key.PSPath -ValueName "TcpNoDelay" -BackupSubFolder "Network\Interfaces\$($Key.PSChildName)"
@@ -88,10 +88,10 @@ Try {
                     if ($EthernetGuids -contains $NetInstanceId) {
                         $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
                         
-                        # Desactivar Coalescencia, Moderacion de Interrupcion y Control de Flujo unicamente en PCs de Escritorio con >8 hilos logicos
+                        # Desactivar Coalescencia y Moderacion de Interrupcion unicamente en PCs de Escritorio con >8 hilos logicos (preservando FlowControl)
                         $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
                         if (-not $IsLaptop -and $TotalThreads -gt 8) {
-                            $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl"
+                            $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration"
                         }
 
                         $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
