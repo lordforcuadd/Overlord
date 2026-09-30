@@ -176,7 +176,7 @@ if (Test-Path $GpuPath) {
         } elseif (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
             foreach ($Controller in $Controllers) {
-                if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\") { continue }
+                if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\|PCI\\VEN_1AF4") { continue }
                 $Name = if ($Controller.Name) { $Controller.Name } else { "" }
                 if ($Name -match "HD Graphics|UHD Graphics\s*(6[0-9]{2}|G[0-9])|Iris Plus" -and $Name -notmatch "Arc") { continue }
                 if ($Name -match "\bRX\s*[45][0-9]{2}\b|Vega" -and $Name -notmatch "RX\s*5[0-9]{3}") { continue }
