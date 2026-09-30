@@ -17,8 +17,14 @@ pub struct HardwareResponse {
     pub cpu_frequency: u64,
     pub gpu: String,
     pub motherboard: String,
+    pub bios_vendor: String,
+    pub bios_version: String,
+    pub bios_date: String,
     pub ram_gb: u32,
     pub ram_speed_mhz: Option<u32>,
+    pub ram_max_speed_mhz: Option<u32>,
+    pub is_xmp_active: Option<bool>,
+    pub is_rebar_enabled: Option<bool>,
     pub is_laptop: bool,
     pub is_hybrid: bool,
     pub is_x3d: bool,
@@ -72,22 +78,38 @@ async fn detect_system_hardware() -> HardwareResponse {
         // 1. Consultar velocidad de RAM de forma asíncrona mediante PowerShell/CIM (método moderno compatible con 24H2)
         let powershell_path = crate::get_powershell_path();
         
-        // Consultar velocidad de RAM via CIM/PowerShell de forma asíncrona y sin crear ventana
         let mut ram_speed_val = None;
+        let mut ram_max_speed_val = None;
+        let mut is_xmp_val = None;
+        let mut is_rebar_val = None;
+
         let mut cmd = tokio::process::Command::new(&powershell_path);
         cmd.creation_flags(CREATE_NO_WINDOW)
            .args([
                "-NoProfile",
                "-Command",
-               "(Get-CimInstance Win32_PhysicalMemory | Select-Object -ExpandProperty ConfiguredClockSpeed -First 1)",
+                "$m = Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue | Select-Object -First 1 Speed, ConfiguredClockSpeed; $gpuPnp = (Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Where-Object { $_.PNPDeviceID -match '^PCI\\\\VEN_' } | Select-Object -First 1 -ExpandProperty PNPDeviceID); $amdRebar = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue | Where-Object { $_.KMD_RebarControlMode -eq 1 } | Select-Object -First 1); $nvRebar = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue | Where-Object { $_.DriverDesc -match 'NVIDIA' -and ($_.MemorySelectionPreference -eq 1 -or $_.KMD_RebarControlMode -eq 1) } | Select-Object -First 1); $gpuLargeBar = if ($gpuPnp) { (Get-CimInstance Win32_PNPAllocatedResource -ErrorAction SilentlyContinue | Where-Object { $_.Dependent.DeviceId -eq $gpuPnp } | Where-Object { $_.Antecedent.CimClass.CimClassName -eq 'Win32_DeviceMemoryAddress' -and [int64]$_.Antecedent.StartingAddress -ge 4294967296 } | Select-Object -First 1) } else { $null }; $rebarActive = if ($gpuPnp -match 'VEN_1002') { $null -ne $amdRebar } elseif ($gpuPnp -match 'VEN_10DE') { ($null -ne $nvRebar -or ($null -ne $gpuLargeBar -and $gpuPnp -match 'DEV_(2[2456789]|1[Ff]|2[0-9A-Fa-f]{3})')) } else { $null -ne $gpuLargeBar }; [PSCustomObject]@{ Configured = $m.ConfiguredClockSpeed; Max = $m.Speed; Rebar = [bool]$rebarActive } | ConvertTo-Json -Compress",
            ]);
         
         if let Ok(Ok(output)) = tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output()).await {
             if output.status.success() {
                 let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if let Ok(speed) = text.parse::<u32>() {
-                    if speed > 0 {
-                        ram_speed_val = Some(speed);
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(cfg) = json.get("Configured").and_then(|v| v.as_u64()) {
+                        if cfg > 0 {
+                            let cfg_u32 = cfg as u32;
+                            ram_speed_val = Some(cfg_u32);
+                            if let Some(max) = json.get("Max").and_then(|v| v.as_u64()) {
+                                if max > 0 {
+                                    let max_u32 = max as u32;
+                                    ram_max_speed_val = Some(max_u32);
+                                    is_xmp_val = Some(cfg_u32 >= max_u32);
+                                }
+                            }
+                        }
+                    }
+                    if let Some(rebar) = json.get("Rebar").and_then(|v| v.as_bool()) {
+                        is_rebar_val = Some(rebar);
                     }
                 }
             }
@@ -116,14 +138,22 @@ async fn detect_system_hardware() -> HardwareResponse {
             let cpu_vendor = cpus.first().map(|cpu| cpu.vendor_id().trim().to_string()).unwrap_or_else(|| "Unknown".to_string());
             let cpu_frequency = cpus.first().map(|cpu| cpu.frequency()).unwrap_or(0);
 
-            let motherboard_name = hklm
+            let (motherboard_name, bios_vendor, bios_version, bios_date) = hklm
                 .open_subkey("HARDWARE\\DESCRIPTION\\System\\BIOS")
-                .and_then(|key| {
-                    let base_prod: String = key.get_value("BaseBoardProduct")?;
-                    let base_man: String = key.get_value("BaseBoardManufacturer")?;
-                    Ok(format!("{} {}", base_man, base_prod))
+                .map(|key| {
+                    let base_prod: String = key.get_value("BaseBoardProduct").unwrap_or_default();
+                    let base_man: String = key.get_value("BaseBoardManufacturer").unwrap_or_default();
+                    let mobo = if base_prod.is_empty() && base_man.is_empty() {
+                        "Placa Base Generica".to_string()
+                    } else {
+                        format!("{} {}", base_man, base_prod).trim().to_string()
+                    };
+                    let vendor: String = key.get_value("BIOSVendor").unwrap_or_else(|_| "Desconocido".to_string());
+                    let version: String = key.get_value("BIOSVersion").unwrap_or_else(|_| "Desconocida".to_string());
+                    let date: String = key.get_value("BIOSReleaseDate").unwrap_or_default();
+                    (mobo, vendor, version, date)
                 })
-                .unwrap_or_else(|_| "Placa Base Generica".to_string());
+                .unwrap_or_else(|_| ("Placa Base Generica".to_string(), "Desconocido".to_string(), "Desconocida".to_string(), String::new()));
 
             let mut gpus = Vec::new();
             if let Ok(class_key) = hklm.open_subkey("SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}") {
@@ -274,8 +304,14 @@ async fn detect_system_hardware() -> HardwareResponse {
                 cpu_frequency,
                 gpu: gpu_name,
                 motherboard: motherboard_name,
+                bios_vendor,
+                bios_version,
+                bios_date,
                 ram_gb: ram_calc,
                 ram_speed_mhz: ram_speed_val,
+                ram_max_speed_mhz: ram_max_speed_val,
+                is_xmp_active: is_xmp_val,
+                is_rebar_enabled: is_rebar_val,
                 is_laptop,
                 is_hybrid,
                 is_x3d,
@@ -291,8 +327,14 @@ async fn detect_system_hardware() -> HardwareResponse {
                 cpu_frequency: 0,
                 gpu: "Error al detectar GPU".to_string(),
                 motherboard: "Error al detectar Placa".to_string(),
+                bios_vendor: "Desconocido".to_string(),
+                bios_version: "Desconocida".to_string(),
+                bios_date: "".to_string(),
                 ram_gb: 0,
                 ram_speed_mhz: None,
+                ram_max_speed_mhz: None,
+                is_xmp_active: None,
+                is_rebar_enabled: None,
                 is_laptop: false,
                 is_hybrid: false,
                 is_x3d: false,
@@ -349,8 +391,14 @@ mod tests {
             cpu_frequency: 3000,
             gpu: "Test GPU".to_string(),
             motherboard: "Test Mobo".to_string(),
+            bios_vendor: "Test Bios Vendor".to_string(),
+            bios_version: "F1".to_string(),
+            bios_date: "01/01/2026".to_string(),
             ram_gb: 16,
             ram_speed_mhz: Some(3200),
+            ram_max_speed_mhz: Some(3200),
+            is_xmp_active: Some(true),
+            is_rebar_enabled: Some(true),
             is_laptop: false,
             is_hybrid: false,
             is_x3d: false,

@@ -262,6 +262,8 @@
     @confirm="confirmDangerousTweak"
     @cancel="cancelDangerousTweak"
   />
+
+  <LogConsoleModal />
 </template>
 
 <script setup lang="ts">
@@ -281,6 +283,7 @@ import HardwareSidebar from "./components/HardwareSidebar.vue";
 import ProfileSelector from "./components/ProfileSelector.vue";
 import OptimizationGrid from "./components/OptimizationGrid.vue";
 import WarningModal from "./components/WarningModal.vue";
+import LogConsoleModal from "./components/LogConsoleModal.vue";
 
 const store = useOverlordStore();
 

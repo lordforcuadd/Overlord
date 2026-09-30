@@ -1,4 +1,4 @@
-name: Rust & Pester CI
+name: Overlord CI Matrix
 
 on:
   push:
@@ -7,28 +7,108 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  rust-and-security:
+    name: Rust Backend & Clippy
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
 
     - name: Rust Cache
       uses: swatinem/rust-cache@v2
       with:
         workspaces: src-tauri
 
+    - name: Run Cargo Check
+      run: cargo check
+      working-directory: src-tauri
+
+    - name: Run Cargo Clippy
+      run: cargo clippy -- -W clippy::all -D warnings
+      working-directory: src-tauri
+
     - name: Run Cargo Tests
-      run: |
-        cargo test
+      run: cargo test
       working-directory: src-tauri
       env:
         TAURI_NO_ADMIN: "1"
 
-    - name: Run Pester tests
+  frontend-build:
+    name: Frontend TypeScript & Vite Build
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Type-Check (vue-tsc)
+      run: npx vue-tsc --noEmit
+
+    - name: Build Frontend Bundle
+      run: npx vite build
+
+  powershell-and-pester:
+    name: PowerShell AST Parser & Pester Suite
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Validate PowerShell Syntax (AST Parser - Regla 14)
+      shell: powershell
+      run: |
+        $hasErrors = $false
+        Get-ChildItem -Recurse -Include *.ps1,*.psm1 | ForEach-Object {
+            $errors = $null; $tokens = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+                Write-Host "FALLA: $($_.Name)" -ForegroundColor Red
+                $errors | ForEach-Object { Write-Host " $_" -ForegroundColor Red }
+                $hasErrors = $true
+            }
+        }
+
+        # Validar scripts embebidos (Regla 12 de AGENTS.md)
+        $manageScript = "src-tauri/scripts/manage_priority_service.ps1"
+        if (Test-Path $manageScript) {
+            $content = Get-Content $manageScript -Raw
+            $startMarker = "@'"
+            $endMarker = "'@"
+            $startIndex = $content.IndexOf($startMarker)
+            $endIndex = $content.LastIndexOf($endMarker)
+            if ($startIndex -ge 0 -and $endIndex -gt $startIndex) {
+                $daemonCode = $content.Substring($startIndex + $startMarker.Length, $endIndex - ($startIndex + $startMarker.Length)).Trim()
+                $errors = $null; $tokens = $null
+                [System.Management.Automation.Language.Parser]::ParseInput($daemonCode, [ref]$tokens, [ref]$errors) | Out-Null
+                if ($errors.Count -gt 0) {
+                    Write-Host "FALLA SINTAXIS EN DAEMON EMBEBIDO" -ForegroundColor Red
+                    $errors | ForEach-Object { Write-Host " $_" -ForegroundColor Red }
+                    $hasErrors = $true
+                } else {
+                    Write-Host "Daemon embebido verificado: 0 errores sintacticos." -ForegroundColor Green
+                }
+            } else {
+                Write-Host "ADVERTENCIA: No se encontro delimitador here-string en $manageScript" -ForegroundColor Yellow
+            }
+        }
+
+        if ($hasErrors) {
+            Write-Error "Fallo en la validacion de sintaxis AST de PowerShell."
+            exit 1
+        }
+        Write-Host "AST Parser 100% LIMPIO en todos los scripts." -ForegroundColor Green
+
+    - name: Run Pester Suite
       shell: powershell
       run: |
         Install-Module -Name Pester -RequiredVersion 3.4.0 -Force -SkipPublisherCheck -Scope CurrentUser -ErrorAction SilentlyContinue

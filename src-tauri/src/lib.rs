@@ -13,6 +13,7 @@ use std::time::Duration;
 use sysinfo::System;
 use std::sync::Mutex;
 use tokio::sync::oneshot;
+use serde::Serialize;
 
 static MONITOR_CANCELLER: Mutex<Option<oneshot::Sender<()>>> = Mutex::new(None);
 
@@ -119,14 +120,23 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
         _ => false,
     };
 
+    let start_time = std::time::Instant::now();
     let res = if is_readonly {
         execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
     } else {
         execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
     };
+    let duration = start_time.elapsed();
 
-    if let Err(ref err) = res {
-        write_to_overlord_log_async(format!("[FALLO EN SCRIPT {}]: {}", script_name, err)).await;
+    match res {
+        Ok(ref _output) => {
+            if !is_readonly {
+                write_to_overlord_log_async(format!("[INFO] [{}] Ejecutado exitosamente en {:.2?}", script_name, duration)).await;
+            }
+        },
+        Err(ref err) => {
+            write_to_overlord_log_async(format!("[ERROR] [FALLO EN SCRIPT {}]: {}", script_name, err)).await;
+        }
     }
 
     res
@@ -457,7 +467,108 @@ fn read_overlord_log() -> Result<String, String> {
             Ok(content)
         }
     } else {
-        Ok("No se encontraron registros de errores.".to_string())
+        Ok("No se encontraron registros de eventos u operaciones.".to_string())
+    }
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DaemonStatusResponse {
+    pub is_installed: bool,
+    pub is_running: bool,
+    pub active_game: Option<String>,
+    pub status_text: String,
+}
+
+#[tauri::command]
+async fn get_daemon_status() -> DaemonStatusResponse {
+    let is_installed = is_priority_daemon_active().await;
+    if !is_installed {
+        return DaemonStatusResponse {
+            is_installed: false,
+            is_running: false,
+            active_game: None,
+            status_text: "Inactivo".to_string(),
+        };
+    }
+
+    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let log_path = std::path::Path::new(&program_data).join("Overlord").join("daemon.log");
+
+    let (active_game, status_text) = tokio::task::spawn_blocking(move || {
+        let mut elevated_game: Option<String> = None;
+        let mut has_x3d_action = false;
+
+        if log_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&log_path) {
+                let lines: Vec<&str> = content.lines().rev().take(50).collect();
+                for line in lines {
+                    if elevated_game.is_none() {
+                        if let Some(pos) = line.find("Establecida prioridad ALTA para el proceso: ") {
+                            let rest = &line[pos + "Establecida prioridad ALTA para el proceso: ".len()..];
+                            if let Some(end) = rest.find(" (PID:") {
+                                elevated_game = Some(rest[..end].trim().to_string());
+                            }
+                        }
+                    }
+                    if line.contains("Afinidad fijada a CCD0 3D V-Cache") {
+                        has_x3d_action = true;
+                    }
+                    if elevated_game.is_some() {
+                        break;
+                    }
+                }
+            }
+        }
+
+        let mut sys = System::new_all();
+        sys.refresh_processes_specifics(sysinfo::ProcessRefreshKind::new());
+
+        if let Some(ref game) = elevated_game {
+            let game_lower = game.to_lowercase();
+            let is_alive = sys.processes().values().any(|p| {
+                let p_name = p.name().to_lowercase();
+                p_name == game_lower || format!("{}.exe", p_name) == game_lower || (p_name.ends_with(".exe") && p_name[..p_name.len() - 4] == game_lower)
+            });
+
+            if is_alive {
+                let text = if has_x3d_action {
+                    format!("Activo · {} → Prioridad Alta [V-Cache CCD0]", game)
+                } else {
+                    format!("Activo · {} → Prioridad Alta", game)
+                };
+                return (Some(game.clone()), text);
+            }
+        }
+
+        (None, "Activo · En espera de juegos".to_string())
+    }).await.unwrap_or((None, "Activo · Monitoreando".to_string()));
+
+    DaemonStatusResponse {
+        is_installed: true,
+        is_running: true,
+        active_game,
+        status_text,
+    }
+}
+
+#[tauri::command]
+fn read_daemon_log() -> Result<String, String> {
+    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let log_path = std::path::Path::new(&program_data).join("Overlord").join("daemon.log");
+    if log_path.exists() {
+        let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
+        if content.len() > MAX_LOG_READ_BYTES {
+            let mut start = content.len() - MAX_LOG_READ_BYTES;
+            while !content.is_char_boundary(start) && start < content.len() {
+                start += 1;
+            }
+            Ok(content[start..].to_string())
+        } else {
+            Ok(content)
+        }
+    } else {
+        Ok("El daemon de prioridad aún no ha generado registros o no está instalado.".to_string())
     }
 }
 
@@ -498,7 +609,9 @@ pub fn run() {
             start_game_priority_monitor,
             stop_game_priority_monitor,
             log_from_js,
-            read_overlord_log
+            read_overlord_log,
+            read_daemon_log,
+            get_daemon_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

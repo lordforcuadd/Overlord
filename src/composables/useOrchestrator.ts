@@ -22,13 +22,22 @@ export function useOrchestrator(overlordSwalConfig: any) {
     const wasAlreadyBusy = store.isGlobalBusy;
     if (!wasAlreadyBusy) store.setGlobalBusy(true);
     try {
+      const t0 = Date.now();
       await invoke("run_optimization_script", {
         scriptName: "crear_respaldo",
         isLaptop: store.hardwareInfo.isLaptop,
         ramGb: store.hardwareInfo.ramGb || 8,
         gameList: "",
       });
+      const durationMs = Date.now() - t0;
       store.restorePointCreated = true;
+      store.addHistoryEntry({
+        timestamp: new Date().toLocaleString(),
+        action: "Punto de Restauración VSS",
+        durationMs,
+        status: "success",
+        details: "Punto de restauración del sistema VSS creado.",
+      });
       await Swal.fire({
         title: "¡Punto Creado!",
         text: "El sistema ha sido blindado con éxito.",
@@ -114,12 +123,14 @@ export function useOrchestrator(overlordSwalConfig: any) {
               .join(",");
           }
 
+          const t0 = Date.now();
           await invoke("run_optimization_script", {
             scriptName: scriptName.replace(".ps1", ""),
             isLaptop: store.hardwareInfo.isLaptop,
             ramGb: store.hardwareInfo.ramGb || 8,
             gameList: gameListOpt,
           });
+          const durationMs = Date.now() - t0;
 
           if (modKey === "gameHooks" && gameListOpt) {
             store.isMonitorRunning = true;
@@ -131,8 +142,23 @@ export function useOrchestrator(overlordSwalConfig: any) {
 
           cardStatus.value[modKey] = "success";
           store.modules[modKey as keyof typeof store.modules] = true;
-          modulosExitosos.push(tweaksMetadata[modKey]?.title || modKey);
+          const modTitle = tweaksMetadata[modKey]?.title || modKey;
+          modulosExitosos.push(modTitle);
+          store.addHistoryEntry({
+            timestamp: new Date().toLocaleString(),
+            action: modTitle,
+            durationMs,
+            status: "success",
+            details: `Inyección exitosa (${durationMs}ms)`,
+          });
         } catch (errorOutput) {
+          store.addHistoryEntry({
+            timestamp: new Date().toLocaleString(),
+            action: tweaksMetadata[modKey]?.title || modKey,
+            durationMs: 0,
+            status: "error",
+            details: String(errorOutput).substring(0, 150),
+          });
           console.error(`[FALLO EN MÓDULO ${modKey}]:`, errorOutput);
           invoke("log_from_js", {
             msg: `[FALLO EN MÓDULO ${modKey}]: ${String(errorOutput)}`,
@@ -293,14 +319,23 @@ export function useOrchestrator(overlordSwalConfig: any) {
         console.error("[SYSTEM DAEMON UNINSTALL FAIL]:", err);
       });
 
+      const t0 = Date.now();
       await invoke("run_optimization_script", {
         scriptName: "10_revertir",
         isLaptop: store.hardwareInfo.isLaptop,
         ramGb: store.hardwareInfo.ramGb || 8,
         gameList: "",
       });
+      const durationMs = Date.now() - t0;
       store.restorePointCreated = false;
       store.isMonitorRunning = false;
+      store.addHistoryEntry({
+        timestamp: new Date().toLocaleString(),
+        action: "Reversión a Stock",
+        durationMs,
+        status: "success",
+        details: "Valores originales de fábrica restaurados con simetría 1:1.",
+      });
 
       Object.keys(cardStatus.value).forEach((key) => {
         cardStatus.value[key] = "idle";

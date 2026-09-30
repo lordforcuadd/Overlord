@@ -10,8 +10,14 @@ interface HardwarePayload {
   cpuFrequency: number;
   gpu: string;
   motherboard: string;
+  biosVendor: string;
+  biosVersion: string;
+  biosDate: string;
   ramGb: number;
   ramSpeedMhz: number | null;
+  ramMaxSpeedMhz: number | null;
+  isXmpActive: boolean | null;
+  isRebarEnabled: boolean | null;
   isLaptop: boolean;
   isHybrid: boolean;
   isX3d: boolean;
@@ -33,6 +39,22 @@ interface GamePayload {
   optimize: boolean;
 }
 
+export interface DaemonStatusPayload {
+  isInstalled: boolean;
+  isRunning: boolean;
+  activeGame: string | null;
+  statusText: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: string;
+  action: string;
+  durationMs: number;
+  status: "success" | "error" | "warning";
+  details?: string;
+}
+
 export const useOverlordStore = defineStore("overlord", {
   state: () => ({
     isGlobalBusy: false,
@@ -44,8 +66,14 @@ export const useOverlordStore = defineStore("overlord", {
       cpuFrequency: 0,
       gpu: "",
       motherboard: "",
+      biosVendor: "",
+      biosVersion: "",
+      biosDate: "",
       ramGb: 0,
       ramSpeedMhz: 0,
+      ramMaxSpeedMhz: 0,
+      isXmpActive: null as boolean | null,
+      isRebarEnabled: null as boolean | null,
       isLaptop: false,
       isHybrid: false,
       isX3d: false,
@@ -53,6 +81,14 @@ export const useOverlordStore = defineStore("overlord", {
       isArm64: false,
       tier: "Detectando...",
     },
+    daemonStatus: {
+      isInstalled: false,
+      isRunning: false,
+      activeGame: null as string | null,
+      statusText: "Detectando...",
+    } as DaemonStatusPayload,
+    history: [] as HistoryEntry[],
+    isLogModalOpen: false,
     liveTelemetry: {
       cpuUsage: 0,
       ramUsed: 0,
@@ -93,6 +129,80 @@ export const useOverlordStore = defineStore("overlord", {
     setGlobalBusy(value: boolean) {
       this.isGlobalBusy = value;
     },
+    openLogModal() {
+      this.isLogModalOpen = true;
+    },
+    closeLogModal() {
+      this.isLogModalOpen = false;
+    },
+    loadHistory() {
+      const stored = localStorage.getItem("overlord_history");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const validEntries: HistoryEntry[] = [];
+            for (const item of parsed) {
+              if (
+                item &&
+                typeof item === "object" &&
+                typeof item.id === "string" &&
+                typeof item.timestamp === "string" &&
+                typeof item.action === "string" &&
+                typeof item.durationMs === "number" &&
+                (item.status === "success" ||
+                  item.status === "error" ||
+                  item.status === "warning")
+              ) {
+                validEntries.push({
+                  id: item.id,
+                  timestamp: item.timestamp,
+                  action: item.action,
+                  durationMs: item.durationMs,
+                  status: item.status,
+                  details:
+                    typeof item.details === "string" ? item.details : undefined,
+                });
+              }
+            }
+            this.history = validEntries;
+          } else {
+            this.history = [];
+          }
+        } catch (e) {
+          console.error("[ERROR PARSING HISTORY]:", e);
+          this.history = [];
+        }
+      }
+    },
+    addHistoryEntry(entry: Omit<HistoryEntry, "id">) {
+      const newEntry: HistoryEntry = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        ...entry,
+      };
+      this.history.unshift(newEntry);
+      if (this.history.length > 100) {
+        this.history = this.history.slice(0, 100);
+      }
+      try {
+        localStorage.setItem("overlord_history", JSON.stringify(this.history));
+      } catch (e) {
+        console.error("[ERROR SAVING HISTORY]:", e);
+      }
+    },
+    clearHistory() {
+      this.history = [];
+      localStorage.removeItem("overlord_history");
+    },
+    async fetchDaemonStatus() {
+      try {
+        const status = await invoke<DaemonStatusPayload>("get_daemon_status");
+        this.daemonStatus = status;
+        this.isPriorityServiceInstalled = status.isInstalled;
+      } catch (e) {
+        console.error("[ERROR FETCHING DAEMON STATUS]:", e);
+      }
+    },
     async checkBackupStatus() {
       try {
         this.backupExists = await invoke<boolean>("check_backup_exists");
@@ -106,6 +216,7 @@ export const useOverlordStore = defineStore("overlord", {
     },
     async detectHardware() {
       try {
+        this.loadHistory();
         const info = await invoke<HardwarePayload>("fetch_hardware");
 
         this.hardwareInfo.cpu = info.cpu;
@@ -114,8 +225,14 @@ export const useOverlordStore = defineStore("overlord", {
         this.hardwareInfo.cpuFrequency = info.cpuFrequency;
         this.hardwareInfo.gpu = info.gpu;
         this.hardwareInfo.motherboard = info.motherboard;
+        this.hardwareInfo.biosVendor = info.biosVendor || "";
+        this.hardwareInfo.biosVersion = info.biosVersion || "";
+        this.hardwareInfo.biosDate = info.biosDate || "";
         this.hardwareInfo.ramGb = info.ramGb;
         this.hardwareInfo.ramSpeedMhz = info.ramSpeedMhz ?? 0;
+        this.hardwareInfo.ramMaxSpeedMhz = info.ramMaxSpeedMhz ?? 0;
+        this.hardwareInfo.isXmpActive = info.isXmpActive;
+        this.hardwareInfo.isRebarEnabled = info.isRebarEnabled;
         this.hardwareInfo.isLaptop = info.isLaptop;
         this.hardwareInfo.isHybrid = info.isHybrid;
         this.hardwareInfo.isX3d = info.isX3d;
@@ -173,6 +290,7 @@ export const useOverlordStore = defineStore("overlord", {
         }
         await this.checkBackupStatus();
         await this.checkPriorityServiceStatus();
+        await this.fetchDaemonStatus();
         if (!this.isInitialized) {
           this.priorityServiceSelected = this.isPriorityServiceInstalled;
         }
@@ -272,6 +390,7 @@ export const useOverlordStore = defineStore("overlord", {
       if (this.telemetryInterval) {
         clearInterval(this.telemetryInterval);
       }
+      let tickCount = 0;
       this.telemetryInterval = setInterval(async () => {
         if (typeof document !== "undefined" && document.hidden) return;
         try {
@@ -280,6 +399,11 @@ export const useOverlordStore = defineStore("overlord", {
           this.liveTelemetry.ramUsed = metrics.ram_used;
           this.liveTelemetry.ramTotal = metrics.ram_total;
           this.liveTelemetry.ramPercent = metrics.ram_percentage;
+
+          tickCount++;
+          if (tickCount % 3 === 0) {
+            await this.fetchDaemonStatus().catch(() => {});
+          }
         } catch (e) {
           console.error("[TELEMETRY POLL FAIL]:", e);
         }

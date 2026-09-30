@@ -53,12 +53,21 @@
           </svg>
           <span>PLACA</span>
         </div>
-        <span
-          class="text-gray-200 text-right truncate min-w-0 flex-1 pl-4"
-          :title="store.hardwareInfo.motherboard"
-        >
-          {{ store.hardwareInfo.motherboard || "Buscando..." }}
-        </span>
+        <div class="text-right truncate min-w-0 flex-1 pl-4">
+          <span
+            class="text-gray-200 block truncate"
+            :title="store.hardwareInfo.motherboard"
+          >
+            {{ store.hardwareInfo.motherboard || "Buscando..." }}
+          </span>
+          <span
+            v-if="store.hardwareInfo.biosVersion && store.hardwareInfo.biosVersion !== 'Desconocida'"
+            class="text-[10px] text-gray-500 block truncate"
+            :title="`BIOS ${store.hardwareInfo.biosVendor} ${store.hardwareInfo.biosVersion} (${store.hardwareInfo.biosDate})`"
+          >
+            BIOS: {{ store.hardwareInfo.biosVersion }} {{ store.hardwareInfo.biosDate ? '· ' + store.hardwareInfo.biosDate : '' }}
+          </span>
+        </div>
       </div>
 
       <div
@@ -80,12 +89,21 @@
           </svg>
           <span>CPU</span>
         </div>
-        <span
-          class="text-white text-right truncate min-w-0 flex-1 pl-4"
-          :title="store.hardwareInfo.cpu"
-        >
-          {{ store.hardwareInfo.cpu || "Buscando..." }}
-        </span>
+        <div class="text-right truncate min-w-0 flex-1 pl-4 flex items-center justify-end gap-1.5">
+          <span
+            class="text-white truncate"
+            :title="store.hardwareInfo.cpu"
+          >
+            {{ store.hardwareInfo.cpu || "Buscando..." }}
+          </span>
+          <span
+            v-if="store.hardwareInfo.isX3d"
+            class="px-1.5 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 font-bold border border-red-500/30 shrink-0"
+            title="AMD Ryzen 3D V-Cache detectado. Enrutamiento IRQ activo."
+          >
+            X3D
+          </span>
+        </div>
       </div>
 
       <div
@@ -113,12 +131,28 @@
           </svg>
           <span>GPU</span>
         </div>
-        <span
-          class="text-yellow-400 font-bold text-right truncate min-w-0 flex-1 pl-4"
-          :title="store.hardwareInfo.gpu"
-        >
-          {{ store.hardwareInfo.gpu || "Buscando..." }}
-        </span>
+        <div class="text-right truncate min-w-0 flex-1 pl-4 flex items-center justify-end gap-1.5">
+          <span
+            class="text-yellow-400 font-bold truncate"
+            :title="store.hardwareInfo.gpu"
+          >
+            {{ store.hardwareInfo.gpu || "Buscando..." }}
+          </span>
+          <span
+            v-if="store.hardwareInfo.isRebarEnabled === true"
+            class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 shrink-0"
+            title="Resizable BAR / SAM activo en BIOS y GPU"
+          >
+            ReBAR
+          </span>
+          <span
+            v-else-if="store.hardwareInfo.isRebarEnabled === false"
+            class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 shrink-0"
+            title="Resizable BAR inactivo. Actívalo en BIOS para mayor rendimiento."
+          >
+            No ReBAR
+          </span>
+        </div>
       </div>
 
       <div
@@ -140,7 +174,7 @@
           </svg>
           <span>RAM</span>
         </div>
-        <div class="text-right">
+        <div class="text-right flex items-center gap-2">
           <span class="text-white font-bold text-sm">
             {{
               store.hardwareInfo.ramGb !== undefined && store.hardwareInfo.ramGb > 0
@@ -153,9 +187,28 @@
               store.hardwareInfo.ramSpeedMhz &&
               store.hardwareInfo.ramSpeedMhz > 0
             "
-            class="text-gray-500 text-xs ml-2"
+            class="text-gray-400 text-xs"
           >
             @ {{ store.hardwareInfo.ramSpeedMhz }} MHz
+          </span>
+          <span
+            v-if="store.hardwareInfo.isXmpActive === false"
+            class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30"
+            :title="
+              store.hardwareInfo.ramMaxSpeedMhz &&
+              store.hardwareInfo.ramMaxSpeedMhz > 0
+                ? `Tu RAM corre a ${store.hardwareInfo.ramSpeedMhz} MHz (Kit soporta ${store.hardwareInfo.ramMaxSpeedMhz} MHz). Activa XMP/EXPO en BIOS.`
+                : `Tu RAM corre por debajo de la frecuencia máxima soportada. Activa XMP/EXPO en BIOS.`
+            "
+          >
+            XMP OFF
+          </span>
+          <span
+            v-else-if="store.hardwareInfo.isXmpActive === true"
+            class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30"
+            title="Perfil XMP/EXPO o frecuencia óptima activa."
+          >
+            XMP ON
           </span>
         </div>
       </div>
@@ -199,6 +252,38 @@
             :style="{ width: store.liveTelemetry.ramPercent + '%' }"
           ></div>
         </div>
+      </div>
+
+      <!-- Daemon Status & Log Console Bar -->
+      <div class="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
+        <div class="flex items-center gap-2 min-w-0 flex-1 mr-2">
+          <span
+            class="w-2 h-2 rounded-full shrink-0"
+            :class="store.daemonStatus.isInstalled ? 'bg-green-400 animate-pulse' : 'bg-gray-500'"
+          ></span>
+          <span
+            class="text-[11px] text-gray-300 font-sans truncate"
+            :title="store.daemonStatus.statusText"
+          >
+            {{ store.daemonStatus.statusText }}
+          </span>
+        </div>
+
+        <button
+          @click="store.openLogModal"
+          class="px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 hover:text-yellow-300 text-xs font-bold transition-all flex items-center gap-1.5 border border-yellow-500/20 shrink-0 font-sans"
+          title="Abrir Consola de Eventos y Logs"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          <span>Logs & Auditoría</span>
+        </button>
       </div>
     </div>
   </div>
