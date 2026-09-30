@@ -69,22 +69,7 @@ try {
                 }
             }
 
-            # Agregar exclusion de la carpeta de instancias de Minecraft por seguridad/latencia
-            $InstancePaths = @(
-                (Join-Path $env:USERPROFILE "curseforge\minecraft\Instances"),
-                (Join-Path $env:APPDATA ".minecraft"),
-                (Join-Path $env:LOCALAPPDATA "PrismLauncher\instances"),
-                (Join-Path $env:APPDATA "PrismLauncher\instances"),
-                (Join-Path $env:LOCALAPPDATA "ModrinthApp\profiles")
-            )
-            foreach ($InstPath in $InstancePaths) {
-                if (Test-Path $InstPath) {
-                    $ResolvedInst = [System.IO.Path]::GetFullPath($InstPath).TrimEnd('\')
-                    if (!$ExcludedPaths.Contains($ResolvedInst)) {
-                        $ExcludedPaths.Add($ResolvedInst)
-                    }
-                }
-            }
+
         }
 
         $GameBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\GameHooks\$ExeName"

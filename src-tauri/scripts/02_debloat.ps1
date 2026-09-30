@@ -10,11 +10,11 @@ Try {
     $Apps = @(
         "Microsoft.BingNews", "Microsoft.BingWeather", "Microsoft.GetHelp",
         "Microsoft.Getstarted", "Microsoft.Messaging", "Microsoft.3DBuilder",
-        "Microsoft.People", "Microsoft.SkypeApp", "Microsoft.StickyNotes",
+        "Microsoft.People", "Microsoft.SkypeApp",
         "Microsoft.Wallet", "Microsoft.YourPhone", "Microsoft.ZuneVideo",
         "Microsoft.ZuneMusic", "Microsoft.MixedReality.Portal",
         "Microsoft.549981C3F5F10", "Microsoft.Windows.Ai.Copilot.Provider",
-        "Microsoft.BingSearch", "Clipchamp.Clipchamp", "Microsoft.MicrosoftSolitaireCollection", "Microsoft.Todos",
+        "Clipchamp.Clipchamp", "Microsoft.MicrosoftSolitaireCollection",
         "Microsoft.PowerAutomateDesktop", "Microsoft.Cortana", "Microsoft.BingFinance",
         "Microsoft.BingSports", "Microsoft.MicrosoftMahjong", "Microsoft.WindowsFeedbackHub",
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
@@ -36,9 +36,7 @@ Try {
     Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
     Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry"
-    
-    # Copia de seguridad para permisos de aplicaciones de segundo plano
-    Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -ValueName "GlobalUserDisabled" -BackupSubFolder "Telemetry"
+
     
     # Copia de seguridad para politicas de Microsoft Edge
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
@@ -57,9 +55,7 @@ Try {
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\RemoteRegistry" -ValueName "Start" -BackupSubFolder "Services\RemoteRegistry"
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -ValueName "Start" -BackupSubFolder "Services\WdiServiceHost"
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -ValueName "Start" -BackupSubFolder "Services\WdiSystemHost"
-    if (-not $IsLaptop) {
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\SensorService" -ValueName "Start" -BackupSubFolder "Services\SensorService"
-    }
+
 
     $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
     if (!(Test-Path $DataPath)) { New-Item -Path $DataPath -Force | Out-Null }
@@ -84,11 +80,6 @@ Try {
     if (!(Test-Path $CopilotSystemPath)) { New-Item -Path $CopilotSystemPath -Force | Out-Null }
     Set-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
 
-    # Desactivar permisos de apps en segundo plano (UWP)
-    $BgAppPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
-    if (!(Test-Path $BgAppPath)) { New-Item -Path $BgAppPath -Force | Out-Null }
-    Set-ItemProperty -Path $BgAppPath -Name "GlobalUserDisabled" -Type DWord -Value 1 -Force | Out-Null
-
     # Desactivar inicio rapido y segundo plano de Microsoft Edge
     $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
     if (!(Test-Path $EdgePolicyPath)) { New-Item -Path $EdgePolicyPath -Force | Out-Null }
@@ -96,10 +87,8 @@ Try {
     Set-ItemProperty -Path $EdgePolicyPath -Name "BackgroundModeEnabled" -Type DWord -Value 0 -Force | Out-Null
 
     # DiagTrack y servicios generales se deshabilitan. WdiServiceHost, WdiSystemHost y dmwappushservice se configuran como Manual para no romper Windows Update.
+    # SensorService se preserva para no alterar sensores de brillo ni rotacion en equipos AIO/convertibles.
     $ServicesToDisable = @("DiagTrack", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry")
-    if (-not $IsLaptop) {
-        $ServicesToDisable += "SensorService"
-    }
     foreach ($Service in $ServicesToDisable) {
         $SvcObj = Get-Service -Name $Service -ErrorAction SilentlyContinue
         if ($null -ne $SvcObj) {

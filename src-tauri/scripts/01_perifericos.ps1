@@ -27,11 +27,7 @@ Try {
                         $classGuid = $devKey.GetValue("ClassGUID")
                         
                         $AllowMsi = $false
-                        if ($classGuid -eq "{4d36e968-e325-11ce-bfc1-08002be10318}") { # Display
-                            $AllowMsi = $true
-                        } elseif ($classGuid -eq "{36fc9e60-c465-11cf-8056-444553540000}" -and -not $IsLaptop) { # USB
-                            $AllowMsi = $true
-                        } elseif ($classGuid -eq "{4d36e97c-e325-11ce-bfc1-08002be10318}" -or $classGuid -eq "{c166523b-fe0c-4a94-a586-f1a8096b7efe}") { # MEDIA / AudioEndpoint
+                        if ($classGuid -eq "{4d36e968-e325-11ce-bfc1-08002be10318}") { # Solo adaptadores de pantalla (GPU)
                             $AllowMsi = $true
                         }
 

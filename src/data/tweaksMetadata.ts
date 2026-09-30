@@ -70,9 +70,9 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Mayor consistencia en el movimiento físico del ratón y reducción del retraso de repetición del teclado.",
     warning:
-      "Requiere reconectar los periféricos USB o reiniciar el equipo para aplicar la desactivación del modo de suspensión selectiva.",
+      "Requiere reconectar los periféricos USB o reiniciar el equipo para aplicar la desactivación del modo de suspensión selectiva. Win32PrioritySeparation optimiza la ventana en primer plano para gaming.",
     details: [
-      "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores USB (en PCs de escritorio), GPU y de sonido (Class MEDIA y AudioEndpoint).",
+      "Inyección de Message Signaled Interrupts (MSI Mode) seguro en controladores de pantalla (GPU) para erradicar conflictos de interrupciones y latencia DPC.",
       "Ajuste del programador de CPU (Win32PrioritySeparation = 26) para establecer Quanta Corta y Fija, evitando micro-stutters.",
       "Eliminación absoluta de la aceleración por software de Windows (MouseSpeed = 0).",
       "Optimización de la latencia y repetición del teclado (FilterKeys con retraso a 200ms y repetición a 15ms).",
@@ -97,15 +97,14 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Liberación de memoria RAM física y reducción del recuento total de procesos activos en segundo plano.",
     warning:
-      "Este proceso preserva la Microsoft Store y la App de Xbox para mantener intacto tu entorno gaming y de desarrollo. La desinstalación de aplicaciones AppX es semi-permanente.",
+      "Este proceso preserva la Microsoft Store, Xbox, StickyNotes y To-Do para mantener intactas tus notas y entorno gaming. La desinstalación de aplicaciones seleccionadas es semi-permanente.",
     details: [
       "Remoción de software preinstalado innecesario (Cortana, Bing, Weather, Maps, etc.).",
       "Eliminación de telemetría GPO básica y sugerencias web invasivas de Bing en el menú de inicio.",
       "Remoción estructural de las barras laterales y servicios de Windows Copilot.",
       "Desactivación de los servicios de Diagnóstico del Sistema en segundo plano (WdiServiceHost y WdiSystemHost).",
       "Desactivación estructural de Edge en segundo plano y Startup Boost para ahorrar memoria RAM.",
-      "Deshabilitación de permisos UWP en segundo plano (GlobalUserDisabled = 1) para apps inactivas.",
-      "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, SensorService, TrkWks, RemoteRegistry).",
+      "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, TrkWks, RemoteRegistry).",
     ],
   },
   networkOptimized: {
@@ -158,9 +157,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Disminución de stutters provocados por procesos de reorganización de memoria y codificación de vídeo en segundo plano.",
     details: [
-      "Gestión adaptativa de MMAgent (Memory Compression) optimizada según la cantidad total de RAM detectada.",
-      "Apagado de la compresión de RAM en sistemas de >=32GB para ahorrar procesamiento en favor de latencia pura.",
-      "Desactivación de Page Combining en MMAgent para mitigar micro-stutters generados por el de-duplicador de páginas.",
+      "Desactivación de Page Combining en MMAgent para mitigar micro-stutters generados por el escaneo de páginas, manteniendo Memory Compression activa contra desbordamientos OOM.",
       "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
       "Desactivación del aparcamiento de núcleos (Core Parking al 0% en corriente alterna) para extrema estabilidad de 1% y 0.1% lows.",

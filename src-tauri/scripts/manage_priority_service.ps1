@@ -85,7 +85,8 @@ while ($true) {
         $ConfigLines = Get-Content -Path $ConfigPath -ErrorAction SilentlyContinue
             $CriticalSystemProcesses = @(
                 "system", "idle", "registry", "smss", "csrss", "wininit", "services", "lsass", "svchost", "fontdrvhost", "winlogon", "dwm", "explorer", "sihost", "taskhostw",
-                "msmpeng", "searchindexer", "audiodg", "spoolsv", "runtimebroker", "dllhost", "conhost", "wudfhost"
+                "msmpeng", "searchindexer", "audiodg", "spoolsv", "runtimebroker", "dllhost", "conhost", "wudfhost",
+                "powershell", "pwsh", "cmd", "mshta", "wscript", "cscript", "rundll32", "regsvr32", "certutil", "bitsadmin", "bash", "wsl", "curl", "tar"
             )
             foreach ($Game in $ConfigLines) {
                 if (-not [string]::IsNullOrWhiteSpace($Game)) {

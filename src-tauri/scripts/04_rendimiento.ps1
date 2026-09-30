@@ -55,16 +55,13 @@ Try {
                 }
             }
 
-            if ($RamGB -ge 32) {
-                Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
-                Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
-                $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
-                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $true -or $chkAgent.PageCombining -eq $true)) { Write-Warning "El SO bloqueo la directiva MMAgent de compresion de RAM (posible politica de grupo o VM)" }
-            } else {
-                Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
-                Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
-                $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
-                if ($null -ne $chkAgent -and ($chkAgent.MemoryCompression -eq $false -or $chkAgent.PageCombining -eq $false)) { Write-Warning "El SO bloqueo la directiva MMAgent de compresion de RAM (posible politica de grupo o VM)" }
+            # Page Combining genera micro-stutters al escanear paginas duplicadas en RAM en segundo plano.
+            # Se desactiva para reducir jitter, mientras que MemoryCompression se mantiene activa para evitar caidas OOM ante picos de carga.
+            Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+            Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
+            $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
+            if ($null -ne $chkAgent -and $chkAgent.PageCombining -eq $true) { 
+                Write-Warning "El SO bloqueo la directiva MMAgent de PageCombining (posible politica de grupo o VM)" 
             }
         }
     } catch {

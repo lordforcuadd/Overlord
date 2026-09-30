@@ -28,6 +28,12 @@ Try {
     }
 
     $IsRunningOnLaptop = $IsLaptop
+    if (-not $IsRunningOnLaptop) {
+        $Win32Bat = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
+        if ($null -ne $Win32Bat -and $Win32Bat.Count -gt 0) {
+            $IsRunningOnLaptop = $true
+        }
+    }
 
     if ($IsRunningOnLaptop) {
         Write-Host "    -> Laptop detectada: Optimizando control termico y limites de energia..."
@@ -56,6 +62,13 @@ Try {
         if (-not $UltimateActivated) {
             $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
             $ExistingCustom = if ($null -ne $powerProps -and $null -ne $powerProps.PSObject.Properties["CustomPowerPlan"]) { $powerProps.CustomPowerPlan } else { $null }
+            if ([string]::IsNullOrWhiteSpace($ExistingCustom)) {
+                $OverlordMatch = $AllSchemes | Where-Object { $_ -match "Overlord Maximo Rendimiento" }
+                if ($OverlordMatch -and $OverlordMatch -match "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})") {
+                    $ExistingCustom = $Matches[1]
+                    Set-ItemProperty -Path $PowerBackup -Name "CustomPowerPlan" -Value $ExistingCustom -Force | Out-Null
+                }
+            }
             if ($null -ne $ExistingCustom -and ($AllSchemes -match $ExistingCustom)) {
                 & powercfg /setactive $ExistingCustom 2>$null
             } else {
@@ -132,11 +145,14 @@ Try {
         }
     }
 
-    # Inyectar desactivación global de Power Throttling (evita estrangulamiento de hilos de juegos en laptop y desktop)
-    $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
-    if (!(Test-Path $ThrottlePath)) { New-Item -Path $ThrottlePath -Force | Out-Null }
-    Backup-OverlordRegistryValue -TargetKey $ThrottlePath -ValueName "PowerThrottlingOff" -BackupSubFolder "Power"
-    Set-ItemProperty -Path $ThrottlePath -Name "PowerThrottlingOff" -Type DWord -Value 1 -Force | Out-Null
+    # Inyectar desactivación de Power Throttling solo en computadoras de escritorio.
+    # En laptops se preserva EcoQoS para evitar sobrecalentamiento y drenaje acelerado de batería.
+    if (-not $IsRunningOnLaptop) {
+        $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
+        if (!(Test-Path $ThrottlePath)) { New-Item -Path $ThrottlePath -Force | Out-Null }
+        Backup-OverlordRegistryValue -TargetKey $ThrottlePath -ValueName "PowerThrottlingOff" -BackupSubFolder "Power"
+        Set-ItemProperty -Path $ThrottlePath -Name "PowerThrottlingOff" -Type DWord -Value 1 -Force | Out-Null
+    }
 
     Write-Host "[+] Esquemas de energia acoplados al Kernel con exito."
     exit 0

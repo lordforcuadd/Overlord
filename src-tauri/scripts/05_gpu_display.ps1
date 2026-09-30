@@ -15,23 +15,34 @@ Try {
     $WddmSupported = $false
     
     if ($BuildNum -ge 19041) {
-        $Controllers = if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-            Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
-        } elseif (Get-Command Get-WmiObject -ErrorAction SilentlyContinue) {
-            Get-WmiObject Win32_VideoController -ErrorAction SilentlyContinue
+        $ExistingHwSchMode = Get-ItemProperty -Path $HagsPath -Name "HwSchMode" -ErrorAction SilentlyContinue
+        if ($null -ne $ExistingHwSchMode -and $null -ne $ExistingHwSchMode.HwSchMode) {
+            $WddmSupported = $true
         } else {
-            $null
-        }
+            $Controllers = if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+                Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
+            } elseif (Get-Command Get-WmiObject -ErrorAction SilentlyContinue) {
+                Get-WmiObject Win32_VideoController -ErrorAction SilentlyContinue
+            } else {
+                $null
+            }
 
-        if ($null -ne $Controllers) {
-            foreach ($Controller in $Controllers) {
-                if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\") { continue }
-                $DriverVer = $Controller.DriverVersion
-                # El formato DCH de drivers (NVIDIA/AMD/Intel) mapea el WDDM major en el primer segmento
-                if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
-                    if ([int]$Matches[1] -ge 27) {
-                        $WddmSupported = $true
-                        break
+            if ($null -ne $Controllers) {
+                foreach ($Controller in $Controllers) {
+                    if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\") { continue }
+                    $Name = if ($Controller.Name) { $Controller.Name } else { "" }
+                    # Descartar GPUs legacy que reportan drivers >= 27 pero no tienen hardware HAGS (evita pantalla negra)
+                    if ($Name -match "HD Graphics|UHD Graphics\s*(6[0-9]{2}|G[0-9])|Iris Plus" -and $Name -notmatch "Arc") { continue }
+                    if ($Name -match "\bRX\s*[45][0-9]{2}\b|Vega" -and $Name -notmatch "RX\s*5[0-9]{3}") { continue }
+                    if ($Name -match "GTX\s*[6789][0-9]{2}|GT\s*[678][0-9]{2}|Quadro\s*[KM][0-9]{3,4}") { continue }
+
+                    $DriverVer = $Controller.DriverVersion
+                    # El formato DCH de drivers (NVIDIA/AMD/Intel) mapea el WDDM major en el primer segmento
+                    if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
+                        if ([int]$Matches[1] -ge 27) {
+                            $WddmSupported = $true
+                            break
+                        }
                     }
                 }
             }
@@ -43,7 +54,7 @@ Try {
         Set-ItemProperty -Path $HagsPath -Name "HwSchMode" -Type DWord -Value 2 -Force | Out-Null
         if ((Get-ItemPropertyValue -Path $HagsPath -Name "HwSchMode" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar HwSchMode (HAGS)" }
     } else {
-        Write-Warning "HAGS no es compatible con el driver grafico actual (requiere WDDM >= 2.7). Saltando optimizacion."
+        Write-Warning "HAGS no es compatible con el hardware o driver grafico actual. Saltando optimizacion para evitar pantallas negras."
     }
 
     $GameBarPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"

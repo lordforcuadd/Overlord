@@ -167,12 +167,11 @@ Try {
             }
         }
         "FlushNet" {
-            ipconfig /release | Out-Null
             ipconfig /flushdns | Out-Null
-            ipconfig /renew | Out-Null
-            netsh int ip reset | Out-Null
+            ipconfig /registerdns | Out-Null
             netsh winsock reset | Out-Null
-            Write-Output "ADVERTENCIA: Catalogos de red restablecidos. Es obligatorio reiniciar el equipo para evitar estados de red inconsistentes."
+            ipconfig /renew | Out-Null
+            Write-Output "OK: DNS vaciado, catalogo Winsock restablecido y DHCP renovado (configuracion de IP estatica preservada). Se recomienda reiniciar si experimentaba problemas de red."
         }
         "RestartExplorer" {
             Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue

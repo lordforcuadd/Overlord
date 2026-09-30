@@ -46,15 +46,7 @@ if ($null -ne $FoundSvcs) {
         }
     }
 }
-$BgAppPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
 $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-$BgAppDisabled = $true
-if (Test-Path $BgAppPath) {
-    $BgAppVal = Get-ItemPropertyValue -Path $BgAppPath -Name "GlobalUserDisabled" -ErrorAction SilentlyContinue
-    if ($BgAppVal -ne 1) { $BgAppDisabled = $false }
-} else {
-    $BgAppDisabled = $false
-}
 $EdgePoliciesOk = $true
 if (Test-Path $EdgePolicyPath) {
     $SbVal = Get-ItemPropertyValue -Path $EdgePolicyPath -Name "StartupBoostEnabled" -ErrorAction SilentlyContinue
@@ -67,7 +59,7 @@ if (Test-Path $EdgePolicyPath) {
 $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
 if (Test-Path $DataPath) {
     $Tele = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
-    if ($Tele -eq 0 -and $ServicesOk -and $BgAppDisabled -and $EdgePoliciesOk) {
+    if ($Tele -eq 0 -and $ServicesOk -and $EdgePoliciesOk) {
         $Status['debloat'] = $true
     }
 }
@@ -178,9 +170,17 @@ if (Test-Path $GpuPath) {
     $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
     $WddmSupported = $false
     if ($BuildNum -ge 19041) {
-        if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+        $ExistingHwSchMode = Get-ItemProperty -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue
+        if ($null -ne $ExistingHwSchMode -and $null -ne $ExistingHwSchMode.HwSchMode) {
+            $WddmSupported = $true
+        } elseif (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             $Controllers = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
             foreach ($Controller in $Controllers) {
+                if ($Controller.PNPDeviceID -match "ROOT\\|VMBUS\\") { continue }
+                $Name = if ($Controller.Name) { $Controller.Name } else { "" }
+                if ($Name -match "HD Graphics|UHD Graphics\s*(6[0-9]{2}|G[0-9])|Iris Plus" -and $Name -notmatch "Arc") { continue }
+                if ($Name -match "\bRX\s*[45][0-9]{2}\b|Vega" -and $Name -notmatch "RX\s*5[0-9]{3}") { continue }
+                if ($Name -match "GTX\s*[6789][0-9]{2}|GT\s*[678][0-9]{2}|Quadro\s*[KM][0-9]{3,4}") { continue }
                 $DriverVer = $Controller.DriverVersion
                 if ($DriverVer -and $DriverVer -match "^(\d+)\.") {
                     if ([int]$Matches[1] -ge 27) {
@@ -189,8 +189,6 @@ if (Test-Path $GpuPath) {
                     }
                 }
             }
-        } else {
-            $WddmSupported = $true
         }
     }
 
@@ -285,13 +283,13 @@ if (Test-Path $PowerSchemePath) {
     $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
     $CustomPlanGuid = if ($null -ne $powerProps -and $null -ne $powerProps.PSObject.Properties["CustomPowerPlan"]) { $powerProps.CustomPowerPlan } else { $null }
     
-    if (($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) -and $ThrottleVal -eq 1) {
+    if (($ActivePlan -match "8c5e7fda" -or $ActivePlan -match "e9a42b02" -or ($null -ne $CustomPlanGuid -and $ActivePlan -match $CustomPlanGuid)) -and ($ThrottleVal -eq 1 -or $IsLaptop)) {
         $Status['powerProfiles'] = $true
     } elseif ($IsLaptop -and $null -ne $ActivePlan) {
         $SettingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$ActivePlan\54533251-82be-4824-96c1-47b60b740d00\94d3a615-a899-4ac5-ae2b-e4d8f634367f"
         if (Test-Path $SettingPath) {
             $AcVal = Get-ItemPropertyValue -Path $SettingPath -Name "ACSettingIndex" -ErrorAction SilentlyContinue
-            if ($AcVal -eq 1 -and $ThrottleVal -eq 1) {
+            if ($AcVal -eq 1) {
                 $Status['powerProfiles'] = $true
             }
         }
