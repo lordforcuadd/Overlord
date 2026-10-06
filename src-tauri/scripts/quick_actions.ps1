@@ -147,8 +147,14 @@ Try {
                         Set-Service -Name wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
                     }
                     
-                    # En caso de exito, podemos eliminar el backup local del servicio
-                    if ($DismExit -eq 0 -and $SfcExit -eq 0) {
+                    # Verificar que la restauracion del servicio fue efectiva antes de limpiar el backup
+                    $curSvc = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
+                    $stateRestored = $true
+                    if ($null -ne $curSvc) {
+                        if (-not $wasRunning -and $curSvc.Status -eq 'Running') { $stateRestored = $false }
+                        if ($null -ne $originalStartType -and $curSvc.StartType -ne $originalStartType) { $stateRestored = $false }
+                    }
+                    if ($DismExit -eq 0 -and $SfcExit -eq 0 -and $stateRestored) {
                         Remove-Item -Path $SvcBackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                     }
                 }

@@ -26,11 +26,11 @@ Try {
     $logicalProcs = [Environment]::ProcessorCount
     $isDualCcdX3dDetected = $false
     if ($IsX3d) {
-        $isDualCcdX3dDetected = ($logicalProcs -ge 24)
+        $isDualCcdX3dDetected = ($logicalProcs -ge 12 -and $logicalProcs -le 32)
     } else {
         try {
             $cpuName = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Name)
-            if ($null -ne $cpuName -and $cpuName.ToLower().Contains("x3d") -and $logicalProcs -ge 24) {
+            if ($null -ne $cpuName -and $cpuName.ToLower().Contains("x3d") -and $logicalProcs -ge 12 -and $logicalProcs -le 32) {
                 $isDualCcdX3dDetected = $true
             }
         } catch { }
@@ -39,12 +39,20 @@ Try {
     if ($isDualCcdX3dDetected) {
         Write-Host "    -> Topologia AMD Ryzen Dual-CCD X3D detectada ($logicalProcs hilos). Enrutando interrupciones de red a CCD1 para blindar la 3D V-Cache (CCD0)..." -ForegroundColor Cyan
         $DevicePolicyValue = 4 # IrqPolicySpecifiedProcessors
-        if ($logicalProcs -ge 32) {
+        if ($logicalProcs -eq 32) {
             # Ryzen 9 7950X3D / 9950X3D (16c/32t): CCD0 = hilos 0-15 (V-Cache). Red a CCD1 (hilos 16-31).
             $NetBitmask = [uint64]0xFFFF0000
-        } else {
+        } elseif ($logicalProcs -eq 24) {
             # Ryzen 9 7900X3D / 9900X3D (12c/24t): CCD0 = hilos 0-11 (V-Cache). Red a CCD1 (hilos 12-23).
             $NetBitmask = [uint64]0x00FFF000
+        } else {
+            # Fallback seguro para configuraciones con SMT deshabilitado (ej. 12t o 16t)
+            $halfProcs = [int]($logicalProcs / 2)
+            $maskVal = [uint64]0
+            for ($i = $halfProcs; $i -lt $logicalProcs; $i++) {
+                $maskVal = $maskVal -bor ([uint64]1 -shl $i)
+            }
+            $NetBitmask = $maskVal
         }
     }
 

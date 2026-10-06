@@ -132,25 +132,49 @@ export function useOrchestrator(overlordSwalConfig: any) {
           });
           const durationMs = Date.now() - t0;
 
-          if (modKey === "gameHooks" && gameListOpt) {
-            store.isMonitorRunning = true;
-            await invoke("start_game_priority_monitor", {
-              gameListRaw: gameListOpt,
+          if (modKey === "gameHooks") {
+            if (gameListOpt) {
+              store.isMonitorRunning = true;
+              await invoke("start_game_priority_monitor", {
+                gameListRaw: gameListOpt,
+              });
+              await store.togglePriorityService(store.priorityServiceSelected);
+              cardStatus.value[modKey] = "success";
+              store.modules[modKey as keyof typeof store.modules] = true;
+              const modTitle = tweaksMetadata[modKey]?.title || modKey;
+              modulosExitosos.push(modTitle);
+              store.addHistoryEntry({
+                timestamp: new Date().toLocaleString(),
+                action: modTitle,
+                durationMs,
+                status: "success",
+                details: `Inyección exitosa (${durationMs}ms)`,
+              });
+            } else {
+              cardStatus.value[modKey] = "idle";
+              store.modules[modKey as keyof typeof store.modules] = false;
+              const modTitle = tweaksMetadata[modKey]?.title || modKey;
+              store.addHistoryEntry({
+                timestamp: new Date().toLocaleString(),
+                action: modTitle,
+                durationMs,
+                status: "skipped",
+                details: "Omitido: sin juegos instalados ni seleccionados",
+              });
+            }
+          } else {
+            cardStatus.value[modKey] = "success";
+            store.modules[modKey as keyof typeof store.modules] = true;
+            const modTitle = tweaksMetadata[modKey]?.title || modKey;
+            modulosExitosos.push(modTitle);
+            store.addHistoryEntry({
+              timestamp: new Date().toLocaleString(),
+              action: modTitle,
+              durationMs,
+              status: "success",
+              details: `Inyección exitosa (${durationMs}ms)`,
             });
-            await store.togglePriorityService(store.priorityServiceSelected);
           }
-
-          cardStatus.value[modKey] = "success";
-          store.modules[modKey as keyof typeof store.modules] = true;
-          const modTitle = tweaksMetadata[modKey]?.title || modKey;
-          modulosExitosos.push(modTitle);
-          store.addHistoryEntry({
-            timestamp: new Date().toLocaleString(),
-            action: modTitle,
-            durationMs,
-            status: "success",
-            details: `Inyección exitosa (${durationMs}ms)`,
-          });
         } catch (errorOutput) {
           store.addHistoryEntry({
             timestamp: new Date().toLocaleString(),

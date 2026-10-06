@@ -141,8 +141,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 
 ### 5. GPU, Pantalla y Compositor (`05_gpu_display.ps1`)
 - Activa **HAGS** (Hardware Accelerated GPU Scheduling) con validación estricta de drivers y hardware moderno (filtrando GPUs legacy y drivers de máquinas virtuales VirtIO/VMware/VirtualBox para prevenir pantallas negras).
-- Preserva **MPO** (Multiplane Overlay) activo por defecto para garantizar baja latencia con DirectScanout en modo ventana sin bordes y compatibilidad con AutoHDR.
-- Deshabilita `GameBarPresenceWriter` a nivel de usuario (`AppCaptureEnabled = 0`) para evitar frametime spikes al iniciar juegos.
+- Deshabilita la captura en segundo plano de GameDVR a nivel de directivas y usuario (`AppCaptureEnabled = 0`, `AllowGameDVR = 0`) para evitar frametime spikes al iniciar juegos.
 
 ### 6. Afinidad IRQ y Enrutamiento AMD Ryzen X3D (`06_irq_affinity.ps1`)
 - **Enrutamiento Inteligente para AMD Ryzen Dual-CCD X3D (7900X3D, 7950X3D, 9900X3D, 9950X3D):** Enruta las interrupciones del bus de red físico hacia el CCD1 (núcleos de frecuencia pura), manteniendo el CCD0 (3D V-Cache) 100% aislado y dedicado a los hilos de renderizado del juego.

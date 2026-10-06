@@ -300,7 +300,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
 import { copyToClipboard } from "../utils/styleHelpers";
@@ -373,6 +373,12 @@ async function copyActiveContent() {
   }, 2000);
 }
 
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === "Escape" && store.isLogModalOpen) {
+    store.closeLogModal();
+  }
+}
+
 watch(
   () => store.isLogModalOpen,
   (open) => {
@@ -383,9 +389,14 @@ watch(
 );
 
 onMounted(() => {
+  window.addEventListener("keydown", handleKeyDown);
   if (store.isLogModalOpen) {
     fetchLogs();
   }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleKeyDown);
 });
 </script>
 

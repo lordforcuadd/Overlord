@@ -159,6 +159,30 @@ fn get_epic_installed_games() -> Vec<(String, String)> {
     games
 }
 
+fn get_folder_aliases(game_name: &str) -> &'static [&'static str] {
+    match game_name {
+        "Counter-Strike 2" => &["Counter-Strike Global Offensive", "cs2", "Counter-Strike 2"],
+        "Call of Duty" => &["Call of Duty HQ", "Call of Duty", "Call of Duty Modern Warfare"],
+        "PUBG: BATTLEGROUNDS" => &["PUBG", "PUBG: BATTLEGROUNDS", "TslGame"],
+        "The Witcher 3: Wild Hunt" => &["The Witcher 3", "The Witcher 3 Wild Hunt"],
+        "Apex Legends" => &["Apex", "Apex Legends"],
+        "Grand Theft Auto V" => &["Grand Theft Auto V", "GTAV", "GTA V"],
+        _ => &[],
+    }
+}
+
+fn check_game_folder_exists(base_dir: &Path, game_name: &str) -> bool {
+    if base_dir.join(game_name).exists() {
+        return true;
+    }
+    for alias in get_folder_aliases(game_name) {
+        if base_dir.join(alias).exists() {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     let mut catalog = vec![
         ScanGamesResponse { name: "League of Legends".to_string(), exe: "League of Legends.exe".to_string(), detected: false },
@@ -283,10 +307,12 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                                 if full_game_path.exists() {
                                     let dir_lower = dir_name.to_lowercase();
                                     for (idx, game_lower) in catalog_lowers.iter().enumerate() {
+                                        let aliases = get_folder_aliases(&catalog[idx].name);
+                                        let alias_match = aliases.iter().any(|a| dir_lower.contains(&a.to_lowercase()));
                                         let matches = if game_lower == "rust" {
                                             dir_lower == "rust"
                                         } else {
-                                            dir_lower.contains(game_lower) || game_lower.contains(&dir_lower)
+                                            dir_lower.contains(game_lower) || game_lower.contains(&dir_lower) || alias_match
                                         };
                                         if matches {
                                             catalog[idx].detected = true;
@@ -300,7 +326,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
             }
         }
         for game in catalog.iter_mut() {
-            if Path::new(path).join(&game.name).exists() {
+            if check_game_folder_exists(Path::new(path), &game.name) {
                 game.detected = true;
             }
         }
@@ -366,7 +392,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     }
     for path in &common_epic_paths {
         for game in catalog.iter_mut() {
-            if Path::new(path).join(&game.name).exists() { game.detected = true; }
+            if check_game_folder_exists(Path::new(path), &game.name) { game.detected = true; }
         }
     }
 
@@ -380,7 +406,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     for path in &xbox_default_paths {
         if Path::new(path).exists() {
             for game in catalog.iter_mut() {
-                if Path::new(path).join(&game.name).exists() { game.detected = true; }
+                if check_game_folder_exists(Path::new(path), &game.name) { game.detected = true; }
             }
         }
     }

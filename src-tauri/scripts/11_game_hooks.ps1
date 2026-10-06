@@ -108,7 +108,13 @@ try {
                             continue
                         }
 
-                        $content = Get-Content $ini.FullName -ErrorAction SilentlyContinue
+                        $content = $null
+                        try {
+                            $content = Get-Content $ini.FullName -ErrorAction Stop
+                        } catch {
+                            Write-Warning "No se pudo leer el archivo de configuracion $($ini.FullName): $_"
+                            continue
+                        }
                         if ($null -eq $content) { $content = @() }
 
                         $origReadOnly = $ini.IsReadOnly
@@ -192,7 +198,8 @@ try {
                                 if ($changed) {
                                     # Limpiar posibles saltos de linea multiples
                                     $sectionBody = $sectionBody -replace "\r?\n{3,}", "`r`n`r`n"
-                                    $iniText = $iniText -replace $pattern, "$sectionHead$sectionBody"
+                                    $newSectionContent = "$sectionHead$sectionBody"
+                                    $iniText = [System.Text.RegularExpressions.Regex]::Replace($iniText, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $newSectionContent })
                                 }
                             }
                         }

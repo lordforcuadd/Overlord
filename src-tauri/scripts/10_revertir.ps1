@@ -186,6 +186,14 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
 
+    try {
+        if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) {
+            Get-NetFirewallRule -Name "Overlord_Block_*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
+        }
+    } catch {
+        Write-Verbose "Fallo al remover reglas de firewall de telemetria: $_"
+    }
+
     # --- Reversion de Modulo de Personalizacion y QoL ---
     Write-Host "[*] [4/12] Restaurando personalizaciones de Calidad de Vida (QoL) y explorador..."
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "AppsUseLightTheme" -BackupSubFolder "QoL\User" -DefaultValue 1
@@ -200,10 +208,16 @@ Try {
     }
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -ValueName "DisableSearchBoxSuggestions" -BackupSubFolder "QoL\User" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "QoL\User" -DefaultValue 1
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "BingSearchEnabled")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    }
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "CortanaConsent")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "QoL\User" -DefaultValue 1
+    }
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -ValueName "NoLockScreen" -BackupSubFolder "QoL\System" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "QoL\StickyKeys" -DefaultValue "510" -DefaultType "String"
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Accessibility" -Name "Flags")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "QoL\StickyKeys" -DefaultValue "510" -DefaultType "String"
+    }
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "MultiTaskingAltTabFilter" -BackupSubFolder "QoL\User" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "TaskbarAl" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "Hidden" -BackupSubFolder "QoL\User" -DefaultValue 2
@@ -223,24 +237,31 @@ Try {
 
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "ShowCopilotButton" -BackupSubFolder "QoL\User" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System" -DefaultValue 0
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffWindowsCopilot")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue 0
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System" -DefaultValue 0
+    }
 
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffUserCameraCapture")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User" -DefaultValue 0
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue 0
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue 0
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System" -DefaultValue 0
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+    }
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -ValueName "DisableFileSyncNGSC" -BackupSubFolder "QoL\System" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -ValueName "OneDrive" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "TaskbarMn" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh" -ValueName "AllowNewsAndInterests" -BackupSubFolder "QoL\System" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -ValueName "StartupDelayInMSec" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\GameBar" -ValueName "AllowAutoGameMode" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\GameBar" -ValueName "AutoGameModeEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\GPU" -Name "AppCaptureEnabled")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
+    }
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AudioCaptureEnabled" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR" -ValueName "value" -BackupSubFolder "QoL\System" -DefaultValue 1
 
@@ -575,7 +596,7 @@ Try {
         Write-Error "No se pudo restaurar MMAgent: $_"
     }
 
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -ValueName "HwSchMode" -BackupSubFolder "GPU" -DefaultValue 2
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -ValueName "HwSchMode" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -ValueName "EnableTransparency" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -ValueName "AllowGameDVR" -BackupSubFolder "GPU" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -ValueName "AppCaptureEnabled" -BackupSubFolder "GPU" -DefaultValue 1
@@ -695,8 +716,13 @@ Try {
 
     $StorageBackup = "HKLM:\SOFTWARE\Overlord\Backup\Storage"
     $SavedHibernate = Get-SafeRegistryValue -Path $StorageBackup -Name "HibernateEnabled"
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -ValueName "HibernateEnabled" -BackupSubFolder "Storage" -DefaultValue 1
     if ($null -ne $SavedHibernate) {
-        if ($SavedHibernate -eq 0) { powercfg.exe /hibernate off | Out-Null } else { powercfg.exe /hibernate on | Out-Null }
+        if ($SavedHibernate -eq 0 -or $SavedHibernate -eq '_ABSENT_') {
+            powercfg.exe /hibernate off *>&1 | Out-Null
+        } else {
+            powercfg.exe /hibernate on *>&1 | Out-Null
+        }
     }
 
     if (Test-Path $GameHooksBackup) {
@@ -841,17 +867,21 @@ Try {
 
 
 
-    if (Test-Path $BackupPath) {
-        Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-    }
-
-    # Eliminar la clave padre principal si queda vacia tras la reversion para no dejar huella
-    $OverlordKey = "HKLM:\SOFTWARE\Overlord"
-    if (Test-Path $OverlordKey) {
-        $Subkeys = Get-ChildItem -Path $OverlordKey -ErrorAction SilentlyContinue
-        if ($null -eq $Subkeys -or @($Subkeys).Count -eq 0) {
-            Remove-Item -Path $OverlordKey -Force -ErrorAction SilentlyContinue | Out-Null
+    if ($global:OverlordRestoreErrors -eq 0) {
+        if (Test-Path $BackupPath) {
+            Remove-Item -Path $BackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         }
+
+        # Eliminar la clave padre principal si queda vacia tras la reversion para no dejar huella
+        $OverlordKey = "HKLM:\SOFTWARE\Overlord"
+        if (Test-Path $OverlordKey) {
+            $Subkeys = Get-ChildItem -Path $OverlordKey -ErrorAction SilentlyContinue
+            if ($null -eq $Subkeys -or @($Subkeys).Count -eq 0) {
+                Remove-Item -Path $OverlordKey -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+    } else {
+        Write-Warning "[!] Se detectaron $global:OverlordRestoreErrors errores durante la restauracion. El respaldo en $BackupPath se ha conservado para permitir recuperacion."
     }
     Write-Host "Reiniciando el entorno del Explorador de Windows..."
     Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

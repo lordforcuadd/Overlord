@@ -117,7 +117,12 @@ function Restore-OverlordRegistryValue {
             }
         }
     } catch {
+        if (-not (Get-Variable -Name 'OverlordRestoreErrors' -Scope 'Global' -ErrorAction SilentlyContinue)) {
+            $global:OverlordRestoreErrors = 0
+        }
+        $global:OverlordRestoreErrors++
         Write-Error "[-] Fallo critico de reversion simetrica: No se pudo restaurar el valor $ValueName en $TargetKey : $_"
+        throw
     }
 }
 

@@ -70,15 +70,22 @@ Try {
 
     if (-not $RunningOnBattery) {
         Write-Host "    -> Configurando Core Parking 0% para estabilidad de FPS..."
-        $ActivePlan = powercfg /getactivescheme 2>$null
-        if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
-            $CurrentGuid = $Matches[1]
+        $CurrentGuid = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes" -Name "ActivePowerScheme" -ErrorAction SilentlyContinue
+        if ($null -eq $CurrentGuid -or $CurrentGuid -notmatch "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$") {
+            try {
+                $rawScheme = & powercfg.exe /getactivescheme *>&1 | Out-String
+                if ($rawScheme -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
+                    $CurrentGuid = $Matches[1]
+                }
+            } catch { }
+        }
+        if ($CurrentGuid -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "0cc5b647-c1df-4637-891a-dec35c318583" -BackupName "Power_${CurrentGuid}_0cc5b647-c1df-4637-891a-dec35c318583"
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "ea062031-0e34-4ff1-9b6d-eb1059334028" -BackupName "Power_${CurrentGuid}_ea062031-0e34-4ff1-9b6d-eb1059334028"
             try { 
-                & powercfg -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null
-                & powercfg -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 ea062031-0e34-4ff1-9b6d-eb1059334028 100 2>$null
-                & powercfg -setactive $CurrentGuid 2>$null
+                & powercfg.exe -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 *>&1 | Out-Null
+                & powercfg.exe -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 ea062031-0e34-4ff1-9b6d-eb1059334028 100 *>&1 | Out-Null
+                & powercfg.exe -setactive $CurrentGuid *>&1 | Out-Null
             } catch { Write-Verbose "Fallo al reactivar esquema de energia: $_" }
         }
     }

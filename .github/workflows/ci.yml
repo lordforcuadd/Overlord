@@ -68,7 +68,7 @@ jobs:
       shell: powershell
       run: |
         $hasErrors = $false
-        Get-ChildItem -Recurse -Include *.ps1,*.psm1 | ForEach-Object {
+        Get-ChildItem -Recurse -Include *.ps1,*.psm1 | Where-Object { $_.FullName -notmatch '[\\/](node_modules|target)[\\/]' } | ForEach-Object {
             $errors = $null; $tokens = $null
             [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) {

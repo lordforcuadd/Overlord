@@ -109,12 +109,13 @@ while ($true) {
             $CriticalSystemProcesses = @(
                 "system", "idle", "registry", "smss", "csrss", "wininit", "services", "lsass", "svchost", "fontdrvhost", "winlogon", "dwm", "explorer", "sihost", "taskhostw",
                 "msmpeng", "searchindexer", "audiodg", "spoolsv", "runtimebroker", "dllhost", "conhost", "wudfhost",
-                "powershell", "pwsh", "cmd", "mshta", "wscript", "cscript", "rundll32", "regsvr32", "certutil", "bitsadmin", "bash", "wsl", "curl", "tar"
+                "powershell", "pwsh", "cmd", "mshta", "wscript", "cscript", "rundll32", "regsvr32", "certutil", "bitsadmin", "bash", "wsl", "curl", "tar",
+                "msbuild", "installutil", "reg", "wmic", "ftp", "nslookup", "msdt", "pcalua", "pcwrun"
             )
             foreach ($Game in $ConfigLines) {
                 if (-not [string]::IsNullOrWhiteSpace($Game)) {
                     $Game = $Game.Trim()
-                    if ($Game -notmatch '^[a-z0-9_\-\.]+$') {
+                    if ($Game -notmatch '^[a-zA-Z0-9_\-\.]+$') {
                         continue
                     }
                     $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
@@ -193,13 +194,17 @@ while ($true) {
         $ActionCmd = New-ScheduledTaskAction -Execute $PowerShellExe -Argument "-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$DaemonScript`""
         $Trigger = New-ScheduledTaskTrigger -AtStartup
         $Principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest
-        $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
         
         Register-ScheduledTask -TaskName $TaskName -Action $ActionCmd -Trigger $Trigger -Principal $Principal -Settings $Settings | Out-Null
+    } else {
+        if ($ExistingTask.State -eq "Disabled") {
+            Enable-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
+        }
     }
     
     $RunningTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    if ($RunningTask.State -ne "Running") {
+    if ($null -ne $RunningTask -and $RunningTask.State -ne "Running") {
         Start-ScheduledTask -TaskName $TaskName | Out-Null
     }
 

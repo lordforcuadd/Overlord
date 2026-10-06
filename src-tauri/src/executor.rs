@@ -169,6 +169,10 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     let script_clean = strip_param_block(script_raw);
 
     let sid_resolver = include_str!("../scripts/sid_resolver.ps1");
+    let needs_game_locator = action_id == "11_game_hooks"
+        || action_id == "12_defender_exclusions"
+        || action_id == "manage_priority_service";
+
     let unified_script = if action_id == "get_qol" || action_id == "get_modules_status" {
         format!(
             "{}\n{}\n{}",
@@ -176,7 +180,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
             sid_resolver,
             script_clean
         )
-    } else {
+    } else if needs_game_locator {
         let backup_module = include_str!("../scripts/backup_manager.psm1");
         let game_locator_module = include_str!("../scripts/game_locator.psm1");
         format!(
@@ -185,6 +189,15 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
             sid_resolver,
             backup_module,
             game_locator_module,
+            script_clean
+        )
+    } else {
+        let backup_module = include_str!("../scripts/backup_manager.psm1");
+        format!(
+            "{}\n{}\n{}\n{}",
+            header,
+            sid_resolver,
+            backup_module,
             script_clean
         )
     };

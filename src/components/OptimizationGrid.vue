@@ -148,11 +148,11 @@ function addManualGame() {
     return;
   }
 
-  const exeRegex = /^[^\\/:*?"<>|\s]+\.exe$/i;
+  const exeRegex = /^[^\\/:*?"<>|]+\.exe$/i;
   if (!exeRegex.test(exe)) {
     Swal.fire({
       title: "Ejecutable Inválido",
-      text: "El nombre del ejecutable debe terminar en '.exe' y no contener espacios ni caracteres no válidos de Windows (\\ / : * ? \" < > |).",
+      text: "El nombre del ejecutable debe terminar en '.exe' y no contener caracteres no válidos de Windows (\\ / : * ? \" < > |).",
       icon: "error",
       ...overlordSwalConfig,
     });

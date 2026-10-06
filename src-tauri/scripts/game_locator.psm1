@@ -2,6 +2,10 @@ function Get-OverlordLaunchersConfig {
     if ($null -ne $global:LaunchersConfig) {
         return $global:LaunchersConfig
     }
+    $cfgVar = Get-Variable -Name "LaunchersConfig" -ErrorAction SilentlyContinue
+    if ($null -ne $cfgVar -and $null -ne $cfgVar.Value) {
+        return $cfgVar.Value
+    }
 
     # Fallback dinámico: intentar cargar launchers_config.json desde disco
     $possiblePaths = @(

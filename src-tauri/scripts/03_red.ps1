@@ -23,8 +23,8 @@ Try {
     if ((Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue) -ne 10) { throw "Verification failed" }
     if ((Get-ItemPropertyValue -Path $TcpPath -Name "InitialRto" -ErrorAction SilentlyContinue) -ne 2000) { throw "Verification failed" }
     
-    $throttingVal = Get-ItemPropertyValue -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue
-    if ($null -eq $throttingVal -or (@(4294967295, -1) -notcontains $throttingVal)) { throw "Fallo de verificacion en NetworkThrottlingIndex" }
+    $throttlingVal = Get-ItemPropertyValue -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue
+    if ($null -eq $throttlingVal -or (@(4294967295, -1) -notcontains $throttlingVal)) { throw "Fallo de verificacion en NetworkThrottlingIndex" }
 
     
     $InterfacesPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
@@ -71,12 +71,15 @@ Try {
         }
 
         # Obtener adaptadores fisicos activos Ethernet
-        $EthernetGuids = @()
-        if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
-            $EthernetGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
+        $EthernetGuids = if ($null -ne $ActiveGuids -and $ActiveGuids.Count -gt 0) {
+            $ActiveGuids
+        } elseif (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+            Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 $_.Virtual -eq $false -and 
                 ($_.NdisPhysicalMedium -eq 14 -or ($_.PhysicalMediaType -notmatch "802.11" -and $_.MediaType -notmatch "Wireless" -and $_.Name -notmatch "Wi-Fi|Wireless|wlan|Bluetooth"))
             } | ForEach-Object { "$($_.InterfaceGuid)" }
+        } else {
+            @()
         }
 
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
@@ -148,16 +151,16 @@ Try {
                         $Lso = Get-NetAdapterLso -Name $Adapter.Name -ErrorAction SilentlyContinue
                         if ($null -ne $Lso) {
                             if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["LsoIPv4"]) {
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "LsoIPv4" -Value (if ($Lso.IPv4Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "LsoIPv6" -Value (if ($Lso.IPv6Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "LsoIPv4" -Value $(if ($Lso.IPv4Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "LsoIPv6" -Value $(if ($Lso.IPv6Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }
 
                         $Rsc = Get-NetAdapterRsc -Name $Adapter.Name -ErrorAction SilentlyContinue
                         if ($null -ne $Rsc) {
                             if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["RscIPv4"]) {
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "RscIPv4" -Value (if ($Rsc.IPv4Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "RscIPv6" -Value (if ($Rsc.IPv6Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RscIPv4" -Value $(if ($Rsc.IPv4Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RscIPv6" -Value $(if ($Rsc.IPv6Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }
 
@@ -165,7 +168,7 @@ Try {
                         if ($null -ne $Rss) {
                             if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["RssProfile"]) {
                                 Set-ItemProperty -Path $AdapterBackupPath -Name "RssProfile" -Value $Rss.Profile.ToString() -Type String -Force -ErrorAction SilentlyContinue | Out-Null
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "RssEnabled" -Value (if ($Rss.Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "RssEnabled" -Value $(if ($Rss.Enabled) { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }
 
@@ -183,7 +186,7 @@ Try {
                         $PwrMgmt = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction SilentlyContinue
                         if ($null -ne $PwrMgmt) {
                             if ($null -eq $backupProps -or $null -eq $backupProps.PSObject.Properties["AllowComputerToTurnOffDevice"]) {
-                                Set-ItemProperty -Path $AdapterBackupPath -Name "AllowComputerToTurnOffDevice" -Value (if ($PwrMgmt.AllowComputerToTurnOffDevice -match "Enabled|True|1") { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                                Set-ItemProperty -Path $AdapterBackupPath -Name "AllowComputerToTurnOffDevice" -Value $(if ($PwrMgmt.AllowComputerToTurnOffDevice -match "Enabled|True|1") { 1 } else { 0 }) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }
                     }

@@ -103,7 +103,8 @@ async fn detect_system_hardware() -> HardwareResponse {
                                 if max > 0 {
                                     let max_u32 = max as u32;
                                     ram_max_speed_val = Some(max_u32);
-                                    is_xmp_val = Some(cfg_u32 >= max_u32);
+                                    let is_overclocked_jedec = (cfg_u32 > 2666 && cfg_u32 <= 4400) || cfg_u32 > 4800;
+                                    is_xmp_val = Some(cfg_u32 >= max_u32 && is_overclocked_jedec);
                                 }
                             }
                         }

@@ -51,7 +51,7 @@ export interface HistoryEntry {
   timestamp: string;
   action: string;
   durationMs: number;
-  status: "success" | "error" | "warning";
+  status: "success" | "error" | "warning" | "skipped";
   details?: string;
 }
 
@@ -354,15 +354,21 @@ export const useOverlordStore = defineStore("overlord", {
     async scanGames() {
       try {
         const scanned = await invoke<GamePayload[]>("get_installed_games");
-        let manualGames = this.gameList.filter((g) => g.manual);
+        let manualGames: GamePayload[] = this.gameList.filter((g) => g.manual);
         if (manualGames.length === 0) {
-          const stored = localStorage.getItem("overlord_manual_games");
-          if (stored) {
-            try {
-              manualGames = JSON.parse(stored);
-            } catch (err) {
-              console.error("[ERROR PARSING MANUAL GAMES]:", err);
+          try {
+            const stored = localStorage.getItem("overlord_manual_games");
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed)) {
+                manualGames = parsed.filter(
+                  (item): item is GamePayload =>
+                    Boolean(item && typeof item === "object" && typeof item.name === "string" && typeof item.exe === "string")
+                );
+              }
             }
+          } catch (err) {
+            console.error("[ERROR PARSING MANUAL GAMES]:", err);
           }
         }
         const seenExes = new Set<string>();
@@ -461,8 +467,12 @@ export const useOverlordStore = defineStore("overlord", {
           optimize: true,
           manual: true,
         });
-        const manualGames = this.gameList.filter((g) => g.manual);
-        localStorage.setItem("overlord_manual_games", JSON.stringify(manualGames));
+        try {
+          const manualGames = this.gameList.filter((g) => g.manual);
+          localStorage.setItem("overlord_manual_games", JSON.stringify(manualGames));
+        } catch (e) {
+          console.warn("[STORAGE SAVE ERROR]:", e);
+        }
       }
     },
     removeManualGame(index: number) {
@@ -470,8 +480,12 @@ export const useOverlordStore = defineStore("overlord", {
         const game = this.gameList[index];
         if (game.manual) {
           this.gameList.splice(index, 1);
-          const manualGames = this.gameList.filter((g) => g.manual);
-          localStorage.setItem("overlord_manual_games", JSON.stringify(manualGames));
+          try {
+            const manualGames = this.gameList.filter((g) => g.manual);
+            localStorage.setItem("overlord_manual_games", JSON.stringify(manualGames));
+          } catch (e) {
+            console.warn("[STORAGE SAVE ERROR]:", e);
+          }
         }
       }
     },

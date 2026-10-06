@@ -2,6 +2,20 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor 12288
 
+$CurrentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+$IsAdmin = $CurrentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $IsAdmin) {
+    Write-Host "[-] Overlord requiere permisos de Administrador para optimizar el sistema." -ForegroundColor Red
+    Write-Host "[*] Intentando elevar privilegios..." -ForegroundColor Yellow
+    try {
+        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+        exit 0
+    } catch {
+        Write-Host "[-] Elevacion denegada por el usuario o UAC: $_" -ForegroundColor Red
+        exit 1
+    }
+}
+
 Write-Host "[*] Conectando con los servidores de GitHub para buscar actualizaciones..." -ForegroundColor Gray
 
 $Repo = "lordforcuadd/Overlord"
@@ -156,7 +170,7 @@ if ($null -ne $DownloadUrl) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
         $ExpectedThumbprint = if (![string]::IsNullOrWhiteSpace($env:OVERLORD_EXPECTED_THUMBPRINT)) { $env:OVERLORD_EXPECTED_THUMBPRINT } else { "4338BFA2A57459BEB3B43FB141E6BDB75C8A808A" }
-        $ValidCert = ($null -ne $Signature -and $Signature.Status -eq "Valid" -and ($Signature.SignerCertificate.Thumbprint -eq $ExpectedThumbprint -or $Signature.SignerCertificate.Subject -match '^CN=LordForCuadd([,]|\s|$)'))
+        $ValidCert = ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Thumbprint -eq $ExpectedThumbprint)
         if ($ValidCert) {
             Write-Host "[+] Binario local validado mediante firma digital estricta." -ForegroundColor Green
             $ExecutionPermitted = $true

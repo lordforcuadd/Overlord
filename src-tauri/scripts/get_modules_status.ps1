@@ -35,17 +35,35 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
     }
 }
 
-$ServicesToCheck = @("AJRouter", "WpcMonSvc", "TrkWks", "RemoteRegistry")
 $ServicesOk = $true
-$FoundSvcs = Get-Service -Name $ServicesToCheck -ErrorAction SilentlyContinue
-if ($null -ne $FoundSvcs) {
-    foreach ($Svc in $FoundSvcs) {
+$FoundDisabled = Get-Service -Name @("dmwappushservice", "MapsBroker") -ErrorAction SilentlyContinue
+if ($null -ne $FoundDisabled -and @($FoundDisabled).Count -gt 0) {
+    foreach ($Svc in $FoundDisabled) {
         if ($Svc.StartType -ne "Disabled") {
             $ServicesOk = $false
             break
         }
     }
+} else {
+    $ServicesOk = $false
 }
+
+$FoundManual = Get-Service -Name @("AJRouter", "TrkWks") -ErrorAction SilentlyContinue
+if ($null -ne $FoundManual -and @($FoundManual).Count -gt 0) {
+    foreach ($Svc in $FoundManual) {
+        if ($Svc.StartType -ne "Manual" -and $Svc.StartType -ne "Disabled") {
+            $ServicesOk = $false
+            break
+        }
+    }
+}
+
+$TasksOk = $false
+$CompAppraiser = Get-ScheduledTask -TaskPath "\Microsoft\Windows\Application Experience\" -TaskName "Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
+if ($null -ne $CompAppraiser -and $CompAppraiser.State -eq "Disabled") {
+    $TasksOk = $true
+}
+
 $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
 $EdgePoliciesOk = $true
 if (Test-Path $EdgePolicyPath) {
@@ -59,7 +77,7 @@ if (Test-Path $EdgePolicyPath) {
 $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
 if (Test-Path $DataPath) {
     $Tele = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
-    if ($Tele -eq 0 -and $ServicesOk -and $EdgePoliciesOk) {
+    if ($Tele -eq 0 -and $ServicesOk -and $EdgePoliciesOk -and $TasksOk) {
         $Status['debloat'] = $true
     }
 }
@@ -298,7 +316,8 @@ if (Test-Path $NtfsPath) {
 $DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
 $WerSvc = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
 $WerPolicy = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -ErrorAction SilentlyContinue
-if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and ($WerSvc.StartType -eq "Manual" -or $WerSvc.StartType -eq "Disabled")) -and $WerPolicy -eq 1) {
+$PublishActivities = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -ErrorAction SilentlyContinue
+if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and ($WerSvc.StartType -eq "Manual" -or $WerSvc.StartType -eq "Disabled")) -and $WerPolicy -eq 1 -and $PublishActivities -eq 0) {
     $Status['deepTelemetry'] = $true
 }
 
@@ -325,18 +344,24 @@ if (Test-Path $PowerSchemePath) {
     }
 }
 
-$GameHooksReg = Get-Item -Path "HKLM:\SOFTWARE\Overlord\Backup\GameHooks" -ErrorAction SilentlyContinue
-if ($null -ne $GameHooksReg) {
-    $Subkeys = Get-ChildItem -Path "HKLM:\SOFTWARE\Overlord\Backup\GameHooks" -ErrorAction SilentlyContinue
-    if ($null -ne $Subkeys -and @($Subkeys).Count -gt 0) {
-        $Status['gameHooks'] = $true
+$LayersPath = "$HKCU_Path\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+if (Test-Path $LayersPath) {
+    $LayersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
+    if ($null -ne $LayersProps) {
+        foreach ($prop in $LayersProps.PSObject.Properties) {
+            if ($prop.Value -and $prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
+                $Status['gameHooks'] = $true
+                break
+            }
+        }
     }
 }
 
 $MemPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
 if (Test-Path $MemPath) {
     $Override = Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue
-    if ($Override -eq 8259) {
+    $Mask = Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue
+    if ($Override -eq 8259 -and $Mask -eq 3) {
         $Status['disableMitigations'] = $true
     }
 }

@@ -49,12 +49,19 @@ try {
         $UserDir = $env:USERPROFILE
     }
 
+    $SystemExeBlacklist = @("cmd.exe", "powershell.exe", "pwsh.exe", "svchost.exe", "rundll32.exe", "explorer.exe", "regsvr32.exe", "mshta.exe", "cscript.exe", "wscript.exe", "certutil.exe", "msbuild.exe")
+
     foreach ($Game in $Games) {
         if ([string]::IsNullOrWhiteSpace($Game)) { continue }
         
         $RealExePath = $null
         # Intentar obtener ruta previamente resuelta en backup de GameHooks por consistencia total
         $ExeName = if ($Game -notlike "*.exe") { "$Game.exe" } else { $Game }
+
+        if ($SystemExeBlacklist -contains $ExeName.ToLower()) {
+            Write-Warning "El ejecutable $ExeName es un binario del sistema y no sera excluido."
+            continue
+        }
 
         if ($ExeName -eq "javaw.exe") {
             # Busqueda dedicada para Java Runtime de Minecraft / CurseForge / Prism / TLauncher
@@ -107,13 +114,20 @@ try {
 
             if (![string]::IsNullOrWhiteSpace($GameDir) -and (Test-Path $GameDir -PathType Container)) {
                 $ResolvedDir = [System.IO.Path]::GetFullPath($GameDir).TrimEnd('\')
-                if (-not ($ForbiddenDirs -contains $ResolvedDir.ToLower())) {
-                    if (!$ExcludedPaths.Contains($ResolvedDir)) {
+                $isForbidden = $false
+                foreach ($fDir in $ForbiddenDirs) {
+                    if ($ResolvedDir.ToLower() -eq $fDir -or $ResolvedDir.ToLower().StartsWith("$fDir\")) {
+                        $isForbidden = $true
+                        break
+                    }
+                }
+                if (-not $isForbidden) {
+                    if (-not ($ExcludedPaths | Where-Object { $_ -ieq $ResolvedDir })) {
                         $ExcludedPaths.Add($ResolvedDir)
                     }
                 } else {
                     $ResolvedExe = [System.IO.Path]::GetFullPath($RealExePath)
-                    if (!$ExcludedPaths.Contains($ResolvedExe)) {
+                    if (-not ($ExcludedPaths | Where-Object { $_ -ieq $ResolvedExe })) {
                         $ExcludedPaths.Add($ResolvedExe)
                     }
                 }
@@ -161,11 +175,11 @@ try {
                 Write-Host "    [+] Ruta excluida en Windows Defender: $Dir"
                 
                 # Registrar en nuestro backup que Overlord gestiona esta exclusión
-                if (-not $NewAddedPaths.Contains($Dir)) {
+                if (-not ($NewAddedPaths | Where-Object { $_ -ieq $Dir })) {
                     $NewAddedPaths.Add($Dir)
                 }
             } catch {
-                throw "Defender bloqueó la adición de la exclusión para ${Dir}: $_"
+                Write-Warning "Windows Defender no permitio anadir la exclusion para ${Dir}: $_"
             }
         } else {
             Write-Host "    [*] La ruta ya estaba excluida en Windows Defender: $Dir"

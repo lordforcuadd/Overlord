@@ -27,19 +27,36 @@ $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction Sil
 $Targets = @($HKCU_Path)
 
 $NormalizedInput = if ([string]::IsNullOrWhiteSpace($IsEnabledStr)) { "false" } else { $IsEnabledStr.ToLower().Replace("$", "").Trim() }
-$Value = if ($NormalizedInput -eq "true") { 1 } else { 0 }
+$Value = if ($NormalizedInput -eq "true" -or $NormalizedInput -eq "1" -or $NormalizedInput -eq "yes" -or $NormalizedInput -eq "on") { 1 } else { 0 }
 
 function Set-RegistryValue($subPath, $name, $type, $val) {
     foreach ($base in $Targets) {
         $fullPath = Join-Path $base $subPath
         if (!(Test-Path $fullPath)) { New-Item -Path $fullPath -Force | Out-Null }
-        Set-ItemProperty -Path $fullPath -Name $name -Type $type -Value $val -Force | Out-Null
-        
-        # Verificacion estricta (Cero Complacencia)
-        $actualVal = Get-ItemPropertyValue -Path $fullPath -Name $name -ErrorAction SilentlyContinue
-        if ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString()) {
-            throw "El sistema intercepto el cambio o bloqueo la escritura del registro en $fullPath\$name"
+        if ([string]::IsNullOrEmpty($name) -or $name -eq "(default)") {
+            Set-Item -Path $fullPath -Value $val -Force | Out-Null
+            $actualVal = (Get-Item -Path $fullPath -ErrorAction SilentlyContinue).GetValue("")
+            if ($null -ne $val -and ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString())) {
+                throw "El sistema intercepto el cambio o bloqueo la escritura default en $fullPath"
+            }
+        } else {
+            Set-ItemProperty -Path $fullPath -Name $name -Type $type -Value $val -Force | Out-Null
+            
+            # Verificacion estricta (Cero Complacencia)
+            $actualVal = Get-ItemPropertyValue -Path $fullPath -Name $name -ErrorAction SilentlyContinue
+            if ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString()) {
+                throw "El sistema intercepto el cambio o bloqueo la escritura del registro en $fullPath\$name"
+            }
         }
+    }
+}
+
+function Set-HklmRegistryValue($path, $name, $type, $val) {
+    if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+    Set-ItemProperty -Path $path -Name $name -Type $type -Value $val -Force | Out-Null
+    $actual = Get-ItemPropertyValue -Path $path -Name $name -ErrorAction SilentlyContinue
+    if ($null -eq $actual -or $actual.ToString() -ne $val.ToString()) {
+        throw "El sistema intercepto el cambio o bloqueo la escritura en $path\$name"
     }
 }
 
@@ -238,18 +255,7 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" "DWord" $(if ($Value -eq 1) {0} else {1})
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-        try {
-            $OldEAP = $ErrorActionPreference
-            $ErrorActionPreference = "Stop"
-            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-            Set-ItemProperty -Path $Path -Name "TurnOffWindowsCopilot" -Type DWord -Value $Value -Force | Out-Null
-            $actual = Get-ItemPropertyValue -Path $Path -Name "TurnOffWindowsCopilot" -ErrorAction SilentlyContinue
-            if ($null -eq $actual -or $actual.ToString() -ne $Value.ToString()) { throw "Bloqueado por el SO" }
-        } catch {
-            Write-Warning "[-] Advertencia al configurar Copilot en HKLM: $_"
-        } finally {
-            $ErrorActionPreference = $OldEAP
-        }
+        Set-HklmRegistryValue $Path "TurnOffWindowsCopilot" "DWord" $Value
         $RequiresExplorerRestart = $true
     }
     "disableRecall" {
@@ -263,34 +269,15 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "TurnOffUserCameraCapture" "DWord" $Value
         Set-RegistryValue "Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" "DWord" $Value
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
-        try {
-            $OldEAP = $ErrorActionPreference
-            $ErrorActionPreference = "Stop"
-            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-            Set-ItemProperty -Path $Path -Name "TurnOffUserCameraCapture" -Type DWord -Value $Value -Force | Out-Null
-            Set-ItemProperty -Path $Path -Name "DisableAIDataAnalysis" -Type DWord -Value $Value -Force | Out-Null
-            
-            $allowEnablementVal = if ($Value -eq 1) { 0 } else { 1 }
-            Set-ItemProperty -Path $Path -Name "AllowRecallEnablement" -Type DWord -Value $allowEnablementVal -Force | Out-Null
-        } catch {
-            Write-Warning "[-] Advertencia al configurar Recall en HKLM: $_"
-        } finally {
-            $ErrorActionPreference = $OldEAP
-        }
+        Set-HklmRegistryValue $Path "TurnOffUserCameraCapture" "DWord" $Value
+        Set-HklmRegistryValue $Path "DisableAIDataAnalysis" "DWord" $Value
+        $allowEnablementVal = if ($Value -eq 1) { 0 } else { 1 }
+        Set-HklmRegistryValue $Path "AllowRecallEnablement" "DWord" $allowEnablementVal
     }
     "detailedBSoD" {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System"
         $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl"
-        try {
-            $OldEAP = $ErrorActionPreference
-            $ErrorActionPreference = "Stop"
-            Set-ItemProperty -Path $Path -Name "DisplayParameters" -Type DWord -Value $Value -Force | Out-Null
-        } catch {
-            Write-Error "[-] Error al configurar DisplayParameters (BSoD detallada) en HKLM: $_"
-            exit 1
-        } finally {
-            $ErrorActionPreference = $OldEAP
-        }
+        Set-HklmRegistryValue $Path "DisplayParameters" "DWord" $Value
     }
     "disableOneDrive" {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -ValueName "DisableFileSyncNGSC" -BackupSubFolder "QoL\System"
@@ -309,31 +296,16 @@ switch ($ToggleName) {
                 }
             }
             foreach ($base in $Targets) {
-                Remove-ItemProperty -Path (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Run") -Name "OneDrive" -ErrorAction SilentlyContinue
+                $runPath = Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Run"
+                Backup-OverlordRegistryValue -TargetKey $runPath -ValueName "OneDrive" -BackupSubFolder "QoL\User"
+                Remove-ItemProperty -Path $runPath -Name "OneDrive" -ErrorAction SilentlyContinue
             }
             $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
-            try {
-                $OldEAP = $ErrorActionPreference
-                $ErrorActionPreference = "Stop"
-                if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-                Set-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -Type DWord -Value 1 -Force | Out-Null
-            } catch {
-                Write-Warning "[-] Advertencia al desactivar directiva de OneDrive en HKLM: $_"
-            } finally {
-                $ErrorActionPreference = $OldEAP
-            }
+            Set-HklmRegistryValue $Path "DisableFileSyncNGSC" "DWord" 1
         } else {
             $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
-            try {
-                $OldEAP = $ErrorActionPreference
-                $ErrorActionPreference = "Stop"
-                if (Test-Path $Path) {
-                    Remove-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue | Out-Null
-                }
-            } catch {
-                Write-Warning "[-] Advertencia al habilitar directiva de OneDrive en HKLM: $_"
-            } finally {
-                $ErrorActionPreference = $OldEAP
+            if (Test-Path $Path) {
+                Remove-ItemProperty -Path $Path -Name "DisableFileSyncNGSC" -ErrorAction SilentlyContinue | Out-Null
             }
             if (-not (Get-Command "OneDrive.exe" -ErrorAction SilentlyContinue)) {
                 Start-Process -FilePath "winget" -ArgumentList "install Microsoft.OneDrive -e --silent" -Wait -NoNewWindow
@@ -350,16 +322,7 @@ switch ($ToggleName) {
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh" -ValueName "AllowNewsAndInterests" -BackupSubFolder "QoL\System"
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" "DWord" $widgetsVal
         $Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh"
-        try {
-            $OldEAP = $ErrorActionPreference
-            $ErrorActionPreference = "Stop"
-            if (!(Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-            Set-ItemProperty -Path $Path -Name "AllowNewsAndInterests" -Type DWord -Value $widgetsVal -Force | Out-Null
-        } catch {
-            Write-Warning "[-] Advertencia al configurar Widgets en HKLM: $_"
-        } finally {
-            $ErrorActionPreference = $OldEAP
-        }
+        Set-HklmRegistryValue $Path "AllowNewsAndInterests" "DWord" $widgetsVal
         $RequiresExplorerRestart = $true
     } 
     "zeroStartupDelay" {

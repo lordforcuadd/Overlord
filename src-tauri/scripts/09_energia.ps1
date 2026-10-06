@@ -91,7 +91,7 @@ Try {
         }
 
         $CurrentActive = powercfg /getactivescheme
-        if ($CurrentActive -notmatch $UltimateGUID -and $CurrentActive -notmatch "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" -and $CurrentActive -notmatch "381b4222-f694-41f0-9685-ff5bb260df2e") {
+        if ($CurrentActive -notmatch $UltimateGUID -and $CurrentActive -notmatch "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c") {
             $powerProps = Get-ItemProperty -Path $PowerBackup -ErrorAction SilentlyContinue
             $CustomGuidCheck = if ($null -ne $powerProps -and $null -ne $powerProps.PSObject.Properties["CustomPowerPlan"]) { $powerProps.CustomPowerPlan } else { $null }
             if ($null -eq $CustomGuidCheck -or $CurrentActive -notmatch $CustomGuidCheck) {

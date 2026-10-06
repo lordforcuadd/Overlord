@@ -42,7 +42,10 @@ if (-not [string]::IsNullOrWhiteSpace($Username)) {
     } catch { 
         Write-Warning "Fallback SID [Traducir NTAccount] fallido para ${Username}: $_"
         try {
-            $UserSID = (Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $Username }).SID
+            $matchedUser = Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $Username } | Select-Object -First 1
+            if ($matchedUser -and $matchedUser.SID) {
+                $UserSID = [string]$matchedUser.SID
+            }
         } catch { Write-Warning "Fallback SID [Win32_UserAccount] fallido para ${Username}: $_" }
     }
 }

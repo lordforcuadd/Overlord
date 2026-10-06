@@ -151,7 +151,8 @@ Try {
     }
 
     foreach ($Task in $Tasks) {
-        $TPath = "\" + (Split-Path $Task -Parent)
+        $parent = Split-Path $Task -Parent
+        $TPath = if ($parent) { "\" + $parent + "\" } else { "\" }
         $TName = Split-Path $Task -Leaf
         
         $TaskObj = Get-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue

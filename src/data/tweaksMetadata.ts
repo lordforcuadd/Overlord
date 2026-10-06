@@ -210,7 +210,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Eliminación de stutters por superposiciones de GameBar y optimización de latencia en la cola gráfica.",
     details: [
       "Activa la programación de GPU acelerada por hardware (HAGS, HwSchMode = 2) en sistemas y controladores compatibles con WDDM 2.7+.",
-      "Desactivación de GameBarPresenceWriter a nivel de directivas de usuario para prevenir congelamientos temporales.",
+      "Desactivación de la captura en segundo plano de GameDVR a nivel de directivas y usuario para prevenir congelamientos temporales.",
       "Desactivación del grabador de aplicaciones AppCaptureEnabled para liberar ciclos del codificador de vídeo.",
     ],
   },
@@ -325,7 +325,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "gameHooks",
     title: "Prioridad Absoluta para Juegos",
     description:
-      "Fuerza el bypass gráfico de optimizaciones de pantalla completa y configura prioridades IFEO para los juegos detectados.",
+      "Fuerza el bypass gráfico de optimizaciones de pantalla completa e inyecta banderas de compatibilidad High DPI para los juegos detectados.",
     riesgo: "Seguro",
     evidenciaImpacto: "Situacional",
     reversible: true,
