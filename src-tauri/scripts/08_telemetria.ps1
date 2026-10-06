@@ -114,7 +114,7 @@ Try {
             if ((Get-ItemPropertyValue -Path $LoggerKey -Name "Start" -ErrorAction SilentlyContinue) -ne 0) { 
                 throw "Fallo al asegurar el estado detenido para el logger: $Logger" 
             }
-            try { logman.exe stop $Logger -ets *>&1 | Out-Null } catch { }
+            try { logman.exe stop $Logger -ets *>&1 | Out-Null } catch { Write-Verbose "Logger ETW ${Logger} no estaba activo o no se pudo detener: $_" }
         }
     }
 

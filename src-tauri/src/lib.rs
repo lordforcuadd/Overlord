@@ -63,17 +63,12 @@ async fn fetch_hardware(force: Option<bool>) -> HardwareResponse {
 }
 
 #[tauri::command]
-async fn fetch_games() -> Result<Vec<ScanGamesResponse>, String> {
+async fn get_installed_games() -> Result<Vec<ScanGamesResponse>, String> {
     tokio::task::spawn_blocking(move || {
         collect_installed_games()
     })
     .await
     .map_err(|e| format!("Fallo al ejecutar el escaneo de juegos en segundo plano: {}", e))
-}
-
-#[tauri::command]
-async fn get_installed_games() -> Result<Vec<ScanGamesResponse>, String> {
-    fetch_games().await
 }
 
 #[tauri::command]
@@ -601,7 +596,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             check_backup_exists,
             fetch_hardware,
-            fetch_games,
             get_installed_games,
             get_live_telemetry,
             run_optimization_script,

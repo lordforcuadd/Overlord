@@ -288,19 +288,28 @@ export const useOverlordStore = defineStore("overlord", {
         } else {
           this.hardwareInfo.tier = "Gama Estándar";
         }
-        await this.checkBackupStatus();
-        await this.checkPriorityServiceStatus();
-        await this.fetchDaemonStatus();
-        if (!this.isInitialized) {
-          this.priorityServiceSelected = this.isPriorityServiceInstalled;
-        }
-        await invoke("log_from_js", {
-          msg: `detectHardware done: isLaptop=${this.hardwareInfo.isLaptop}, cpu=${this.hardwareInfo.cpu}, motherboard=${this.hardwareInfo.motherboard}`
-        });
+        this.hardwareError = false;
       } catch (e) {
         console.error("[ERROR DETECTANDO HARDWARE]:", e);
         this.hardwareError = true;
       }
+
+      try {
+        await Promise.allSettled([
+          this.checkBackupStatus(),
+          this.checkPriorityServiceStatus(),
+          this.fetchDaemonStatus(),
+        ]);
+        if (!this.isInitialized) {
+          this.priorityServiceSelected = this.isPriorityServiceInstalled;
+        }
+      } catch (err) {
+        console.warn("[POST-HARDWARE STATUS CHECK WARNING]:", err);
+      }
+
+      invoke("log_from_js", {
+        msg: `detectHardware done: isLaptop=${this.hardwareInfo.isLaptop}, cpu=${this.hardwareInfo.cpu}, motherboard=${this.hardwareInfo.motherboard}, error=${this.hardwareError}`
+      }).catch(() => {});
     },
     async checkPriorityServiceStatus() {
       try {

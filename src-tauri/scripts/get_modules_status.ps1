@@ -58,11 +58,24 @@ if ($null -ne $FoundManual -and @($FoundManual).Count -gt 0) {
     }
 }
 
-$TasksOk = $false
-$CompAppraiser = Get-ScheduledTask -TaskPath "\Microsoft\Windows\Application Experience\" -TaskName "Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
-if ($null -ne $CompAppraiser -and $CompAppraiser.State -eq "Disabled") {
-    $TasksOk = $true
+$TasksToCheck = @(
+    @{ Path = "\Microsoft\Windows\Application Experience\"; Name = "Microsoft Compatibility Appraiser" },
+    @{ Path = "\Microsoft\Windows\Customer Experience Improvement Program\"; Name = "Consolidator" },
+    @{ Path = "\Microsoft\Windows\Application Experience\"; Name = "ProgramDataUpdater" }
+)
+$TasksOk = $true
+$FoundAnyTask = $false
+foreach ($t in $TasksToCheck) {
+    $tObj = Get-ScheduledTask -TaskPath $t.Path -TaskName $t.Name -ErrorAction SilentlyContinue
+    if ($null -ne $tObj) {
+        $FoundAnyTask = $true
+        if ($tObj.State -ne "Disabled") {
+            $TasksOk = $false
+            break
+        }
+    }
 }
+if (-not $FoundAnyTask) { $TasksOk = $false }
 
 $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
 $EdgePoliciesOk = $true

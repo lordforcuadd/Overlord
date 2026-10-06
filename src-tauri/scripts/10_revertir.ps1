@@ -381,7 +381,8 @@ Try {
     if (Test-Path $TasksBackupPath) {
         $props = Get-ItemProperty -Path $TasksBackupPath -ErrorAction SilentlyContinue
         foreach ($Task in $Tasks) {
-            $TPath = "\" + (Split-Path $Task -Parent)
+            $parent = Split-Path $Task -Parent
+            $TPath = if ($parent) { "\" + $parent + "\" } else { "\" }
             $TName = Split-Path $Task -Leaf
             $TaskKeyName = $Task -replace '\\', '_'
             
