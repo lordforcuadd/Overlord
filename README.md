@@ -165,15 +165,26 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - **En Desktop:** Inyecta y activa el esquema *Ultimate Performance* (`e9a42b02-d5df-448d-aa00-03f14749eb61`), deshabilita Core Parking y fija EPP a rendimiento máximo (`0`).
 - **En Laptop:** Configura la gestión de energía sin desactivar las protecciones térmicas del chasis móvil.
 
-### 10. Prioridad Dinámica de Juegos (`manage_priority_service.ps1`)
-- Servicio residente como Tarea Programada de Windows elevada a nivel `SYSTEM` con ACLs blindadas.
-- Monitorea cada 15 segundos los juegos seleccionados por el usuario y eleva su prioridad a `High`.
-- En CPUs AMD Ryzen Dual-CCD X3D, fija la máscara de afinidad del juego al CCD0 (3D V-Cache).
-- Cuenta con desinstalación simétrica 1:1 en `10_revertir.ps1` (detiene proceso, elimina archivos y borra la tarea programada).
+### 10. Reversión Simétrica y Restauración a Fábrica (`10_revertir.ps1`)
+- Motor de desinstalación simétrico 1:1 que restaura el sistema a su estado previo sin valores fijos inventados.
+- Restaura cada valor del registro con su tipo nativo (`ValueKind`), eliminando físicamente las claves marcadas como `_ABSENT_`.
+- Incluye fallback de compatibilidad para restaurar tareas programadas tanto desde el formato sanitizado `.Replace('\', '_')` como desde respaldos legados con rutas crudas.
+- Desregistra y detiene el daemon residente, elimina reglas de Firewall inyectadas y restaura el plan de energía anterior.
 
-### 11. Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`)
-- Desactiva mitigaciones Spectre (v2), Meltdown, SSBD y L1TF (`FeatureSettingsOverride = 8259`).
-- Opcional con advertencia explícita en la UI para recuperar hasta 15% de throughput de CPU en procesadores antiguos.
+### 11. Prioridad de Juegos y Hooks Gráficos (`11_game_hooks.ps1`)
+- Aplica flags de compatibilidad en el Registro (`HIGHDPI_SCALING_OVERRIDE_APPLICATION` y bypass de pantalla completa optimizada de DWM) de forma aislada para los ejecutables de juegos seleccionados.
+- En títulos basados en Unreal Engine, optimiza `GameUserSettings.ini` hacia pantalla completa exclusiva respaldando previamente la preferencia original del usuario.
+- Preserva de forma 100% segura los hooks de Anti-Cheats (Vanguard, EAC, BattlEye).
+
+### 12. Exclusiones de Windows Defender (`12_defender_exclusions.ps1`)
+- Añade quirúrgicamente las carpetas de instalación de los juegos detectados a la lista de exclusiones en tiempo real de Windows Defender (`Add-MpPreference`).
+- Previene micro-stutters y picos de uso de CPU causados por el escaneo continuo de `MsMpEng.exe` al cargar texturas y assets en memoria.
+- Persiste las carpetas añadidas para que `10_revertir.ps1` elimine únicamente las exclusiones generadas por Overlord, respetando las exclusiones manuales del usuario.
+
+### Módulos y Servicios Adicionales
+
+* **Prioridad Dinámica en Segundo Plano (`manage_priority_service.ps1`):** Tarea Programada de Windows elevada a nivel `SYSTEM` con ACLs blindadas y watchdog. Monitorea cada 15 segundos los juegos seleccionados y eleva su prioridad a `High`. En procesadores AMD Ryzen Dual-CCD X3D, fija la afinidad del proceso exclusivamente al CCD0 (3D V-Cache).
+* **Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`):** Tweak opcional con advertencia explícita en la UI que desactiva las mitigaciones Spectre (v2), Meltdown, SSBD y L1TF (`FeatureSettingsOverride = 8259`), recuperando hasta un 15% de throughput en CPUs antiguas.
 
 ---
 
@@ -193,26 +204,34 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - **Rust Toolchain** estable via `rustup` (`x86_64-pc-windows-msvc`)
 - **C++ Build Tools** de Visual Studio (MSVC)
 
-### Comandos de Compilación y Calidad
+### Comandos de Compilación y Calidad (Matriz 100% Verde)
 
-```bash
-# Instalar dependencias
+```powershell
+# 1. Instalar dependencias frontend
 npm install
 
-# Ejecutar verificación de tipos y bundle frontend
+# 2. Verificación de tipos TypeScript y build del frontend
 npx vue-tsc --noEmit
 npm run build
 
-# Compilar y probar backend Rust
+# 3. Compilación, linter y tests del backend en Rust
 cd src-tauri
 cargo check
-cargo clippy -- -W clippy::all
-cargo test
+cargo clippy -- -W clippy::all -D warnings
+cargo test --lib
+cd ..
 
-# Ejecutar suite de pruebas Pester
-powershell -Command "Invoke-Pester src-tauri/tests/modules.tests.ps1"
+# 4. Verificación sintáctica AST de PowerShell (Reglas 14 y 12 de AGENTS.md)
+Get-ChildItem -Recurse -Include *.ps1,*.psm1 | Where-Object { $_.FullName -notmatch '[\\/](node_modules|target)[\\/]' } | ForEach-Object {
+    $errors = $null; $tokens = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) { Write-Error "Falla AST en $($_.Name)" }
+}
 
-# Modo Desarrollo
+# 5. Suite de pruebas de simetría y análisis estático Pester
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Pester src-tauri/tests/modules.tests.ps1"
+
+# 6. Modo Desarrollo
 npm run tauri dev
 ```
 

@@ -152,7 +152,8 @@ export const useOverlordStore = defineStore("overlord", {
                 typeof item.durationMs === "number" &&
                 (item.status === "success" ||
                   item.status === "error" ||
-                  item.status === "warning")
+                  item.status === "warning" ||
+                  item.status === "skipped")
               ) {
                 validEntries.push({
                   id: item.id,
