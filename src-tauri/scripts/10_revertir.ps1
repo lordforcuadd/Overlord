@@ -384,9 +384,18 @@ Try {
             $parent = Split-Path $Task -Parent
             $TPath = if ($parent) { "\" + $parent + "\" } else { "\" }
             $TName = Split-Path $Task -Leaf
-            $TaskKeyName = $Task -replace '\\', '_'
+            $TaskKeyName = $Task.Replace('\', '_')
             
-            $SavedState = if ($null -ne $props -and $null -ne $props.PSObject.Properties[$TaskKeyName]) { $props.PSObject.Properties[$TaskKeyName].Value } else { $null }
+            $SavedState = if ($null -ne $props) {
+                if ($null -ne $props.PSObject.Properties[$TaskKeyName]) {
+                    $props.PSObject.Properties[$TaskKeyName].Value
+                } elseif ($null -ne $props.PSObject.Properties[$Task]) {
+                    # Fallback de compatibilidad con backups previos que guardaron la ruta sin sanitizar
+                    $props.PSObject.Properties[$Task].Value
+                } else {
+                    $null
+                }
+            } else { $null }
             if ($null -ne $SavedState) {
                 if ($SavedState -eq 1) {
                     Enable-ScheduledTask -TaskPath $TPath -TaskName $TName -ErrorAction SilentlyContinue | Out-Null

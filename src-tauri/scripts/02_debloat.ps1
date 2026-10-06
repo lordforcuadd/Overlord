@@ -159,7 +159,7 @@ Try {
         if ($null -ne $TaskObj) {
             # 1 = Habilitada (Ready, Running, etc.), 0 = Deshabilitada
             $IsEnabled = if ($TaskObj.State -ne "Disabled") { 1 } else { 0 }
-            $TaskKeyName = $Task -replace '\\', '_'
+            $TaskKeyName = $Task.Replace('\', '_')
             
             if (Test-Path $TasksBackupPath) {
                 $props = Get-ItemProperty -Path $TasksBackupPath -ErrorAction SilentlyContinue
