@@ -20,6 +20,18 @@ function Invoke-OverlordSafeRestore {
     }
     
     $BackupKey = "HKLM:\SOFTWARE\Overlord\Backup\$BackupSubFolder"
+    # Fallback si el backup fue realizado con la estructura legada (sin subcarpeta calificada)
+    if ((-not (Test-Path $BackupKey) -or $null -eq (Get-SafeRegistryValue -Path $BackupKey -Name $ValueName)) -and ($BackupSubFolder -match '\\')) {
+        $LegacyFolder = ($BackupSubFolder -split '\\')[0]
+        $LegacyKey = "HKLM:\SOFTWARE\Overlord\Backup\$LegacyFolder"
+        if (Test-Path $LegacyKey) {
+            $LegacyVal = Get-SafeRegistryValue -Path $LegacyKey -Name $ValueName
+            if ($null -ne $LegacyVal) {
+                $BackupKey = $LegacyKey
+                $BackupSubFolder = $LegacyFolder
+            }
+        }
+    }
     if (Test-Path $BackupKey) {
         $BckVal = Get-SafeRegistryValue -Path $BackupKey -Name $ValueName
         if ($null -ne $BckVal) {
@@ -77,13 +89,13 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey $MousePath -ValueName "MouseThreshold2" -BackupSubFolder "Mouse" -DefaultValue "10" -DefaultType "String"
 
 
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "Accessibility" -DefaultValue "510" -DefaultType "String"
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\ToggleKeys" -ValueName "Flags" -BackupSubFolder "Accessibility" -DefaultValue "62"  -DefaultType "String"
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "Accessibility" -DefaultValue "126" -DefaultType "String"
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility" -DefaultValue "1000" -DefaultType "String"
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility" -DefaultValue "500" -DefaultType "String"
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility" -DefaultValue "1000" -DefaultType "String"
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "BounceTime" -BackupSubFolder "Accessibility" -DefaultValue "0" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "Accessibility\StickyKeys" -DefaultValue "510" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\ToggleKeys" -ValueName "Flags" -BackupSubFolder "Accessibility\ToggleKeys" -DefaultValue "62"  -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "Flags" -BackupSubFolder "Accessibility\KeyboardResponse" -DefaultValue "126" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility\KeyboardResponse" -DefaultValue "1000" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility\KeyboardResponse" -DefaultValue "500" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility\KeyboardResponse" -DefaultValue "1000" -DefaultType "String"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\Keyboard Response" -ValueName "BounceTime" -BackupSubFolder "Accessibility\KeyboardResponse" -DefaultValue "0" -DefaultType "String"
 
     Write-Host "[*] [2/12] Restaurando afinidad de interrupciones (IRQ) y modos MSI de dispositivos PCI..."
     $msiProps = if (Test-Path $MsiBackupKey) { Get-ItemProperty -Path $MsiBackupKey -ErrorAction SilentlyContinue } else { $null }
@@ -177,14 +189,14 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry" -DefaultValue '_ABSENT_'
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKCU" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKLM" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKCU" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKCU" -DefaultValue 0
 
     try {
         if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) {
@@ -215,7 +227,7 @@ Try {
         Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "QoL\User" -DefaultValue 1
     }
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -ValueName "NoLockScreen" -BackupSubFolder "QoL\System" -DefaultValue 0
-    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Accessibility" -Name "Flags")) {
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Accessibility\StickyKeys" -Name "Flags") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Accessibility" -Name "Flags")) {
         Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Accessibility\StickyKeys" -ValueName "Flags" -BackupSubFolder "QoL\StickyKeys" -DefaultValue "510" -DefaultType "String"
     }
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "MultiTaskingAltTabFilter" -BackupSubFolder "QoL\User" -DefaultValue 0
@@ -237,12 +249,12 @@ Try {
 
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "ShowCopilotButton" -BackupSubFolder "QoL\User" -DefaultValue 1
-    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffWindowsCopilot")) {
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\CopilotHKCU" -Name "TurnOffWindowsCopilot") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffWindowsCopilot")) {
         Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue 0
         Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System" -DefaultValue 0
     }
 
-    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffUserCameraCapture")) {
+    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\WindowsAI_HKLM" -Name "TurnOffUserCameraCapture") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffUserCameraCapture")) {
         Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User" -DefaultValue 0
         Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue 0
         Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue 0
@@ -622,8 +634,8 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "DisableDeleteNotify" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage" -DefaultValue 3
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage" -DefaultValue 3
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage\VSS" -DefaultValue 3
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage\vmicvss" -DefaultValue 3
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -ValueName "PublishUserActivities" -BackupSubFolder "Telemetry" -DefaultValue 1
 
@@ -644,13 +656,17 @@ Try {
         $SubGroupMap = @{
             "94d3a615-a899-4ac5-ae2b-e4d8f634367f" = "54533251-82be-4824-96c1-47b60b740d00"
             "ee12f906-d277-404b-b6da-e5fa1a576df5" = "501a4d13-42af-4429-9fd1-a8218c268e20"
-            "d4e00550-747f-4ddb-bf3e-9b6c97a522a4" = "2a737441-1930-4402-8d77-b2bea128a440"
+            "48e6b7a6-50f5-4782-a5d4-53bb8f07e226" = "2a737441-1930-4402-8d77-b2bebba308a3"
             "0cc5b647-c1df-4637-891a-dec35c318583" = "54533251-82be-4824-96c1-47b60b740d00"
             "ea062031-0e34-4ff1-9b6d-eb1059334028" = "54533251-82be-4824-96c1-47b60b740d00"
+            "6738e2c4-e8a5-4a42-b16a-e040e769756e" = "0012ee47-9041-4b5d-9b77-535fba8b1442"
+            "36687f9e-e3a5-4dbf-b1dc-15eb381c6863" = "54533251-82be-4824-96c1-47b60b740d00"
+            "be337238-0d82-4146-a960-4f3749d470c7" = "54533251-82be-4824-96c1-47b60b740d00"
+            # Mapeos de compatibilidad hacia atras para copias de seguridad existentes con GUIDs heredados
+            "d4e00550-747f-4ddb-bf3e-9b6c97a522a4" = "2a737441-1930-4402-8d77-b2bea128a440"
             "ea0653f5-eab4-474c-8a0f-1ba102244432" = "54533251-82be-4824-96c1-47b60b740d00"
             "6733a230-cd1a-4929-94d4-540b4ddecbeb" = "0012ee47-9041-4b5d-9b77-535fba8b1442"
             "3668a66e-6856-4221-b530-747f2d53e4c6" = "54533251-82be-4824-96c1-47b60b740d00"
-            "be337238-0d82-4146-a960-4f3749d470c7" = "54533251-82be-4824-96c1-47b60b740d00"
             "d874b2c9-943b-47dd-9190-25e0e3c95a12" = "2a8713cd-255e-4fc5-a639-12b87a5b3e8a"
         }
         if ($null -ne $Data) {

@@ -122,11 +122,11 @@ Try {
     $WindowsAIPolicyHKLM = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
     $WindowsAIPolicyHKCU = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsAI"
 
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKCU"
+    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKCU"
 
     if (!(Test-Path $WindowsAIPolicyHKLM)) { New-Item -Path $WindowsAIPolicyHKLM -Force | Out-Null }
     Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "TurnOffUserCameraCapture" -Type DWord -Value 1 -Force | Out-Null

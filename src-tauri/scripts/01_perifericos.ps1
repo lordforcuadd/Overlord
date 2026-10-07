@@ -105,9 +105,10 @@ Try {
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $CurrentGuid = $Matches[1]
-            Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "2a8713cd-255e-4fc5-a639-12b87a5b3e8a" -SettingGuid "d874b2c9-943b-47dd-9190-25e0e3c95a12" -BackupName "Power_${CurrentGuid}_d874b2c9-943b-47dd-9190-25e0e3c95a12"
+            Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "2a737441-1930-4402-8d77-b2bebba308a3" -SettingGuid "48e6b7a6-50f5-4782-a5d4-53bb8f07e226" -BackupName "Power_${CurrentGuid}_48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
         }
-        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a8713cd-255e-4fc5-a639-12b87a5b3e8a d874b2c9-943b-47dd-9190-25e0e3c95a12 0 2>$null | Out-Null
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló al configurar USB Selective Suspend" }
         if ($CurrentGuid) {
             & powercfg /setactive $CurrentGuid 2>$null | Out-Null
         }
@@ -135,13 +136,13 @@ Try {
     if (!(Test-Path $TogglePath)) { New-Item -Path $TogglePath -Force | Out-Null }
     if (!(Test-Path $KeyRespPath)) { New-Item -Path $KeyRespPath -Force | Out-Null }
 
-    Backup-OverlordRegistryValue -TargetKey $StickyPath -ValueName "Flags" -BackupSubFolder "Accessibility"
-    Backup-OverlordRegistryValue -TargetKey $TogglePath -ValueName "Flags" -BackupSubFolder "Accessibility"
-    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "Flags" -BackupSubFolder "Accessibility"
-    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility"
-    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility"
-    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility"
-    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "BounceTime" -BackupSubFolder "Accessibility"
+    Backup-OverlordRegistryValue -TargetKey $StickyPath -ValueName "Flags" -BackupSubFolder "Accessibility\StickyKeys"
+    Backup-OverlordRegistryValue -TargetKey $TogglePath -ValueName "Flags" -BackupSubFolder "Accessibility\ToggleKeys"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "Flags" -BackupSubFolder "Accessibility\KeyboardResponse"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatDelay" -BackupSubFolder "Accessibility\KeyboardResponse"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "AutoRepeatRate" -BackupSubFolder "Accessibility\KeyboardResponse"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "DelayBeforeAcceptance" -BackupSubFolder "Accessibility\KeyboardResponse"
+    Backup-OverlordRegistryValue -TargetKey $KeyRespPath -ValueName "BounceTime" -BackupSubFolder "Accessibility\KeyboardResponse"
 
     Set-ItemProperty -Path $StickyPath -Name "Flags" -Type String -Value "506" -Force | Out-Null
     Set-ItemProperty -Path $TogglePath -Name "Flags" -Type String -Value "58" -Force | Out-Null

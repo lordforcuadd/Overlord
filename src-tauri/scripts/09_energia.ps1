@@ -105,11 +105,11 @@ Try {
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $DesktopGuid = $Matches[1]
             Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "501a4d13-42af-4429-9fd1-a8218c268e20" -SettingGuid "ee12f906-d277-404b-b6da-e5fa1a576df5" -BackupName "Power_${DesktopGuid}_ee12f906-d277-404b-b6da-e5fa1a576df5"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "2a737441-1930-4402-8d77-b2bea128a440" -SettingGuid "d4e00550-747f-4ddb-bf3e-9b6c97a522a4" -BackupName "Power_${DesktopGuid}_d4e00550-747f-4ddb-bf3e-9b6c97a522a4"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "2a737441-1930-4402-8d77-b2bebba308a3" -SettingGuid "48e6b7a6-50f5-4782-a5d4-53bb8f07e226" -BackupName "Power_${DesktopGuid}_48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
             Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "0cc5b647-c1df-4637-891a-dec35c318583" -BackupName "Power_${DesktopGuid}_0cc5b647-c1df-4637-891a-dec35c318583"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "ea0653f5-eab4-474c-8a0f-1ba102244432" -BackupName "Power_${DesktopGuid}_ea0653f5-eab4-474c-8a0f-1ba102244432"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "0012ee47-9041-4b5d-9b77-535fba8b1442" -SettingGuid "6733a230-cd1a-4929-94d4-540b4ddecbeb" -BackupName "Power_${DesktopGuid}_6733a230-cd1a-4929-94d4-540b4ddecbeb"
-            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "3668a66e-6856-4221-b530-747f2d53e4c6" -BackupName "Power_${DesktopGuid}_3668a66e-6856-4221-b530-747f2d53e4c6"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "ea062031-0e34-4ff1-9b6d-eb1059334028" -BackupName "Power_${DesktopGuid}_ea062031-0e34-4ff1-9b6d-eb1059334028"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "0012ee47-9041-4b5d-9b77-535fba8b1442" -SettingGuid "6738e2c4-e8a5-4a42-b16a-e040e769756e" -BackupName "Power_${DesktopGuid}_6738e2c4-e8a5-4a42-b16a-e040e769756e"
+            Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "36687f9e-e3a5-4dbf-b1dc-15eb381c6863" -BackupName "Power_${DesktopGuid}_36687f9e-e3a5-4dbf-b1dc-15eb381c6863"
             Backup-OverlordPowerSetting -SchemeGuid $DesktopGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "be337238-0d82-4146-a960-4f3749d470c7" -BackupName "Power_${DesktopGuid}_be337238-0d82-4146-a960-4f3749d470c7"
         }
 
@@ -119,20 +119,20 @@ Try {
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null
         if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ee12f906-d277-404b-b6da-e5fa1a576df5" }
 
-        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bea128a440 d4e00550-747f-4ddb-bf3e-9b6c97a522a4 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para d4e00550-747f-4ddb-bf3e-9b6c97a522a4" }
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 48e6b7a6-50f5-4782-a5d4-53bb8f07e226" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null
         if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 0cc5b647-c1df-4637-891a-dec35c318583" }
 
-        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea0653f5-eab4-474c-8a0f-1ba102244432 100 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ea0653f5-eab4-474c-8a0f-1ba102244432" }
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea062031-0e34-4ff1-9b6d-eb1059334028 100 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ea062031-0e34-4ff1-9b6d-eb1059334028" }
         
-        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6733a230-cd1a-4929-94d4-540b4ddecbeb 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 6733a230-cd1a-4929-94d4-540b4ddecbeb" }
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6738e2c4-e8a5-4a42-b16a-e040e769756e 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 6738e2c4-e8a5-4a42-b16a-e040e769756e" }
 
-        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 3668a66e-6856-4221-b530-747f2d53e4c6 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 3668a66e-6856-4221-b530-747f2d53e4c6" }
+        & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 36687f9e-e3a5-4dbf-b1dc-15eb381c6863 0 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 36687f9e-e3a5-4dbf-b1dc-15eb381c6863" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 be337238-0d82-4146-a960-4f3749d470c7 2 2>$null
         if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para be337238-0d82-4146-a960-4f3749d470c7" }

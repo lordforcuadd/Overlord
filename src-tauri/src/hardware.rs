@@ -88,8 +88,8 @@ async fn detect_system_hardware() -> HardwareResponse {
            .args([
                "-NoProfile",
                "-Command",
-                "$m = Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue | Select-Object -First 1 Speed, ConfiguredClockSpeed; $gpuPnp = (Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Where-Object { $_.PNPDeviceID -match '^PCI\\\\VEN_' } | Select-Object -First 1 -ExpandProperty PNPDeviceID); $amdRebar = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue | Where-Object { $_.KMD_RebarControlMode -eq 1 } | Select-Object -First 1); $nvRebar = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue | Where-Object { $_.DriverDesc -match 'NVIDIA' -and ($_.MemorySelectionPreference -eq 1 -or $_.KMD_RebarControlMode -eq 1) } | Select-Object -First 1); $gpuLargeBar = if ($gpuPnp) { (Get-CimInstance Win32_PNPAllocatedResource -ErrorAction SilentlyContinue | Where-Object { $_.Dependent.DeviceId -eq $gpuPnp } | Where-Object { $_.Antecedent.CimClass.CimClassName -eq 'Win32_DeviceMemoryAddress' -and [int64]$_.Antecedent.StartingAddress -ge 4294967296 } | Select-Object -First 1) } else { $null }; $rebarActive = if ($gpuPnp -match 'VEN_1002') { $null -ne $amdRebar } elseif ($gpuPnp -match 'VEN_10DE') { ($null -ne $nvRebar -or ($null -ne $gpuLargeBar -and $gpuPnp -match 'DEV_2[0-9A-Fa-f]{3}')) } else { $null -ne $gpuLargeBar }; [PSCustomObject]@{ Configured = $m.ConfiguredClockSpeed; Max = $m.Speed; Rebar = [bool]$rebarActive } | ConvertTo-Json -Compress",
-           ]);
+                 "$m = Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue | Select-Object -First 1 Speed, ConfiguredClockSpeed, FormFactor; $gpus = @(Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Where-Object { $_.PNPDeviceID -match '^PCI\\\\VEN_' } | Sort-Object -Property @{Expression={ if ($_.PNPDeviceID -match 'VEN_10DE') { 3 } elseif ($_.AdapterRAM -gt 2147483648) { 2 } else { 1 } }}, AdapterRAM -Descending); $gpuPnp = if ($gpus.Count -gt 0) { $gpus[0].PNPDeviceID } else { $null }; $amdRebar = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue | Where-Object { $_.KMD_RebarControlMode -eq 1 } | Select-Object -First 1); $nvRebar = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue | Where-Object { $_.DriverDesc -match 'NVIDIA' -and ($_.MemorySelectionPreference -eq 1 -or $_.KMD_RebarControlMode -eq 1) } | Select-Object -First 1); $gpuLargeBar = if ($gpuPnp) { (Get-CimInstance Win32_PNPAllocatedResource -ErrorAction SilentlyContinue | Where-Object { $_.Dependent.DeviceId -eq $gpuPnp } | Where-Object { $_.Antecedent.CimClass.CimClassName -eq 'Win32_DeviceMemoryAddress' -and [int64]$_.Antecedent.StartingAddress -ge 4294967296 } | Select-Object -First 1) } else { $null }; $rebarActive = if ($gpuPnp -match 'VEN_1002') { $null -ne $amdRebar } elseif ($gpuPnp -match 'VEN_10DE') { ($null -ne $nvRebar -or ($null -ne $gpuLargeBar -and $gpuPnp -match 'DEV_2[0-9A-Fa-f]{3}')) } else { $null -ne $gpuLargeBar }; [PSCustomObject]@{ Configured = $m.ConfiguredClockSpeed; Max = $m.Speed; FormFactor = $m.FormFactor; Rebar = [bool]$rebarActive } | ConvertTo-Json -Compress",
+            ]);
         
         if let Ok(Ok(output)) = tokio::time::timeout(std::time::Duration::from_secs(5), cmd.output()).await {
             if output.status.success() {
@@ -103,8 +103,18 @@ async fn detect_system_hardware() -> HardwareResponse {
                                 if max > 0 {
                                     let max_u32 = max as u32;
                                     ram_max_speed_val = Some(max_u32);
-                                    let is_overclocked_jedec = (cfg_u32 > 2666 && cfg_u32 <= 4400) || cfg_u32 > 4800;
-                                    is_xmp_val = Some(cfg_u32 >= max_u32 && is_overclocked_jedec);
+                                    let form_factor = json.get("FormFactor").and_then(|v| v.as_u64()).unwrap_or(0);
+                                    let is_sodimm = form_factor == 12;
+                                    if is_sodimm {
+                                        is_xmp_val = if cfg_u32 > max_u32 { Some(true) } else { None };
+                                    } else {
+                                        let is_xmp_speed = (cfg_u32 > 3200 && cfg_u32 <= 4800) || cfg_u32 > 5600;
+                                        if cfg_u32 < max_u32 {
+                                            is_xmp_val = Some(false);
+                                        } else {
+                                            is_xmp_val = Some(cfg_u32 >= max_u32 && (cfg_u32 > max_u32 || is_xmp_speed));
+                                        }
+                                    }
                                 }
                             }
                         }

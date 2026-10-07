@@ -163,20 +163,21 @@ fn get_folder_aliases(game_name: &str) -> &'static [&'static str] {
     match game_name {
         "Counter-Strike 2" => &["Counter-Strike Global Offensive", "cs2", "Counter-Strike 2"],
         "Call of Duty" => &["Call of Duty HQ", "Call of Duty", "Call of Duty Modern Warfare"],
-        "PUBG: BATTLEGROUNDS" => &["PUBG", "PUBG: BATTLEGROUNDS", "TslGame"],
+        "PUBG: BATTLEGROUNDS" => &["PUBG", "PUBG BATTLEGROUNDS", "TslGame"],
         "The Witcher 3: Wild Hunt" => &["The Witcher 3", "The Witcher 3 Wild Hunt"],
         "Apex Legends" => &["Apex", "Apex Legends"],
         "Grand Theft Auto V" => &["Grand Theft Auto V", "GTAV", "GTA V"],
+        "Black Myth: Wukong" => &["Black Myth Wukong", "b1"],
         _ => &[],
     }
 }
 
 fn check_game_folder_exists(base_dir: &Path, game_name: &str) -> bool {
-    if base_dir.join(game_name).exists() {
+    if !game_name.contains(':') && base_dir.join(game_name).exists() {
         return true;
     }
     for alias in get_folder_aliases(game_name) {
-        if base_dir.join(alias).exists() {
+        if !alias.contains(':') && base_dir.join(alias).exists() {
             return true;
         }
     }

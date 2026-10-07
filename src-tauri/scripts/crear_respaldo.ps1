@@ -12,9 +12,9 @@ Try {
     $AppVersion = if (-not [string]::IsNullOrWhiteSpace($Version)) { $Version } else { "Release" }
     $Description = "Overlord v$AppVersion - Punto Seguro"
 
-    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage"
+    Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage\VSS"
     if (Test-Path "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss") {
-        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage\vmicvss"
     }
 
     Set-Service -Name VSS -StartupType Manual -ErrorAction SilentlyContinue

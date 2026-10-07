@@ -234,7 +234,7 @@ switch ($ToggleName) {
             }
         }
         foreach ($base in $Targets) {
-            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Accessibility\Keyboard Response") -ValueName "Flags" -BackupSubFolder "Accessibility"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Control Panel\Accessibility\Keyboard Response") -ValueName "Flags" -BackupSubFolder "Accessibility\KeyboardResponse"
         }
         if ($Value -eq 1) {
             if ($CurrentFlags -eq "59") {

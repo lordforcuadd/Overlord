@@ -54,66 +54,68 @@ Try {
             }
             $NetBitmask = $maskVal
         }
-    }
 
-    $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)
+        $NetMaskBytes = [System.BitConverter]::GetBytes($NetBitmask)
 
-    $NetBackupKey = "HKLM:\SOFTWARE\Overlord\Backup\CPU\NetworkAffinity"
-    if (!(Test-Path $NetBackupKey)) { New-Item -Path $NetBackupKey -Force | Out-Null }
+        $NetBackupKey = "HKLM:\SOFTWARE\Overlord\Backup\CPU\NetworkAffinity"
+        if (!(Test-Path $NetBackupKey)) { New-Item -Path $NetBackupKey -Force | Out-Null }
 
-    $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
-    if ($pciKey) {
-        foreach ($venId in $pciKey.GetSubKeyNames()) {
-            $venKey = $pciKey.OpenSubKey($venId, $false)
-            if ($venKey) {
-                foreach ($devId in $venKey.GetSubKeyNames()) {
-                    $devKey = $venKey.OpenSubKey($devId, $false)
-                    if ($devKey) {
-                        $classGuid = $devKey.GetValue("ClassGUID")
-                        
-                        if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
-                            try {
-                                $paramKey = $devKey.OpenSubKey("Device Parameters", $true)
-                                if ($paramKey) {
-                                    $affinityKey = $paramKey.CreateSubKey("Interrupt Management\Affinity Policy", $true)
-                                    if ($affinityKey) {
-                                        $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
-                                        $origPolicy = $affinityKey.GetValue("DevicePolicy")
-                                        $origOverride = $affinityKey.GetValue("AssignmentSetOverride")
-                                        
-                                        $netProps = Get-ItemProperty -Path $NetBackupKey -ErrorAction SilentlyContinue
-                                        if ($null -eq $netProps -or $null -eq $netProps.PSObject.Properties["${deviceRegID}_Policy"]) {
-                                            $bckPolicy = if ($null -eq $origPolicy) { '_ABSENT_' } else { $origPolicy }
-                                            Set-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Policy" -Value $bckPolicy -Force | Out-Null
+        $pciKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Enum\PCI", $false)
+        if ($pciKey) {
+            foreach ($venId in $pciKey.GetSubKeyNames()) {
+                $venKey = $pciKey.OpenSubKey($venId, $false)
+                if ($venKey) {
+                    foreach ($devId in $venKey.GetSubKeyNames()) {
+                        $devKey = $venKey.OpenSubKey($devId, $false)
+                        if ($devKey) {
+                            $classGuid = $devKey.GetValue("ClassGUID")
+                            
+                            if ($classGuid -eq "{4d36e972-e325-11ce-bfc1-08002be10318}") { # Net
+                                try {
+                                    $paramKey = $devKey.OpenSubKey("Device Parameters", $true)
+                                    if ($paramKey) {
+                                        $affinityKey = $paramKey.CreateSubKey("Interrupt Management\Affinity Policy", $true)
+                                        if ($affinityKey) {
+                                            $deviceRegID = "PCI_${venId}_${devId}_Device Parameters"
+                                            $origPolicy = $affinityKey.GetValue("DevicePolicy")
+                                            $origOverride = $affinityKey.GetValue("AssignmentSetOverride")
                                             
-                                            $bckOverride = if ($null -eq $origOverride) { '_ABSENT_' } else { $origOverride }
-                                            Set-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Override" -Value $bckOverride -Force | Out-Null
-                                        }
-                                        
-                                        $affinityKey.SetValue("DevicePolicy", $DevicePolicyValue, [Microsoft.Win32.RegistryValueKind]::DWord)
-                                        $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
-                                        
-                                        if ($affinityKey.GetValue("DevicePolicy") -ne $DevicePolicyValue) {
-                                            Write-Warning "El SO bloqueó DevicePolicy para el dispositivo PCI: $devId"
+                                            $netProps = Get-ItemProperty -Path $NetBackupKey -ErrorAction SilentlyContinue
+                                            if ($null -eq $netProps -or $null -eq $netProps.PSObject.Properties["${deviceRegID}_Policy"]) {
+                                                $bckPolicy = if ($null -eq $origPolicy) { '_ABSENT_' } else { $origPolicy }
+                                                Set-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Policy" -Value $bckPolicy -Force | Out-Null
+                                                
+                                                $bckOverride = if ($null -eq $origOverride) { '_ABSENT_' } else { $origOverride }
+                                                Set-ItemProperty -Path $NetBackupKey -Name "${deviceRegID}_Override" -Value $bckOverride -Force | Out-Null
+                                            }
+                                            
+                                            $affinityKey.SetValue("DevicePolicy", $DevicePolicyValue, [Microsoft.Win32.RegistryValueKind]::DWord)
+                                            $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
+                                            
+                                            if ($affinityKey.GetValue("DevicePolicy") -ne $DevicePolicyValue) {
+                                                Write-Warning "El SO bloqueó DevicePolicy para el dispositivo PCI: $devId"
+                                            }
                                         }
                                     }
+                                } catch {
+                                    Write-Warning "El SO bloqueó la configuración de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
+                                } finally {
+                                    if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
+                                    if ($null -ne $paramKey) { $paramKey.Close(); $paramKey = $null }
                                 }
-                            } catch {
-                                Write-Warning "El SO bloqueó la configuración de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
-                            } finally {
-                                if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
-                                if ($null -ne $paramKey) { $paramKey.Close(); $paramKey = $null }
                             }
-                        }
-                        
+                            
 
-                        $devKey.Close()
+                            $devKey.Close()
+                        }
                     }
+                    $venKey.Close()
                 }
-                $venKey.Close()
             }
+            $pciKey.Close()
         }
-        $pciKey.Close()
+    } else {
+        Write-Host "    -> CPU estandar o monolitica detectada. Preservando asignacion nativa de interrupciones del HAL de Windows..."
     }
     }
 
