@@ -108,7 +108,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                                     if is_sodimm {
                                         is_xmp_val = if cfg_u32 > max_u32 { Some(true) } else { None };
                                     } else {
-                                        let is_xmp_speed = (cfg_u32 > 3200 && cfg_u32 <= 4800) || cfg_u32 > 5600;
+                                        let is_xmp_speed = (3200..=4800).contains(&cfg_u32) || cfg_u32 >= 5200;
                                         if cfg_u32 < max_u32 {
                                             is_xmp_val = Some(false);
                                         } else {
