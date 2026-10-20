@@ -229,7 +229,7 @@ Get-ChildItem -Recurse -Include *.ps1,*.psm1 | Where-Object { $_.FullName -notma
 }
 
 # 5. Suite de pruebas de simetría y análisis estático Pester
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Pester src-tauri/tests/modules.tests.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$res = Invoke-Pester src-tauri/tests/modules.tests.ps1 -PassThru; if ($res.FailedCount -gt 0) { exit 1 }"
 
 # 6. Modo Desarrollo
 npm run tauri dev

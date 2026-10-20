@@ -184,7 +184,7 @@ Try {
     }
 
     Write-Host "[*] [3/12] Restaurando directivas de telemetria, Edge y Copilot..."
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry" -DefaultValue 3
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -ValueName "Disabled" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry" -DefaultValue 1
@@ -196,8 +196,10 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKCU" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKCU" -DefaultValue 0
+    if (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\WindowsAI_HKCU") {
+        Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -Name "TurnOffUserCameraCapture" -ErrorAction SilentlyContinue | Out-Null
+        Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis" -ErrorAction SilentlyContinue | Out-Null
+    }
 
     try {
         if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) {
@@ -453,7 +455,7 @@ Try {
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing", "*FlowControl", "FlowControl", "PnPCapabilities")
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl", "PnPCapabilities")
                 foreach ($PKey in $PowerKeys) {
                     if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
                         Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)" | Out-Null
@@ -479,13 +481,19 @@ Try {
                     if ($null -ne $props.PSObject.Properties["InterruptModerationVal"]) {
                         $Val = $props.InterruptModerationVal
                         $SavedKey = if ($null -ne $props.PSObject.Properties["InterruptModerationKey"]) { $props.InterruptModerationKey } else { "*InterruptModeration" }
-                        if ($SavedKey -and $SavedKey.StartsWith("*")) {
-                            Set-NetAdapterAdvancedProperty -Name $Adapter.Name -RegistryKeyword $SavedKey -RegistryValue $Val -ErrorAction SilentlyContinue | Out-Null
-                        } else {
-                            Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName $SavedKey -DisplayValue $Val -ErrorAction SilentlyContinue | Out-Null
+                        $IsKeyword = if ($null -ne $props.PSObject.Properties["InterruptModerationIsKeyword"]) { [bool]$props.InterruptModerationIsKeyword } else { ($SavedKey -and $SavedKey.StartsWith("*")) -or ($SavedKey -eq "InterruptModeration") }
+                        try {
+                            if ($IsKeyword) {
+                                Set-NetAdapterAdvancedProperty -Name $Adapter.Name -RegistryKeyword $SavedKey -RegistryValue $Val -ErrorAction Stop | Out-Null
+                            } else {
+                                Set-NetAdapterAdvancedProperty -Name $Adapter.Name -DisplayName $SavedKey -DisplayValue $Val -ErrorAction Stop | Out-Null
+                            }
+                        } catch {
+                            Write-Verbose "[$($Adapter.Name)] No se pudo restaurar Interrupt Moderation ($SavedKey): $_"
                         }
                         Remove-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -ErrorAction SilentlyContinue | Out-Null
                         Remove-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationKey" -ErrorAction SilentlyContinue | Out-Null
+                        Remove-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationIsKeyword" -ErrorAction SilentlyContinue | Out-Null
                     }
                 }
             }

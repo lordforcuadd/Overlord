@@ -140,8 +140,10 @@ Try {
                                     if ($null -eq $props -or $null -eq $props.PSObject.Properties["InterruptModerationVal"]) {
                                         $valToSave = if ($null -ne $IntMod.RegistryValue) { $IntMod.RegistryValue.ToString() } else { $IntMod.DisplayValue }
                                         Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationVal" -Value $valToSave -Type String -Force -ErrorAction SilentlyContinue | Out-Null
-                                        $keyToSave = if ($IntMod.RegistryKeyword) { $IntMod.RegistryKeyword } else { $IntMod.DisplayName }
+                                        $isKeyword = [bool]$IntMod.RegistryKeyword
+                                        $keyToSave = if ($isKeyword) { $IntMod.RegistryKeyword } else { $IntMod.DisplayName }
                                         Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationKey" -Value $keyToSave -Type String -Force -ErrorAction SilentlyContinue | Out-Null
+                                        Set-ItemProperty -Path $AdapterBackupPath -Name "InterruptModerationIsKeyword" -Value ([int]$isKeyword) -Type DWord -Force -ErrorAction SilentlyContinue | Out-Null
                                     }
                                 }
                                 if ($IntMod.RegistryKeyword) {

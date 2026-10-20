@@ -101,6 +101,9 @@ jobs:
                 Write-Host "FALLA: No se encontro delimitador here-string en $manageScript" -ForegroundColor Red
                 $hasErrors = $true
             }
+        } else {
+            Write-Host "FALLA: No se encontro el archivo $manageScript" -ForegroundColor Red
+            $hasErrors = $true
         }
 
         if ($hasErrors) {

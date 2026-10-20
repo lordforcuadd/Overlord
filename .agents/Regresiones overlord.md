@@ -6,7 +6,7 @@ Este archivo es la memoria persistente entre sesiones de Antigravity, que no rec
 
 ### 1. `get_modules_status.ps1` usando existencia de carpeta de backup compartida como proxy de estado
 
-`06_irq_affinity.ps1` crea `HKLM:\SOFTWARE\Overlord\Backup\CPU` incondicionalmente, **antes** de revisar `$IsLaptop`. En laptop, el pinning real de IRQ nunca se ejecuta (`if ($IsLaptop) { exit 0 }`), pero la carpeta ya existe. `get_modules_status.ps1` tenía `if ($IsSystemLaptop -and (Test-Path $CpuBackup)) { $Status['irqAffinity'] = $true }` — esto reporta `true` en toda laptop, mienta el funcione o no. Confirmado en dos rondas de "fix" distintas sin corregirse. Regla violada si reaparece: punto 8 de AGENTS.md.
+`06_irq_affinity.ps1` creaba `HKLM:\SOFTWARE\Overlord\Backup\CPU` incondicionalmente, **antes** de revisar `$IsLaptop`. En laptop, el pinning real de IRQ nunca se ejecuta (`if ($IsLaptop) { exit 0 }`), pero la carpeta ya existía. `get_modules_status.ps1` tenía `if ($IsSystemLaptop -and (Test-Path $CpuBackup)) { $Status['irqAffinity'] = $true }` — esto reportaba `true` en toda laptop, funcionando o no. Se corrigió condicionando la creación del backup exclusivamente a la rama desktop (`if (-not $IsLaptop)`) en `06_irq_affinity.ps1:12-17`. Regla violada si reaparece: punto 8 de AGENTS.md.
 
 ### 2. Eliminar un tweak de aplicación sin eliminar su contraparte en el revert
 
@@ -42,7 +42,7 @@ Al habilitar el modo estricto en PowerShell, la conversión explícita o asignac
 
 ### 11. Salida anticipada (early exit) en la purga de RAM nativa (`purge_ram_native` en Rust)
 
-La función nativa de Rust `purge_ram_native` en `src-tauri/src/memory.rs` fallaba o salía de forma prematura en ciertas versiones de Windows debido a problemas de privilegios o a que no ejecutaba ambas fases del vaciado (vaciar la lista de standby y el working set de todos los procesos). Esto causaba que la liberación de memoria RAM no fuera efectiva o diera falsos positivos en el frontend.
+La función nativa de Rust `purge_ram_native` (definida en `src-tauri/src/lib.rs:141` invocando rutinas de memoria en `src-tauri/src/memory.rs`) fallaba o salía de forma prematura en ciertas versiones de Windows debido a problemas de privilegios o a que no ejecutaba ambas fases del vaciado (vaciar la lista de standby y el working set de todos los procesos). Esto causaba que la liberación de memoria RAM no fuera efectiva o diera falsos positivos en el frontend.
 
 ### 12. Detección mentirosa (falsos positivos) en `get_modules_status.ps1` al usar proxy de carpetas
 
@@ -94,7 +94,7 @@ El uso de `OnceCell` para almacenar el inventario de hardware de la máquina pro
 
 ### 24. Carga inútil de dependencias de escritura en consultas rápidas de lectura
 
-Concatenar el script completo de soporte de backups `backup_manager.psm1` (~10KB) en comandos asíncronos y rápidos de lectura como `get_qol` y `get_modules_status` sobrecarga el canal de stdin. Se corrigió implementando carga condicional de dependencias según la bandera `is_readonly` en `executor.rs`.
+Concatenar el script completo de soporte de backups `backup_manager.psm1` (~10KB) en comandos asíncronos y rápidos de lectura como `get_qol` y `get_modules_status` sobrecarga el canal de stdin. Se corrigió separando la ejecución mediante `execute_script_in_memory_readonly` (dispatch por `action_id` sin inyectar módulos de backup ni adquirir el cerrojo exclusivo de ejecución).
 
 ### 25. Redundancia de buscadores recursivos de archivos (`Find-FileFaster`)
 
@@ -128,12 +128,6 @@ La ejecución de comandos de diagnóstico (`quick_actions.ps1`) puede tomar much
 
 La lógica de exclusiones y prioridades de juego solo buscaba la carpeta original Vanilla `%APPDATA%\.minecraft`, omitiendo directorios donde corren instancias independientes de CurseForge, Prism Launcher, Modrinth o TLauncher. Se amplió el escaneo dinámico en Rust para incluir estas rutas moddeadas y resolver dinámicamente los binarios de `javaw.exe`.
 
----
-
-## Cómo usar este archivo
-
-Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 33 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo aquí como entrada 10, 11, etc. — este archivo solo es útil si crece con cada hallazgo nuevo.
-
 ### 33. Corrupción de macros de Rust (include_str!) por cambio silencioso de codificación en PowerShell
 
 Al modificar archivos .ps1 mediante Set-Content u otras herramientas desde Windows PowerShell 5.1, la codificación por defecto se cambia a Windows-1252 o UTF-8 con BOM. Esto rompe instantáneamente la compilación del backend en Rust, ya que macros como include_str! exigen archivos estrictamente en UTF-8 puro (sin BOM). Se corrigió iterando sobre los archivos modificados e inyectando un objeto [System.Text.UTF8Encoding] False para forzar la escritura en UTF-8 sin BOM, asegurando compatibilidad con el compilador de Rust.
@@ -141,3 +135,9 @@ Al modificar archivos .ps1 mediante Set-Content u otras herramientas desde Windo
 ### 34. Omisión deliberada de Interrupt Moderation en Laptops para proteger autonomía y C-States
 
 Desactivar Interrupt Moderation en adaptadores Wi-Fi/Ethernet en laptops (`06_irq_affinity.ps1`) incrementa la tasa de interrupciones DPC por segundo, impidiendo que el procesador entre en C-States profundos (C8/C10) e incrementando significativamente el consumo de batería y las temperaturas térmicas en chasis portátiles. Además, mantenerlo activo en laptops rompía la detección de perfiles (`profileLogic.ts`), que deliberadamente omite `irqAffinity` en portátiles. Por tanto, `06_irq_affinity.ps1`, `03_red.ps1` y `get_modules_status.ps1` deben mantener de forma estricta y deliberada el guard `if (-not $IsLaptop)` para esta optimización de latencia en tiempo real.
+
+---
+
+## Cómo usar este archivo
+
+Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 34 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo al final como la siguiente entrada numerada correlativa — este archivo solo es útil si crece con cada hallazgo nuevo.

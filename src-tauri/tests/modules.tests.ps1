@@ -44,9 +44,10 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
     Context "Auditoria de Infraestructura de Soporte Fisiologico" {
         It "Debe verificar la existencia fisica de los modulos core de soporte" {
-            $null -ne $script:BackupModulePath | Should Be $true
-            Test-Path $script:BackupModulePath | Should Be $true
-            Test-Path $script:RevertPath | Should Be $true
+            (Test-Path $script:BackupModulePath) | Should Be $true
+            (Test-Path $script:RevertPath) | Should Be $true
+            (Test-Path $script:SetQolPath) | Should Be $true
+            (Test-Path (Join-Path $script:ScriptsPath "get_modules_status.ps1")) | Should Be $true
         }
     }
 
@@ -236,13 +237,13 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
         }
 
         It "Debe validar que el extractor get_qol parsee un JSON estructural integro" {
-            if (Test-Path $script:GetQolPath) {
-                $JsonResult = & $script:GetQolPath | ConvertFrom-Json -ErrorAction SilentlyContinue
-                if ($null -ne $JsonResult) {
-                    ($JsonResult.PSObject.Properties.Name -contains "darkMode") | Should Be $true
-                    ($JsonResult.PSObject.Properties.Name -contains "disableWidgets") | Should Be $true
-                }
-            }
+            (Test-Path $script:GetQolPath) | Should Be $true
+            $RawOutput = & $script:GetQolPath
+            ($null -ne $RawOutput) | Should Be $true
+            $JsonResult = $RawOutput | ConvertFrom-Json
+            ($null -ne $JsonResult) | Should Be $true
+            ($JsonResult.PSObject.Properties.Name -contains "darkMode") | Should Be $true
+            ($JsonResult.PSObject.Properties.Name -contains "disableWidgets") | Should Be $true
         }
 
         It "Debe garantizar la integridad estructural del script de reversion espejo" {
@@ -261,7 +262,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
 
         It "Debe comprobar que cada Backup-OverlordRegistryValue en scripts de aplicacion tenga un restaurador simetrico en la reversion" {
             $ModuleFiles = Get-ChildItem -Path $script:ScriptsPath -Filter "*.ps1" | Where-Object {
-                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1'
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1' -or $_.Name -eq 'quick_actions.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
 
             foreach ($File in $ModuleFiles) {
@@ -306,7 +307,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $RevertCalls = [regex]::Matches($script:RevertContent, '(Invoke-OverlordSafeRestore|Restore-OverlordRegistryValue)\s+[^|\n;]+')
             
             $ModuleFiles = Get-ChildItem -Path $script:ScriptsPath -Filter "*.ps1" | Where-Object {
-                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1'
+                $_.Name -match '^\d{2}_' -or $_.Name -eq 'disable_mitigations.ps1' -or $_.Name -eq 'crear_respaldo.ps1' -or $_.Name -eq 'set_qol.ps1' -or $_.Name -eq 'quick_actions.ps1'
             } | Where-Object { $_.Name -ne '10_revertir.ps1' }
             
             $AppScriptsContent = ""

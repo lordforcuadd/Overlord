@@ -169,6 +169,8 @@ if ($null -ne $DownloadUrl) {
     if (Test-Path $ExePath) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
+        # Fuente primaria: $env:OVERLORD_EXPECTED_THUMBPRINT (permite rotacion de certificados sin modificar el script).
+        # Fallback offline por defecto: huella del certificado de release oficial.
         $ExpectedThumbprint = if (![string]::IsNullOrWhiteSpace($env:OVERLORD_EXPECTED_THUMBPRINT)) { $env:OVERLORD_EXPECTED_THUMBPRINT } else { "4338BFA2A57459BEB3B43FB141E6BDB75C8A808A" }
         $ValidCert = ($null -ne $Signature -and $Signature.Status -eq "Valid" -and $Signature.SignerCertificate.Thumbprint -eq $ExpectedThumbprint)
         if ($ValidCert) {

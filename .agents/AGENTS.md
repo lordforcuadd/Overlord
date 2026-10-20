@@ -2,7 +2,7 @@
 
 Estas reglas se aplican a todas las interacciones con el repositorio de **Overlord**. El objetivo es eliminar errores de autocomplacencia y asegurar código de grado industrial, sin deuda técnica, 100% simétrico.
 
-Antes de tocar cualquier archivo en `src-tauri/scripts/`, lee @REGRESIONES_OVERLORD.md. Contiene el historial exacto de bugs ya encontrados con evidencia de código real. Si tu cambio reintroduce alguno de esos patrones, la tarea falló, no importa qué tan bien se vea el resto.
+Antes de tocar cualquier archivo en `src-tauri/scripts/`, lee [.agents/Regresiones overlord.md](file:///.agents/Regresiones%20overlord.md). Contiene el historial exacto de bugs ya encontrados con evidencia de código real. Si tu cambio reintroduce alguno de esos patrones, la tarea falló, no importa qué tan bien se vea el resto.
 
 ---
 
@@ -10,7 +10,7 @@ Antes de tocar cualquier archivo en `src-tauri/scripts/`, lee @REGRESIONES_OVERL
 
 - **No asumas**: nunca digas que un cambio está "perfecto", "completado" o "listo" sin haber trazado la ruta de ejecución de extremo a extremo (Rust → PowerShell → Registro/BCD/powercfg/archivo → Reversión).
 - **Verificación de caja blanca**: revisa las implicaciones y efectos secundarios de cada cambio, no solo el caso feliz.
-- **Prohibido declarar "perfecto" o "10/10" sin evidencia**: solo puedes decirlo si (a) el chequeo de simetría de Pester (sección Protocolo) corrió limpio en esta sesión sobre el código actual, (b) el parser de PowerShell (regla 14) corrió limpio sobre todos los `.ps1`/`.psm1` tocados, y (c) releíste @REGRESIONES_OVERLORD.md y confirmaste, citando archivo y línea, que ninguna regresión reapareció. Si no cumpliste las tres, dilo explícitamente: "no verificado al 100%, esto confirmé y esto falta."
+- **Prohibido declarar "perfecto" o "10/10" sin evidencia**: solo puedes decirlo si (a) el chequeo de simetría de Pester (sección Protocolo) corrió limpio en esta sesión sobre el código actual, (b) el parser de PowerShell (regla 14) corrió limpio sobre todos los `.ps1`/`.psm1` tocados, y (c) releíste [.agents/Regresiones overlord.md](file:///.agents/Regresiones%20overlord.md) y confirmaste, citando archivo y línea, que ninguna regresión reapareció. Si no cumpliste las tres, dilo explícitamente: "no verificado al 100%, esto confirmé y esto falta."
 
 ## 2. Simetría Matemática Obligatoria (1:1)
 
@@ -50,7 +50,7 @@ Si eliminas un tweak del script de aplicación y no tocas los otros cinco, dejas
 
 - Cada tweak debe ser real, medible, y sustentado técnicamente. Nunca afirmes un mecanismo de por qué algo funciona o por qué se quitó sin haberlo verificado contra el código o documentación oficial — inventar una justificación técnica plausible es tan grave como inventar un bug.
 - **Rutas de registro heredadas de generaciones viejas de drivers (ej. claves de "PowerMizer" bajo rutas genéricas de NVIDIA de eras anteriores) no se asumen efectivas en hardware/drivers recientes sin verificación con una herramienta de monitoreo real (GPU-Z, `nvidia-smi`, etc.) que confirme el cambio de estado antes/después. Si no se puede verificar, el tweak no entra como default — va a "Experimental" o se descarta.**
-- **Tweaks removidos — historial honesto, no inventes razones nuevas**: si vas a evaluar reintroducir alguno de estos, parte de la razón real documentada en @REGRESIONES_OVERLORD.md, no de una justificación nueva sin verificar:
+- **Tweaks removidos — historial honesto, no inventes razones nuevas**: si vas a evaluar reintroducir alguno de estos, parte de la razón real documentada en [.agents/Regresiones overlord.md](file:///.agents/Regresiones%20overlord.md), no de una justificación nueva sin verificar:
   - `MouseDataQueueSize` / `KeyboardDataQueueSize`, `MaxCacheTtl` / `MaxNegativeCacheTtl`, `TdrDelay` / `TdrLevel`, `SvcHostSplitThresholdInKB`, `disabledynamictick`, `FTH` (Fault Tolerant Heap).
 - **Portabilidad**: Overlord debe correr de forma segura en cualquier PC o laptop del mundo. Cualquier tweak que dependa de un componente específico de hardware (SSD, GPU dedicada, NIC) debe verificar ESE componente específico, no un proxy general del sistema — ej. un fallback de detección de SSD debe filtrar a la unidad de arranque (`$env:SystemDrive`), no reportar "es SSD" si CUALQUIER disco del sistema lo es.
 - **Alineación de perfiles por hardware**: los perfiles (Competitivo, Programador, Laptop, etc.) deben respetar exclusiones lógicas de hardware — no forzar planes de energía de escritorio en laptop, no aplicar coalescencia agresiva en WiFi de laptop. Al mover o refactorizar un tweak de un módulo a otro, verificar que no herede sin querer un `exit`/guard temprano pensado para una lógica distinta (ej. un tweak de red que se mueve al módulo de afinidad de IRQ no debe quedar atrapado detrás de un `if ($IsLaptop) { exit }` pensado solo para el remapeo físico de IRQ). Inyecta advertencias explícitas en la UI cuando un tweak compromete seguridad, para decisión informada del usuario.

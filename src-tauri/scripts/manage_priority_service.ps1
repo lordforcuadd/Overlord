@@ -45,7 +45,7 @@ if ($Action -eq "install") {
         throw "No se pudo aplicar ACL de seguridad a $InstallDir : $_"
     }
 
-    $GameList | Out-File -FilePath $ConfigFile -Encoding utf8 -Force
+    ($GameList -split '[,;\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) | Out-File -FilePath $ConfigFile -Encoding utf8 -Force
 
     $DaemonCode = @'
 $ErrorActionPreference = "Stop"

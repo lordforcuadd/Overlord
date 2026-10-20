@@ -42,14 +42,17 @@ Try {
     Backup-OverlordRegistryValue -TargetKey $SysRestorePath -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage"
     Set-ItemProperty -Path $SysRestorePath -Name "SystemRestorePointCreationFrequency" -Type DWord -Value 0 -Force | Out-Null
 
+    $checkpointExitCode = 0
     try {
         Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS"
         Write-Host "[+] Punto de restauración creado con exito. El sistema se encuentra asegurado."
-        exit 0
     } catch {
         Write-Output "[WARNING] No se pudo crear el Punto de Restauracion de Windows (servicio VSS inactivo o SO modificado): $_"
-        exit 2
+        $checkpointExitCode = 2
+    } finally {
+        Restore-OverlordRegistryValue -TargetKey $SysRestorePath -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage"
     }
+    exit $checkpointExitCode
 } Catch {
     Write-Error "[-] Fallo critico en el script de respaldo: $_"
     exit 1

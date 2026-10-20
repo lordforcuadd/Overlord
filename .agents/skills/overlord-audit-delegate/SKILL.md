@@ -1,5 +1,6 @@
 ---
 name: overlord-audit-delegate
+version: 2.0.0
 description: "Recibe una lista plana de hallazgos generada por la skill overlord-audit (Hermes Agent), evalua cual es necesario corregir, y aplica los cambios siguiendo el protocolo de AGENTS.md. Usar cuando el usuario pega una lista con items etiquetados [BUG]/[SEGURIDAD]/[ARQUITECTURA]/[DEUDA]/[TWEAK]/[PRACTICA]/[INCONSISTENCIA]/[WINDOWS]/[RENDIMIENTO]/[UX]/[DUPLICACION]/[TESTS] y pide evaluarla o aplicarla."
 ---
 
@@ -31,7 +32,7 @@ Para CADA item de la lista, antes de decidir si aplica:
 
 No todo hallazgo listado amerita un cambio. Antes de tocar codigo, verificar contra estos criterios — si alguno aplica, el item se reporta como "no se aplica" con la razon, no se implementa:
 
-- **Diseno deliberado ya documentado**: revisar `AGENTS.md` (seccion "Tweaks Reales, Sin Placebos") y `REGRESIONES_OVERLORD.md` — si el patron citado coincide con una decision ya tomada a proposito (ej. no deshabilitar Core Isolation/VBS por compatibilidad con Vanguard/HVCI), no corregir.
+- **Diseno deliberado ya documentado**: revisar `AGENTS.md` (seccion "Tweaks Reales, Sin Placebos") y `[.agents/Regresiones overlord.md]` — si el patron citado coincide con una decision ya tomada a proposito (ej. no deshabilitar Core Isolation/VBS por compatibilidad con Vanguard/HVCI), no corregir.
 - **Falso positivo de lectura**: el hallazgo describe un comportamiento que, al trazar el flujo completo (ej. una variable que parece indefinida localmente pero la inyecta un header externo), en realidad es correcto.
 - **Categoria TWEAK/UX de bajo impacto sin consenso claro**: si es una recomendacion de mejora (no un bug), y no hay evidencia de que realmente cause dano o falle, preguntarle al usuario en el resumen final si quiere que se aplique en vez de decidir unilateralmente — estos son juicios de producto, no correcciones tecnicas obligatorias.
 
@@ -70,4 +71,4 @@ Si algun item quedo en duda genuina (no encaja claramente en "corregir" ni en "n
 
 ## Contexto del proyecto
 
-Mismo stack y mismas notas que ya conoce `AGENTS.md`: Tauri v2, Rust + Vue 3/Pinia + PowerShell. Los archivos `AGENTS.md` y `REGRESIONES_OVERLORD.md` en la raiz del repo son la fuente de verdad para "que ya se decidio a proposito" — leerlos siempre antes de aplicar una lista nueva, no asumir que se recuerda su contenido de una sesion anterior.
+Mismo stack y mismas notas que ya conoce `AGENTS.md`: Tauri v2, Rust + Vue 3/Pinia + PowerShell. Los archivos `AGENTS.md` y `[.agents/Regresiones overlord.md]` en la raiz del repo son la fuente de verdad para "que ya se decidio a proposito" — leerlos siempre antes de aplicar una lista nueva, no asumir que se recuerda su contenido de una sesion anterior.

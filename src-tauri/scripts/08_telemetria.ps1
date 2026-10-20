@@ -129,22 +129,15 @@ Try {
 
     # Bloqueo de Windows Recall (Directivas de Windows AI)
     $WindowsAIPolicyHKLM = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
-    $WindowsAIPolicyHKCU = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsAI"
 
     Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
     Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
     Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKCU"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKCU -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKCU"
 
     if (!(Test-Path $WindowsAIPolicyHKLM)) { New-Item -Path $WindowsAIPolicyHKLM -Force | Out-Null }
     Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "TurnOffUserCameraCapture" -Type DWord -Value 1 -Force | Out-Null
     Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "DisableAIDataAnalysis" -Type DWord -Value 1 -Force | Out-Null
     Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "AllowRecallEnablement" -Type DWord -Value 0 -Force | Out-Null
-
-    if (!(Test-Path $WindowsAIPolicyHKCU)) { New-Item -Path $WindowsAIPolicyHKCU -Force | Out-Null }
-    Set-ItemProperty -Path $WindowsAIPolicyHKCU -Name "TurnOffUserCameraCapture" -Type DWord -Value 1 -Force | Out-Null
-    Set-ItemProperty -Path $WindowsAIPolicyHKCU -Name "DisableAIDataAnalysis" -Type DWord -Value 1 -Force | Out-Null
 
     Write-Host "[+] Flujos de telemetria e hilos espia erradicados con exito."
     exit 0

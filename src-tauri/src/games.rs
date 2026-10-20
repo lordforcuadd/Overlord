@@ -331,8 +331,7 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                                     let dir_lower = dir_name.to_lowercase();
                                     for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                                         let aliases = get_folder_aliases(&catalog[idx].name);
-                                        let matches = is_game_match(&dir_lower, game_lower, aliases)
-                                            || (dir_lower.len() >= 4 && game_lower.contains(&dir_lower));
+                                        let matches = is_game_match(&dir_lower, game_lower, aliases);
                                         if matches {
                                             catalog[idx].detected = true;
                                         }
@@ -507,6 +506,46 @@ mod tests {
         let epic = get_epic_installed_games();
         // Validar que cualquier juego devuelto posea un nombre y ejecutable no vacíos
         assert!(epic.iter().all(|(name, exe)| !name.is_empty() && !exe.is_empty()));
+    }
+
+    #[test]
+    fn test_is_game_match_exclusions() {
+        let aliases: &[&str] = &[];
+        // Exclusiones conocidas
+        assert!(!is_game_match("counter-strike workshop", "counter-strike", aliases));
+        assert!(!is_game_match("palworld dedicated server", "palworld", aliases));
+        assert!(!is_game_match("pubg test server", "pubg: battlegrounds", aliases));
+        assert!(!is_game_match("source sdk 2013", "source", aliases));
+        assert!(!is_game_match("game redist", "game", aliases));
+        assert!(!is_game_match("witcher soundtrack", "the witcher 3", aliases));
+    }
+
+    #[test]
+    fn test_is_game_match_rust_special_case() {
+        let aliases: &[&str] = &[];
+        assert!(is_game_match("rust", "rust", aliases));
+        assert!(is_game_match("c:\\games\\steamapps\\common\\rust", "rust", aliases));
+        assert!(is_game_match("steamapps/common/rust", "rust", aliases));
+        // No debe coincidir con palabras que contengan rust de forma incidental
+        assert!(!is_game_match("crustaceans", "rust", aliases));
+        assert!(!is_game_match("trust_game", "rust", aliases));
+    }
+
+    #[test]
+    fn test_is_game_match_exact_and_aliases() {
+        let aliases = &["csgo", "cs2"];
+        assert!(is_game_match("csgo", "counter-strike 2", aliases));
+        assert!(is_game_match("cs2", "counter-strike 2", aliases));
+        assert!(is_game_match("Counter-Strike 2", "counter-strike 2", aliases));
+    }
+
+    #[test]
+    fn test_is_game_match_suffix_false_positive_protection() {
+        let aliases: &[&str] = &[];
+        // Carpeta "elden ring" no debe marcar como instalado "elden ring nightreign"
+        assert!(!is_game_match("elden ring", "elden ring nightreign", aliases));
+        // Subcadena válida donde el nombre del juego está contenido en el nombre de la carpeta (len >= 4)
+        assert!(is_game_match("cyberpunk 2077 game of the year", "cyberpunk 2077", aliases));
     }
 }
 

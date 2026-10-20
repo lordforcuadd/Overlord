@@ -116,9 +116,13 @@ Try {
                     Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunningVal -Force -ErrorAction SilentlyContinue | Out-Null
                 }
 
-                $CimSvc = Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
-                if ($null -ne $CimSvc) {
-                    $originalStartType = $CimSvc.StartMode
+                $originalStartType = if ($wuauserv.StartType) {
+                    $wuauserv.StartType.ToString()
+                } else {
+                    $CimSvc = Get-CimInstance -ClassName Win32_Service -Filter "Name='wuauserv'" -ErrorAction SilentlyContinue
+                    if ($null -ne $CimSvc) {
+                        if ($CimSvc.StartMode -eq "Auto") { "Automatic" } else { $CimSvc.StartMode }
+                    } else { "Manual" }
                 }
                 $freshWuauserv = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
                 $wasRunning = ($null -ne $freshWuauserv -and $freshWuauserv.Status -eq 'Running')
@@ -151,7 +155,8 @@ Try {
                     $stateRestored = $true
                     if ($null -ne $curSvc) {
                         if (-not $wasRunning -and $curSvc.Status -eq 'Running') { $stateRestored = $false }
-                        if ($null -ne $originalStartType -and $curSvc.StartType -ne $originalStartType) { $stateRestored = $false }
+                        $curStartType = if ($curSvc.StartType) { $curSvc.StartType.ToString() } else { "Manual" }
+                        if ($null -ne $originalStartType -and $curStartType -ne $originalStartType) { $stateRestored = $false }
                     }
                     if ($DismExit -eq 0 -and $SfcExit -eq 0 -and $stateRestored) {
                         Remove-Item -Path $SvcBackupPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null

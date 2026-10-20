@@ -286,7 +286,7 @@
       <div class="px-6 py-3 border-t border-white/5 bg-black/40 flex items-center justify-between text-xs text-gray-500">
         <div class="flex items-center gap-2">
           <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-          <span>Overlord {{ appVersion ? `v${appVersion}` : 'v4.6.0' }} · Monitoreo y Trazabilidad Activos</span>
+          <span>Overlord{{ appVersion ? ` v${appVersion}` : '' }} · Monitoreo y Trazabilidad Activos</span>
         </div>
         <button
           @click="store.closeLogModal"
