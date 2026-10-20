@@ -322,7 +322,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                 if ($Text -match '-ValueName\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $ValueName = $Matches[1].Trim() }
                 if ($Text -match '-BackupSubFolder\s+[\x22\x27]?([^\x22\x27\s]+)[\x22\x27]?') { $SubFolder = $Matches[1].Trim() }
                 
-                # Omitir los parÃ¡metros genÃ©ricos del helper definidos en la firma de Invoke-OverlordSafeRestore
+                # Omitir los parametros genericos del helper definidos en la firma de Invoke-OverlordSafeRestore
                 if ($null -ne $ValueName -and $null -ne $SubFolder -and $ValueName -ne '$ValueName' -and $SubFolder -ne '$BackupSubFolder') {
                     $EscapedVal = [regex]::Escape($ValueName)
                     $EscapedSub = [regex]::Escape($SubFolder)
@@ -364,7 +364,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
                     $BackupCalls = [regex]::Matches($Content, "Backup-OverlordPowerSetting|Backup-OverlordRegistryValue|powercfg\s+/q").Count
                     ($BackupCalls -ge $SetCalls) | Should Be $true
 
-                    # Validar lÃ­nea por lÃ­nea que cada llamada a Backup-OverlordPowerSetting tenga el parÃ¡metro -BackupName
+                    # Validar linea por linea que cada llamada a Backup-OverlordPowerSetting tenga el parametro -BackupName
                     $Lines = Get-Content -Path $File.FullName
                     foreach ($Line in $Lines) {
                         if ($Line -match "Backup-OverlordPowerSetting") {

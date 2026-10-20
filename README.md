@@ -38,10 +38,11 @@ irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | ie
 
 ### 2. Elige tu Perfil Inteligente
 La aplicación analiza automáticamente tu procesador (CPU), tarjeta gráfica (GPU), memoria RAM y tipo de equipo (PC de escritorio o Laptop):
-* **🏆 Competitivo / Gaming:** Diseñado para eSports (CS2, Valorant, Warzone, Apex). Latencia de entrada ultra-baja, afinidad de interrupciones (IRQ), prioridades multimedia MMCSS y máxima estabilidad de fotogramas (1% Low FPS).
-* **⚖️ Equilibrado:** Máxima fluidez para gaming y uso diario sin desactivar servicios auxiliares de Windows.
-* **🛡️ Seguro:** Optimización ligera y debloat conservador enfocado en privacidad y reducción de procesos en segundo plano.
-* **💻 Laptop:** Optimiza la latencia de red y periféricos respetando el consumo de batería y la gestión térmica del portátil.
+* **🏆 Competitivo:** Diseñado para eSports (CS2, Valorant, Warzone, Apex). Latencia de entrada ultra-baja, afinidad de interrupciones (IRQ), prioridades multimedia MMCSS y máxima estabilidad de fotogramas (1% Low FPS).
+* **💻 Programador & Competitivo:** Combina baja latencia para juegos con la coexistencia intacta de herramientas de desarrollo (Docker, WSL2, virtualización y Git).
+* **💼 Programador:** Optimizado para flujos de trabajo pesados de desarrollo, compilación y multitarea sin alterar perfiles multimedia de gaming.
+* **🔋 Home Office / Laptops:** Optimiza la latencia de red y periféricos respetando el consumo de batería, la gestión térmica y los C-States del portátil.
+* **🛡️ Usuario Casual:** Optimización ligera y debloat conservador enfocado en privacidad, limpieza de bloatware y reducción de procesos en segundo plano.
 
 ### 3. Blindaje Automático (Respaldo Obligatorio)
 Antes de tocar un solo valor del sistema, Overlord **crea un Punto de Restauración del Sistema (VSS)** y respalda en el Registro (`HKLM:\SOFTWARE\Overlord\Backup`) el valor original de cada ajuste junto con su tipo exacto de dato.
@@ -89,9 +90,9 @@ A diferencia de optimizadores tradicionales basados en scripts destructivos de i
 
 ### Pilares Fundamentales de la Arquitectura
 
-- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** Los scripts de optimización principales nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite cifrados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`.
+- **Ejecución en Memoria RAM Pura (Sin Huella en Disco):** Los scripts de optimización principales nunca se escriben como archivos físicos en el disco. El motor Rust los codifica en UTF-16 LE y los transmite codificados en Base64 directamente a través de `stdin` a un proceso PowerShell aislado que los decodifica y ejecuta en memoria mediante `Invoke-Expression`.
 - **Codificador Base64 Nativo en Rust:** El executor implementa su propio codificador Base64 personalizado (`custom_base64_encode`) sin dependencias externas, operando directamente sobre los bytes UTF-16 del script unificado.
-- **Mutex de Ejecución Concurrente:** Un `static EXECUTION_LOCK: Mutex<()>` en `executor.rs` garantiza que nunca se ejecuten dos módulos simultáneamente, evitando condiciones de carrera sobre las claves de registro de backup.
+- **Mutex de Ejecución Concurrente:** Un `static EXECUTION_LOCK: Mutex<()>` en `executor.rs` garantiza que nunca se ejecuten dos scripts de modificación de sistema simultáneamente, evitando condiciones de carrera sobre las claves de registro de backup, mientras que las consultas de lectura rápida (`execute_script_in_memory_readonly`) operan de forma concurrente y no bloqueante.
 - **Resolución por SID Dinámico con Redundancia de 4 Niveles:** Al ejecutarse con privilegios elevados, Windows redirige `HKCU:` hacia la cuenta de Administrador. El motor de Overlord resuelve el SID real del usuario interactivo utilizando un esquema de fallback de 4 niveles (WMI -> Propietario de `explorer.exe` -> Traducción de clase `.NET NTAccount` -> Escaneo directo en `HKEY_USERS`), forzando la inyección en `Registry::HKEY_USERS\$UserSID`.
 - **Inyección de Módulos Unificada:** El executor concatena en memoria el header de variables (`$IsLaptop`, `$RamGB`, `$GameList`, `$IsX3d`, `$IsSsd`, `$IsHybrid`), `utils.ps1` y `backup_manager.psm1` antes de cada script de módulo.
 
@@ -122,7 +123,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Desinstala aplicaciones UWP redundantes preinstaladas del sistema (`Remove-AppxProvisionedPackage`).
 - **Conserva intactos** `Microsoft.GamingApp`, `Microsoft.XboxApp`, `Microsoft.WindowsStickyNotes`, `Microsoft.Todos` y `Microsoft.BingSearch` (en Windows 11 24H2), blindando Xbox Game Pass, notas del usuario y el menú de inicio nativo.
 - Desactiva Copilot y Cortana Consent via políticas de grupo.
-- Deshabilita servicios de telemetría y diagnóstico innecesarios: `DiagTrack`, `dmwappushservice`, `Fax`, `RetailDemo`, `MapsBroker`, `RemoteRegistry`, preservando `SensorService` en laptops y equipos 2-en-1 para auto-rotación.
+- Deshabilita servicios de telemetría y diagnóstico innecesarios: `DiagTrack`, `Fax`, `RetailDemo`, `MapsBroker`, `RemoteRegistry` (configurando `dmwappushservice`, `WdiServiceHost` y `WdiSystemHost` en modo Manual para preservar la integridad de Windows Update), preservando `SensorService` en laptops y equipos 2-en-1 para auto-rotación.
 - Deshabilita procesos en segundo plano de Microsoft Edge (`StartupBoostEnabled = 0` y `BackgroundModeEnabled = 0`) para liberar de 150 a 250 MB de memoria RAM física.
 
 ### 3. Optimización de Red TCP/IP (`03_red.ps1`)
@@ -217,7 +218,7 @@ npm run build
 # 3. Compilación, linter y tests del backend en Rust
 cd src-tauri
 cargo check
-cargo clippy -- -W clippy::all -D warnings
+cargo clippy --all-targets -- -W clippy::all -D warnings
 cargo test --lib
 cd ..
 

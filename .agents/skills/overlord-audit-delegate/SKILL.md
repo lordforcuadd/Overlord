@@ -71,4 +71,4 @@ Si algun item quedo en duda genuina (no encaja claramente en "corregir" ni en "n
 
 ## Contexto del proyecto
 
-Mismo stack y mismas notas que ya conoce `AGENTS.md`: Tauri v2, Rust + Vue 3/Pinia + PowerShell. Los archivos `AGENTS.md` y `[.agents/Regresiones overlord.md]` en la raiz del repo son la fuente de verdad para "que ya se decidio a proposito" — leerlos siempre antes de aplicar una lista nueva, no asumir que se recuerda su contenido de una sesion anterior.
+Mismo stack y mismas notas que ya conoce `AGENTS.md`: Tauri v2, Rust + Vue 3/Pinia + PowerShell. Los archivos `AGENTS.md` y `Regresiones overlord.md` dentro de la carpeta `.agents/` son la fuente de verdad para "que ya se decidio a proposito" — leerlos siempre antes de aplicar una lista nueva, no asumir que se recuerda su contenido de una sesion anterior.

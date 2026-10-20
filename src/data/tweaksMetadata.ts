@@ -102,7 +102,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Remoción de software preinstalado innecesario (Cortana, Bing, Weather, Maps, etc.).",
       "Eliminación de telemetría GPO básica y sugerencias web invasivas de Bing en el menú de inicio.",
       "Remoción estructural de las barras laterales y servicios de Windows Copilot.",
-      "Desactivación de los servicios de Diagnóstico del Sistema en segundo plano (WdiServiceHost y WdiSystemHost).",
+      "Configuración en modo manual para servicios de Diagnóstico del Sistema (WdiServiceHost y WdiSystemHost) preservando la compatibilidad con Windows Update.",
       "Desactivación estructural de Edge en segundo plano y Startup Boost para ahorrar memoria RAM.",
       "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, TrkWks, RemoteRegistry).",
     ],

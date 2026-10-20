@@ -36,13 +36,11 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
 }
 
 $ServicesOk = $true
-$FoundDisabled = Get-Service -Name @("dmwappushservice", "MapsBroker") -ErrorAction SilentlyContinue
-if ($null -ne $FoundDisabled -and @($FoundDisabled).Count -gt 0) {
-    foreach ($Svc in $FoundDisabled) {
-        if ($Svc.StartType -ne "Disabled") {
-            $ServicesOk = $false
-            break
-        }
+$MapsBrokerSvc = Get-Service -Name "MapsBroker" -ErrorAction SilentlyContinue
+$DmwapSvc = Get-Service -Name "dmwappushservice" -ErrorAction SilentlyContinue
+if ($null -ne $MapsBrokerSvc -and $null -ne $DmwapSvc) {
+    if ($MapsBrokerSvc.StartType -ne "Disabled" -or $DmwapSvc.StartType -ne "Manual") {
+        $ServicesOk = $false
     }
 } else {
     $ServicesOk = $false
@@ -121,7 +119,8 @@ if (Test-Path $ProfilePath) {
     $InitialRtoVal = Get-ItemPropertyValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "InitialRto" -ErrorAction SilentlyContinue
     
     $CoalescingOk = $true
-    if (-not $IsLaptop) {
+    $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
+    if (-not $IsLaptop -and $TotalThreads -gt 8) {
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $ActiveGuids = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { 
                 Test-IsPhysicalEthernetAdapter $_

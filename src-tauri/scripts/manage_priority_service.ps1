@@ -115,11 +115,13 @@ while ($true) {
             foreach ($Game in $ConfigLines) {
                 if (-not [string]::IsNullOrWhiteSpace($Game)) {
                     $Game = $Game.Trim()
-                    if ($Game -notmatch '^[a-zA-Z0-9_\-\.]+$') {
+                    if ($Game -notmatch '^[a-zA-Z0-9_\-\. ]+$') {
+                        Write-Verbose "Nombre de ejecutable invalido en configuracion: $Game"
                         continue
                     }
                     $ProcName = if ($Game -like "*.exe") { $Game -replace '\.exe$', '' } else { $Game }
                     if ($CriticalSystemProcesses -contains $ProcName.ToLower()) {
+                        Write-Verbose "Proceso critico del sistema ignorado: $ProcName"
                         continue
                     }
                     try {
