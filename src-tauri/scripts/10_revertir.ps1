@@ -3,6 +3,7 @@ param(
     [int]$RamGB = 8
 )
 $ErrorActionPreference = "Continue"
+$global:OverlordRestoreErrors = 0
 
 
 
@@ -264,7 +265,9 @@ Try {
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive" -ValueName "DisableFileSyncNGSC" -BackupSubFolder "QoL\System" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -ValueName "OneDrive" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+    if ($null -ne (Get-SafeRegistryValue -Path "$BackupPath\QoL\User" -Name "OneDrive")) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -ValueName "OneDrive" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+    }
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "TaskbarMn" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Dsh" -ValueName "AllowNewsAndInterests" -BackupSubFolder "QoL\System" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -ValueName "StartupDelayInMSec" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
@@ -279,7 +282,7 @@ Try {
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop\WindowMetrics" -ValueName "MinAnimate" -BackupSubFolder "QoL\Visuals" -DefaultValue "1" -DefaultType "String"
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -ValueName "VisualFXSetting" -BackupSubFolder "QoL\Visuals" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "UserPreferencesMask" -BackupSubFolder "QoL\Visuals" -DefaultValue '_ABSENT_' -DefaultType "Binary"
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "UserPreferencesMask" -BackupSubFolder "QoL\Visuals" -DefaultValue "9E,3E,07,80,12,00,00,00" -DefaultType "Binary"
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "FontSmoothing" -BackupSubFolder "QoL\Visuals" -DefaultValue "2" -DefaultType "String"
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Control Panel\Desktop" -ValueName "FontSmoothingType" -BackupSubFolder "QoL\Visuals" -DefaultValue 2
 
@@ -450,7 +453,7 @@ Try {
         $NetAdapters = Get-ChildItem -Path $NetClassPath -ErrorAction SilentlyContinue
         foreach ($Adapter in $NetAdapters) {
             if ($Adapter.PSChildName -match "^\d{4}$") {
-                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration", "*FlowControl", "FlowControl", "PnPCapabilities")
+                $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet", "*PacketCoalescing", "PacketCoalescing", "*FlowControl", "FlowControl", "PnPCapabilities")
                 foreach ($PKey in $PowerKeys) {
                     if (Get-Command Restore-OverlordRegistryValue -ErrorAction SilentlyContinue) {
                         Restore-OverlordRegistryValue -TargetKey $Adapter.PSPath -ValueName $PKey -BackupSubFolder "Network\Adapters\$($Adapter.PSChildName)" | Out-Null
@@ -633,7 +636,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $NtfsPath -ValueName "DisableDeleteNotify" -BackupSubFolder "Storage" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -ValueName "SystemRestorePointCreationFrequency" -BackupSubFolder "Storage" -DefaultValue 1440
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\VSS" -ValueName "Start" -BackupSubFolder "Storage\VSS" -DefaultValue 3
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\vmicvss" -ValueName "Start" -BackupSubFolder "Storage\vmicvss" -DefaultValue 3
 

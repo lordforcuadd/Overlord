@@ -227,7 +227,7 @@ function Get-JavaRoots {
     }
 
     $appKey = if ($cfg.minecraft.javaAppPath -like "HKLM:\*") { $cfg.minecraft.javaAppPath } else { "HKLM:\$($cfg.minecraft.javaAppPath)" }
-    $AppExe = Get-SafeRegistryValue -Path $appKey -Name ""
+    $AppExe = Get-SafeRegistryValue -Path $appKey -Name "(default)"
     if (![string]::IsNullOrWhiteSpace($AppExe) -and (Test-Path $AppExe)) {
         $AppDir = Split-Path -Parent $AppExe
         if (Test-Path $AppDir) {

@@ -95,8 +95,11 @@ Try {
             # Respaldar WasRunning
             $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\$Service"
             if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
-            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
-            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            $svcProps = Get-ItemProperty -Path $SvcBackupPath -ErrorAction SilentlyContinue
+            if ($null -eq $svcProps -or $null -eq $svcProps.PSObject.Properties["WasRunning"]) {
+                $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+                Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            }
 
             if ($SvcObj.Status -ne "Stopped") {
                 Stop-Service -Name $Service -Force -ErrorAction SilentlyContinue | Out-Null
@@ -116,8 +119,11 @@ Try {
             # Respaldar WasRunning
             $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\$Service"
             if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
-            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
-            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            $svcProps = Get-ItemProperty -Path $SvcBackupPath -ErrorAction SilentlyContinue
+            if ($null -eq $svcProps -or $null -eq $svcProps.PSObject.Properties["WasRunning"]) {
+                $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+                Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            }
 
             Set-Service -Name $Service -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
         }

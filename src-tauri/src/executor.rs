@@ -248,7 +248,7 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
     const TIMEOUT_HDD_PENALTY: u64 = 120;
     const TIMEOUT_MIN_HOOKS: u64 = 600;
 
-    let mut timeout_secs = if game_list == "RepairOS" {
+    let mut timeout_secs = if game_list == "RepairOS" || game_list == "DeepClean" {
         TIMEOUT_REPAIR_OS
     } else {
         let num_games = if game_list.is_empty() { 0 } else { game_list.split(',').filter(|s| !s.trim().is_empty()).count() };
@@ -449,7 +449,7 @@ mod tests {
     #[tokio::test]
     async fn test_is_busy_lock_state() {
         let guard = EXECUTION_LOCK.lock().await;
-        assert_eq!(is_busy(), true);
+        assert!(is_busy());
         drop(guard);
     }
 

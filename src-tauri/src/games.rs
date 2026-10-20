@@ -184,6 +184,40 @@ fn check_game_folder_exists(base_dir: &Path, game_name: &str) -> bool {
     false
 }
 
+fn is_game_match(source_name: &str, target_game_lower: &str, aliases: &[&str]) -> bool {
+    let s_lower = source_name.to_lowercase();
+    if s_lower.contains("workshop")
+        || s_lower.contains("dedicated server")
+        || s_lower.contains("test server")
+        || s_lower.contains("sdk")
+        || s_lower.contains("redist")
+        || s_lower.contains("soundtrack")
+    {
+        return false;
+    }
+
+    if target_game_lower == "rust" {
+        return s_lower == "rust" || s_lower.ends_with("\\rust") || s_lower.ends_with("/rust");
+    }
+
+    if s_lower == target_game_lower {
+        return true;
+    }
+
+    if aliases.iter().any(|a| {
+        let al = a.to_lowercase();
+        s_lower == al || s_lower.contains(&al)
+    }) {
+        return true;
+    }
+
+    if target_game_lower.len() >= 4 && s_lower.contains(target_game_lower) {
+        return true;
+    }
+
+    false
+}
+
 pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
     let mut catalog = vec![
         ScanGamesResponse { name: "League of Legends".to_string(), exe: "League of Legends.exe".to_string(), detected: false },
@@ -226,12 +260,8 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         let lower_name = display_name.to_lowercase();
                         for (idx, game_lower) in catalog_lowers.iter().enumerate() {
-                            let matches = if game_lower == "rust" {
-                                lower_name == "rust"
-                            } else {
-                                lower_name.contains(game_lower)
-                            };
-                            if matches {
+                            let aliases = get_folder_aliases(&catalog[idx].name);
+                            if is_game_match(&lower_name, game_lower, aliases) {
                                 catalog[idx].detected = true;
                             }
                         }
@@ -245,12 +275,8 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         let lower_name = display_name.to_lowercase();
                         for (idx, game_lower) in catalog_lowers.iter().enumerate() {
-                            let matches = if game_lower == "rust" {
-                                lower_name == "rust"
-                            } else {
-                                lower_name.contains(game_lower)
-                            };
-                            if matches {
+                            let aliases = get_folder_aliases(&catalog[idx].name);
+                            if is_game_match(&lower_name, game_lower, aliases) {
                                 catalog[idx].detected = true;
                             }
                         }
@@ -269,12 +295,8 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                         if let Ok(name) = app_subkey.get_value::<String, _>("Name") {
                             let lower_steam_name = name.to_lowercase();
                             for (idx, game_lower) in catalog_lowers.iter().enumerate() {
-                                let matches = if game_lower == "rust" {
-                                    lower_steam_name == "rust"
-                                } else {
-                                    lower_steam_name.contains(game_lower)
-                                };
-                                if matches {
+                                let aliases = get_folder_aliases(&catalog[idx].name);
+                                if is_game_match(&lower_steam_name, game_lower, aliases) {
                                     catalog[idx].detected = true;
                                 }
                             }
@@ -309,12 +331,8 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                                     let dir_lower = dir_name.to_lowercase();
                                     for (idx, game_lower) in catalog_lowers.iter().enumerate() {
                                         let aliases = get_folder_aliases(&catalog[idx].name);
-                                        let alias_match = aliases.iter().any(|a| dir_lower.contains(&a.to_lowercase()));
-                                        let matches = if game_lower == "rust" {
-                                            dir_lower == "rust"
-                                        } else {
-                                            dir_lower.contains(game_lower) || game_lower.contains(&dir_lower) || alias_match
-                                        };
+                                        let matches = is_game_match(&dir_lower, game_lower, aliases)
+                                            || (dir_lower.len() >= 4 && game_lower.contains(&dir_lower));
                                         if matches {
                                             catalog[idx].detected = true;
                                         }
@@ -338,11 +356,9 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
         let lower_folder = folder_name.to_lowercase();
         let lower_loc = install_loc.to_lowercase();
         for (idx, lower_game_name) in catalog_lowers.iter().enumerate() {
-            let matches = if lower_game_name == "rust" {
-                lower_folder == "rust" || lower_loc.ends_with("\\rust") || lower_loc.ends_with("/rust")
-            } else {
-                lower_folder.contains(lower_game_name) || lower_loc.contains(lower_game_name)
-            };
+            let aliases = get_folder_aliases(&catalog[idx].name);
+            let matches = is_game_match(&lower_folder, lower_game_name, aliases)
+                || is_game_match(&lower_loc, lower_game_name, aliases);
             if matches {
                 catalog[idx].detected = true;
             }
@@ -356,12 +372,10 @@ pub fn collect_installed_games() -> Vec<ScanGamesResponse> {
                     if let Ok(title) = subkey.get_value::<String, _>("title") {
                         let lower_title = title.to_lowercase();
                         for (idx, game_lower) in catalog_lowers.iter().enumerate() {
-                            let matches = if game_lower == "rust" {
-                                lower_title == "rust"
-                            } else {
-                                lower_title.contains(game_lower)
-                            };
-                            if matches { catalog[idx].detected = true; }
+                            let aliases = get_folder_aliases(&catalog[idx].name);
+                            if is_game_match(&lower_title, game_lower, aliases) {
+                                catalog[idx].detected = true;
+                            }
                         }
                     }
                 }

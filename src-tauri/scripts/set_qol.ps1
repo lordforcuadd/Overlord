@@ -29,6 +29,16 @@ $Targets = @($HKCU_Path)
 $NormalizedInput = if ([string]::IsNullOrWhiteSpace($IsEnabledStr)) { "false" } else { $IsEnabledStr.ToLower().Replace("$", "").Trim() }
 $Value = if ($NormalizedInput -eq "true" -or $NormalizedInput -eq "1" -or $NormalizedInput -eq "yes" -or $NormalizedInput -eq "on") { 1 } else { 0 }
 
+function Test-RegistryValueMatch($actual, $expected) {
+    if ($null -eq $actual -or $null -eq $expected) {
+        return ($null -eq $actual -and $null -eq $expected)
+    }
+    if ($actual -is [byte[]] -or $expected -is [byte[]]) {
+        return ([string]::Join(',', [byte[]]$actual) -eq [string]::Join(',', [byte[]]$expected))
+    }
+    return ($actual.ToString() -eq $expected.ToString())
+}
+
 function Set-RegistryValue($subPath, $name, $type, $val) {
     foreach ($base in $Targets) {
         $fullPath = Join-Path $base $subPath
@@ -36,7 +46,7 @@ function Set-RegistryValue($subPath, $name, $type, $val) {
         if ([string]::IsNullOrEmpty($name) -or $name -eq "(default)") {
             Set-Item -Path $fullPath -Value $val -Force | Out-Null
             $actualVal = (Get-Item -Path $fullPath -ErrorAction SilentlyContinue).GetValue("")
-            if ($null -ne $val -and ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString())) {
+            if ($null -ne $val -and -not (Test-RegistryValueMatch $actualVal $val)) {
                 throw "El sistema intercepto el cambio o bloqueo la escritura default en $fullPath"
             }
         } else {
@@ -44,7 +54,7 @@ function Set-RegistryValue($subPath, $name, $type, $val) {
             
             # Verificacion estricta (Cero Complacencia)
             $actualVal = Get-ItemPropertyValue -Path $fullPath -Name $name -ErrorAction SilentlyContinue
-            if ($null -eq $actualVal -or $actualVal.ToString() -ne $val.ToString()) {
+            if ($null -eq $actualVal -or -not (Test-RegistryValueMatch $actualVal $val)) {
                 throw "El sistema intercepto el cambio o bloqueo la escritura del registro en $fullPath\$name"
             }
         }
@@ -55,7 +65,7 @@ function Set-HklmRegistryValue($path, $name, $type, $val) {
     if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
     Set-ItemProperty -Path $path -Name $name -Type $type -Value $val -Force | Out-Null
     $actual = Get-ItemPropertyValue -Path $path -Name $name -ErrorAction SilentlyContinue
-    if ($null -eq $actual -or $actual.ToString() -ne $val.ToString()) {
+    if ($null -eq $actual -or -not (Test-RegistryValueMatch $actual $val)) {
         throw "El sistema intercepto el cambio o bloqueo la escritura en $path\$name"
     }
 }

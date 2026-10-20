@@ -28,7 +28,7 @@ jobs:
       working-directory: src-tauri
 
     - name: Run Cargo Clippy
-      run: cargo clippy -- -W clippy::all -D warnings
+      run: cargo clippy --all-targets -- -W clippy::all -D warnings
       working-directory: src-tauri
 
     - name: Run Cargo Tests
@@ -98,7 +98,8 @@ jobs:
                     Write-Host "Daemon embebido verificado: 0 errores sintacticos." -ForegroundColor Green
                 }
             } else {
-                Write-Host "ADVERTENCIA: No se encontro delimitador here-string en $manageScript" -ForegroundColor Yellow
+                Write-Host "FALLA: No se encontro delimitador here-string en $manageScript" -ForegroundColor Red
+                $hasErrors = $true
             }
         }
 

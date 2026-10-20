@@ -249,7 +249,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             if (Test-Path $script:RevertPath) {
                 $Content = Get-Content -Path $script:RevertPath -ErrorAction SilentlyContinue
                 ([string]::IsNullOrEmpty($Content)) | Should Be $false
-                ([string]::IsNullOrEmpty(($Content -match 'HKLM:\\SOFTWARE\\Overlord\\Backup'))) | Should Be $false
+                (($Content -match 'HKLM:\\SOFTWARE\\Overlord\\Backup').Count -gt 0) | Should Be $true
             }
         }
     }

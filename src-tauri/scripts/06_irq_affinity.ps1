@@ -33,7 +33,7 @@ Try {
             if ($null -ne $cpuName -and $cpuName.ToLower().Contains("x3d") -and $logicalProcs -ge 12 -and $logicalProcs -le 32) {
                 $isDualCcdX3dDetected = $true
             }
-        } catch { }
+        } catch { Write-Verbose "Fallo al consultar informacion de CPU X3D: $_" }
     }
 
     if ($isDualCcdX3dDetected) {

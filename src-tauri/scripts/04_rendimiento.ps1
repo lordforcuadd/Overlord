@@ -77,15 +77,18 @@ Try {
                 if ($rawScheme -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
                     $CurrentGuid = $Matches[1]
                 }
-            } catch { }
+            } catch { Write-Verbose "No se pudo obtener el esquema activo con powercfg: $_" }
         }
         if ($CurrentGuid -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "0cc5b647-c1df-4637-891a-dec35c318583" -BackupName "Power_${CurrentGuid}_0cc5b647-c1df-4637-891a-dec35c318583"
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "ea062031-0e34-4ff1-9b6d-eb1059334028" -BackupName "Power_${CurrentGuid}_ea062031-0e34-4ff1-9b6d-eb1059334028"
             try { 
                 & powercfg.exe -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 *>&1 | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "powercfg -setacvalueindex 0cc5b647 fallo con codigo $LASTEXITCODE" }
                 & powercfg.exe -setacvalueindex $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 ea062031-0e34-4ff1-9b6d-eb1059334028 100 *>&1 | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "powercfg -setacvalueindex ea062031 fallo con codigo $LASTEXITCODE" }
                 & powercfg.exe -setactive $CurrentGuid *>&1 | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "powercfg -setactive fallo con codigo $LASTEXITCODE" }
             } catch { Write-Verbose "Fallo al reactivar esquema de energia: $_" }
         }
     }

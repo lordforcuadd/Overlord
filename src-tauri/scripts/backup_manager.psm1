@@ -5,6 +5,13 @@ if (-not (Get-Variable -Name 'HKCU_Path' -Scope 'Global' -ErrorAction SilentlyCo
 
 function Get-SafeRegistryValue {
     param([string]$Path, [string]$Name)
+    if ([string]::IsNullOrEmpty($Name) -or $Name -eq "(default)" -or $Name -eq "(Default)") {
+        $regItem = Get-Item -Path $Path -ErrorAction SilentlyContinue
+        if ($null -ne $regItem) {
+            return $regItem.GetValue("")
+        }
+        return $null
+    }
     $obj = Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue
     if ($null -ne $obj -and $null -ne $obj.PSObject.Properties[$Name]) {
         return $obj.$Name
@@ -122,7 +129,6 @@ function Restore-OverlordRegistryValue {
         }
         $global:OverlordRestoreErrors++
         Write-Error "[-] Fallo critico de reversion simetrica: No se pudo restaurar el valor $ValueName en $TargetKey : $_"
-        throw
     }
 }
 

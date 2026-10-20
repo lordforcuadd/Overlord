@@ -16,8 +16,11 @@ Try {
         if ($null -ne $SvcObj) {
             $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\DiagTrack"
             if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
-            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
-            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            $svcProps = Get-ItemProperty -Path $SvcBackupPath -ErrorAction SilentlyContinue
+            if ($null -eq $svcProps -or $null -eq $svcProps.PSObject.Properties["WasRunning"]) {
+                $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+                Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            }
         }
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
         Stop-Service "DiagTrack" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
@@ -35,8 +38,11 @@ Try {
         if ($null -ne $DoSvcObj) {
             $DoSvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\DoSvc"
             if (!(Test-Path $DoSvcBackupPath)) { New-Item -Path $DoSvcBackupPath -Force | Out-Null }
-            $WasRunning = if ($DoSvcObj.Status -eq "Running") { 1 } else { 0 }
-            Set-ItemProperty -Path $DoSvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            $svcProps = Get-ItemProperty -Path $DoSvcBackupPath -ErrorAction SilentlyContinue
+            if ($null -eq $svcProps -or $null -eq $svcProps.PSObject.Properties["WasRunning"]) {
+                $WasRunning = if ($DoSvcObj.Status -eq "Running") { 1 } else { 0 }
+                Set-ItemProperty -Path $DoSvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            }
         }
         Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -ValueName "Start" -BackupSubFolder "Services\DoSvc"
         Stop-Service "DoSvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
@@ -50,8 +56,11 @@ Try {
         if ($null -ne $SvcObj) {
             $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\WerSvc"
             if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
-            $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
-            Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            $svcProps = Get-ItemProperty -Path $SvcBackupPath -ErrorAction SilentlyContinue
+            if ($null -eq $svcProps -or $null -eq $svcProps.PSObject.Properties["WasRunning"]) {
+                $WasRunning = if ($SvcObj.Status -eq "Running") { 1 } else { 0 }
+                Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            }
         }
         $WerSvcPath = "HKLM:\SYSTEM\CurrentControlSet\Services\WerSvc"
         Backup-OverlordRegistryValue -TargetKey $WerSvcPath -ValueName "Start" -BackupSubFolder "Services\WerSvc"

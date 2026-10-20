@@ -13,12 +13,11 @@ Try {
             # Papelera de reciclaje
             Clear-RecycleBin -Force -ErrorAction SilentlyContinue | Out-Null
 
-            # Compactacion del almacen de componentes DISM con limite de espera (5 min)
-            $dismProc = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup" -NoNewWindow -PassThru -ErrorAction SilentlyContinue
-            if ($null -ne $dismProc) {
-                if (-not $dismProc.WaitForExit(300000)) {
-                    Write-Warning "DISM StartComponentCleanup excedio el tiempo de espera de 5 minutos; continuara finalizando en segundo plano para proteger la integridad del almacen de componentes"
-                }
+            # Compactacion del almacen de componentes DISM esperando de forma sincrona para proteger la integridad del sistema contra cierres de Job Object
+            Write-Host "Iniciando compactacion del almacen de componentes DISM..."
+            $dismProc = Start-Process -FilePath "dism.exe" -ArgumentList "/online /Cleanup-Image /StartComponentCleanup /NoRestart" -NoNewWindow -PassThru -Wait -ErrorAction SilentlyContinue
+            if ($null -ne $dismProc -and $dismProc.ExitCode -ne 0) {
+                Write-Warning "DISM StartComponentCleanup finalizo con codigo: $($dismProc.ExitCode)"
             }
 
             # Purga directa de Cache de Shaders (DirectX, NVIDIA, AMD, Intel)

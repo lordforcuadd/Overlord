@@ -520,7 +520,7 @@ async function fetchQolStatus() {
     const jsonOutput = await invoke<string>("run_optimization_script", {
       scriptName: "get_qol",
       isLaptop: store.hardwareInfo.isLaptop,
-      ramGb: store.hardwareInfo.ramGb ?? 8,
+      ramGb: store.hardwareInfo.ramGb || 8,
       gameList: "",
     });
     const data = JSON.parse(jsonOutput);
@@ -543,6 +543,22 @@ onMounted(async () => {
 
 async function applyToggle(settingKey: QolKeys) {
   if (qolStatus.value[settingKey] === "loading" || store.isGlobalBusy) return;
+
+  if (settingKey === "disableOneDrive" && !qol.value[settingKey]) {
+    const confirmResult = await Swal.fire({
+      title: "¿ERRADICAR ONEDRIVE?",
+      text: "Esta acción desinstala el cliente de Microsoft OneDrive y deshabilita su sincronización en este sistema. ¿Deseas continuar?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "SÍ, DESINSTALAR",
+      cancelButtonText: "CANCELAR",
+      ...props.swalConfig,
+    });
+    if (!confirmResult.isConfirmed) {
+      return;
+    }
+  }
+
   qolStatus.value[settingKey] = "loading";
   store.setGlobalBusy(true);
   const previousState = qol.value[settingKey];

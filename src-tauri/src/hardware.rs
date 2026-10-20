@@ -84,6 +84,7 @@ async fn detect_system_hardware() -> HardwareResponse {
         let mut is_rebar_val = None;
 
         let mut cmd = tokio::process::Command::new(&powershell_path);
+        cmd.kill_on_drop(true);
         cmd.creation_flags(CREATE_NO_WINDOW)
            .args([
                "-NoProfile",
@@ -105,12 +106,15 @@ async fn detect_system_hardware() -> HardwareResponse {
                                     ram_max_speed_val = Some(max_u32);
                                     let form_factor = json.get("FormFactor").and_then(|v| v.as_u64()).unwrap_or(0);
                                     let is_sodimm = form_factor == 12;
-                                    if is_sodimm {
+                                    let memory_type = json.get("MemoryType").and_then(|v| v.as_u64()).unwrap_or(0);
+                                    let is_lpddr = memory_type == 30 || memory_type == 35;
+                                    if is_lpddr {
+                                        is_xmp_val = None;
+                                    } else if is_sodimm {
                                         is_xmp_val = if cfg_u32 > max_u32 { Some(true) } else { None };
                                     } else {
-                                        let memory_type = json.get("MemoryType").and_then(|v| v.as_u64()).unwrap_or(0);
-                                        let is_ddr5 = memory_type == 34 || cfg_u32 >= 4800;
-                                        let is_xmp_speed = if is_ddr5 { cfg_u32 > 4800 } else { cfg_u32 > 2666 };
+                                        let is_ddr5 = memory_type == 34 || (memory_type != 26 && cfg_u32 >= 4800);
+                                        let is_xmp_speed = if is_ddr5 { cfg_u32 > 5600 } else { cfg_u32 > 2666 };
                                         if cfg_u32 < max_u32 {
                                             is_xmp_val = Some(false);
                                         } else {
@@ -278,9 +282,7 @@ async fn detect_system_hardware() -> HardwareResponse {
                 }
             }
 
-            if !handle_ok {
-                // Se difiere el fallback al contexto asíncrono
-            }
+            // Si handle_ok es falso, el fallback se resuelve en el contexto asincrono posterior.
 
             let mut is_hybrid = false;
             let mut length = 0;
@@ -420,7 +422,7 @@ mod tests {
         };
         assert_eq!(resp.cpu, "Test");
         assert_eq!(resp.ram_gb, 16);
-        assert_eq!(resp.is_arm64, false);
+        assert!(!resp.is_arm64);
     }
 
     #[test]
@@ -429,12 +431,12 @@ mod tests {
         let orig_wow = std::env::var("PROCESSOR_ARCHITEW6432").ok();
 
         std::env::set_var("PROCESSOR_ARCHITECTURE", "ARM64");
-        assert_eq!(is_arm64(), true);
+        assert!(is_arm64());
 
         if !cfg!(target_arch = "aarch64") {
             std::env::set_var("PROCESSOR_ARCHITECTURE", "AMD64");
             std::env::remove_var("PROCESSOR_ARCHITEW6432");
-            assert_eq!(is_arm64(), false);
+            assert!(!is_arm64());
         }
 
         match orig_arch {

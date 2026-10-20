@@ -286,7 +286,7 @@
       <div class="px-6 py-3 border-t border-white/5 bg-black/40 flex items-center justify-between text-xs text-gray-500">
         <div class="flex items-center gap-2">
           <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-          <span>Overlord v4.6.0 · Monitoreo y Trazabilidad Activos</span>
+          <span>Overlord {{ appVersion ? `v${appVersion}` : 'v4.6.0' }} · Monitoreo y Trazabilidad Activos</span>
         </div>
         <button
           @click="store.closeLogModal"
@@ -302,16 +302,26 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useOverlordStore } from "../stores/overlordStore";
 import { copyToClipboard } from "../utils/styleHelpers";
 
 const store = useOverlordStore();
+const appVersion = ref("");
 
 const activeTab = ref<"overlord" | "daemon" | "history">("overlord");
 const overlordLogs = ref("");
 const daemonLogs = ref("");
 const isLoading = ref(false);
 const isCopied = ref(false);
+
+onMounted(async () => {
+  try {
+    appVersion.value = await getVersion();
+  } catch {
+    appVersion.value = "";
+  }
+});
 
 const formattedOverlordLogs = computed(() => {
   return overlordLogs.value.split("\n").filter((l) => l.trim().length > 0);

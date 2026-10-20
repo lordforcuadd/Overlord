@@ -111,6 +111,7 @@ Try {
         if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló al configurar USB Selective Suspend" }
         if ($CurrentGuid) {
             & powercfg /setactive $CurrentGuid 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo al reactivar el esquema actual" }
         }
     } catch {
         Write-Warning "USB Selective Suspend no se pudo desactivar (bloqueado por politica de energia OEM del fabricante, no critico)."

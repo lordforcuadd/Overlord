@@ -477,13 +477,23 @@ pub struct DaemonStatusResponse {
 
 #[tauri::command]
 async fn get_daemon_status() -> DaemonStatusResponse {
-    let is_installed = is_priority_daemon_active().await;
-    if !is_installed {
+    let is_present = is_priority_daemon_task_present_on_disk();
+    let is_running = if is_present { is_priority_daemon_active().await } else { false };
+    if !is_present {
         return DaemonStatusResponse {
             is_installed: false,
             is_running: false,
             active_game: None,
             status_text: "Inactivo".to_string(),
+        };
+    }
+
+    if !is_running {
+        return DaemonStatusResponse {
+            is_installed: true,
+            is_running: false,
+            active_game: None,
+            status_text: "Deshabilitado".to_string(),
         };
     }
 

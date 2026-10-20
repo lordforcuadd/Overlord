@@ -392,15 +392,19 @@ onMounted(async () => {
     });
   }
 
-  unlistenBackendBusy = await listen("backend-busy-warning", () => {
-    Swal.fire({
-      title: "OPERACIÓN CRÍTICA EN CURSO",
-      html: DOMPurify.sanitize("Hay una operación crítica en curso (ej. SFC/DISM). No puedes cerrar la aplicación hasta que termine para evitar corromper la imagen del sistema operativo Windows."),
-      icon: "warning",
-      confirmButtonText: "ENTENDIDO",
-      ...overlordSwalConfig,
+  try {
+    unlistenBackendBusy = await listen("backend-busy-warning", () => {
+      Swal.fire({
+        title: "OPERACIÓN CRÍTICA EN CURSO",
+        html: DOMPurify.sanitize("Hay una operación crítica en curso (ej. SFC/DISM). No puedes cerrar la aplicación hasta que termine para evitar corromper la imagen del sistema operativo Windows."),
+        icon: "warning",
+        confirmButtonText: "ENTENDIDO",
+        ...overlordSwalConfig,
+      });
     });
-  });
+  } catch (listenErr) {
+    console.error("No se pudo registrar listener backend-busy-warning:", listenErr);
+  }
 
   store.startTelemetryPolling();
 });

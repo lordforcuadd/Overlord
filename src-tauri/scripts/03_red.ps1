@@ -91,10 +91,10 @@ Try {
                     if ($EthernetGuids -contains $NetInstanceId) {
                         $PowerKeys = @("*EEE", "EEE", "*GreenEnergy", "GreenEnergy", "*EEELinkAdvertisement", "EEELinkAdvertisement", "*EnergyEfficientEthernet", "EnergyEfficientEthernet")
                         
-                        # Desactivar Coalescencia y Moderacion de Interrupcion unicamente en PCs de Escritorio con >8 hilos logicos (preservando FlowControl)
+                        # Desactivar Coalescencia unicamente en PCs de Escritorio con >8 hilos logicos (preservando FlowControl; Interrupt Moderation se gestiona en 06_irq_affinity.ps1)
                         $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
                         if (-not $IsLaptop -and $TotalThreads -gt 8) {
-                            $PowerKeys += "*PacketCoalescing", "PacketCoalescing", "*InterruptModeration", "InterruptModeration"
+                            $PowerKeys += "*PacketCoalescing", "PacketCoalescing"
                         }
 
                         $adapterProps = Get-ItemProperty -Path $Adapter.PSPath -ErrorAction SilentlyContinue
