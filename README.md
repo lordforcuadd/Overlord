@@ -40,7 +40,7 @@ irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | ie
 La aplicación analiza automáticamente tu procesador (CPU), tarjeta gráfica (GPU), memoria RAM y tipo de equipo (PC de escritorio o Laptop):
 * **🏆 Competitivo:** Diseñado para eSports (CS2, Valorant, Warzone, Apex). Latencia de entrada ultra-baja, afinidad de interrupciones (IRQ), prioridades multimedia MMCSS y máxima estabilidad de fotogramas (1% Low FPS).
 * **💻 Programador & Competitivo:** Combina baja latencia para juegos con la coexistencia intacta de herramientas de desarrollo (Docker, WSL2, virtualización y Git).
-* **💼 Programador:** Optimizado para flujos de trabajo pesados de desarrollo, compilación y multitarea, ajustando la responsividad del kernel, red y almacenamiento sin aplicar hooks de pantalla completa ni afinidad de juegos en segundo plano.
+* **💼 Programador:** Optimizado para flujos de trabajo pesados de desarrollo, compilación y multitarea, ajustando la responsividad del kernel y almacenamiento sin aplicar hooks de pantalla completa ni afinidad de juegos en segundo plano.
 * **🔋 Home Office / Laptops:** Optimiza la latencia de red TCP/IP, saneamiento de telemetría y almacenamiento respetando la autonomía de batería, la gestión térmica y los C-States del portátil.
 * **🛡️ Usuario Casual:** Optimización ligera y debloat conservador enfocado en privacidad, limpieza de bloatware y reducción de procesos en segundo plano.
 

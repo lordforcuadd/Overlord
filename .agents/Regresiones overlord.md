@@ -139,7 +139,7 @@ Desactivar Interrupt Moderation en adaptadores Wi-Fi/Ethernet en laptops (`06_ir
 
 ### 34. Estado reactivo singleton a nivel de módulo en useOrchestrator.ts
 
-Las variables reactivas de estado global de ejecución (cardStatus, isBackingUp, isReverting, isExecutingAll) residen en el ámbito de módulo del composable useOrchestrator.ts de forma deliberada como singleton reactivo. Este diseño garantiza que cualquier componente que consuma el composable (App.vue, OptimizationGrid.vue, ModuleCard.vue) comparta de manera atómica e inmediata el mismo estado de ejecución sin requerir providers adicionales ni re-instanciación de stores para el ciclo de vida del orquestador.
+Las variables reactivas de estado global de ejecución (`cardStatus`, `isBackingUp`, `isReverting`, `isExecutingAll`) residen en el ámbito de módulo del composable `useOrchestrator.ts` de forma deliberada como singleton reactivo. Este diseño preserva el estado de orquestación a través de re-renderizados del componente raíz (`App.vue`) y garantiza un punto único de verdad para la ejecución sin re-instanciaciones accidentales del orquestador, mientras que los componentes subordinados (`OptimizationGrid.vue`, `ModuleCard.vue`) reciben el estado de forma unidireccional vía props.
 
 ### 35. Resolución de plataformas duplicada cross-stack entre Rust (games.rs) y PowerShell (game_locator.psm1)
 
