@@ -136,8 +136,17 @@ Al modificar archivos .ps1 mediante Set-Content u otras herramientas desde Windo
 
 Desactivar Interrupt Moderation en adaptadores Wi-Fi/Ethernet en laptops (`06_irq_affinity.ps1`) incrementa la tasa de interrupciones DPC por segundo, impidiendo que el procesador entre en C-States profundos (C8/C10) e incrementando significativamente el consumo de batería y las temperaturas térmicas en chasis portátiles. Además, mantenerlo activo en laptops rompía la detección de perfiles (`profileLogic.ts`), que deliberadamente omite `irqAffinity` en portátiles. Por tanto, `06_irq_affinity.ps1`, `03_red.ps1` y `get_modules_status.ps1` deben mantener de forma estricta y deliberada el guard `if (-not $IsLaptop)` para esta optimización de latencia en tiempo real.
 
+
+### 34. Estado reactivo singleton a nivel de módulo en useOrchestrator.ts
+
+Las variables reactivas de estado global de ejecución (cardStatus, isBackingUp, isReverting, isExecutingAll) residen en el ámbito de módulo del composable useOrchestrator.ts de forma deliberada como singleton reactivo. Este diseño garantiza que cualquier componente que consuma el composable (App.vue, OptimizationGrid.vue, ModuleCard.vue) comparta de manera atómica e inmediata el mismo estado de ejecución sin requerir providers adicionales ni re-instanciación de stores para el ciclo de vida del orquestador.
+
+### 35. Resolución de plataformas duplicada cross-stack entre Rust (games.rs) y PowerShell (game_locator.psm1)
+
+La resolución de rutas y bibliotecas de lanzadores (Steam, Epic Games, Riot, Minecraft) existe tanto en el backend nativo de Rust (para escaneo rápido inicial en catálogo y UI) como en el módulo PowerShell game_locator.psm1 (para aplicar hooks de rendimiento y exclusiones de Windows Defender en procesos de ejecución desacoplada). Esta duplicación está deliberadamente desacoplada para permitir la ejecución autónoma de scripts PowerShell fuera de Tauri, blindada contra discrepancias mediante el archivo de configuración centralizado compartido launchers_config.json y la suite de pruebas de Pester (modules.tests.ps1:492-509).
+
 ---
 
 ## Cómo usar este archivo
 
-Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 33 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo al final como la siguiente entrada numerada correlativa — este archivo solo es útil si crece con cada hallazgo nuevo.
+Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 35 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo al final como la siguiente entrada numerada correlativa (entrada 36, 37, etc.) — este archivo solo es útil si crece con cada hallazgo nuevo.
