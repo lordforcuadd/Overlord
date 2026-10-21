@@ -145,8 +145,12 @@ Las variables reactivas de estado global de ejecución (`cardStatus`, `isBacking
 
 La resolución de rutas y bibliotecas de lanzadores (Steam, Epic Games, Riot, Minecraft) existe tanto en el backend nativo de Rust (para escaneo rápido inicial en catálogo y UI) como en el módulo PowerShell game_locator.psm1 (para aplicar hooks de rendimiento y exclusiones de Windows Defender en procesos de ejecución desacoplada). Esta duplicación está deliberadamente desacoplada para permitir la ejecución autónoma de scripts PowerShell fuera de Tauri, blindada contra discrepancias mediante el archivo de configuración centralizado compartido launchers_config.json y la suite de pruebas de Pester (modules.tests.ps1:492-509).
 
+### 36. Compatibilidad nativa de la suite Pester con Windows PowerShell 5.1 (Pester 3.4.0)
+
+La suite de pruebas `modules.tests.ps1` y el flujo de CI (`.github/workflows/ci.yml`) mantienen compatibilidad estricta con la sintaxis de Pester 3.4.0 (`Should Be` sin guion, `Set-TestInconclusive`) debido a que es la versión preinstalada a nivel de sistema en Windows PowerShell 5.1 (`C:\Program Files\WindowsPowerShell\Modules\Pester\3.4.0`). Esta decisión deliberada permite ejecutar las pruebas de integridad mecánica y análisis estático de inmediato en cualquier estación de trabajo Windows 10/11 sin requerir la instalación de módulos externos en el perfil de usuario. Los 12 tests marcados como `Inconclusive` corresponden a validaciones de estado en vivo del sistema (requieren privilegios de administrador y optimizaciones activadas) y están aislados con guards de entorno (`$env:CI -eq 'true'`) para no producir falsos positivos en entornos de integración continua o máquinas en estado stock.
+
 ---
 
 ## Cómo usar este archivo
 
-Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 35 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo al final como la siguiente entrada numerada correlativa (entrada 36, 37, etc.) — este archivo solo es útil si crece con cada hallazgo nuevo.
+Antes de declarar cualquier tarea completa, recorre esta lista y confirma explícitamente, citando archivo y línea del código **actual** (no de este documento), que ninguno de estos 36 patrones reapareció. Si encuentras un patrón nuevo de la misma familia, agrégalo al final como la siguiente entrada numerada correlativa (entrada 37, 38, etc.) — este archivo solo es útil si crece con cada hallazgo nuevo.

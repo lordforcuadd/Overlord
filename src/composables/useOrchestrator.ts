@@ -4,6 +4,7 @@ import { useOverlordStore } from "../stores/overlordStore";
 import { tweaksMetadata, PROFILE_CONFIGS } from "../data/tweaksMetadata";
 import { buildExpectedProfileState } from "../stores/profileLogic";
 import { copyToClipboard } from "../utils/styleHelpers";
+import type { OverlordSwalConfig } from "../utils/swalConfig";
 import Swal from "sweetalert2";
 import DOMPurify from "dompurify";
 
@@ -14,7 +15,7 @@ const isBackingUp = ref(false);
 const isReverting = ref(false);
 const isExecutingAll = ref(false);
 
-export function useOrchestrator(overlordSwalConfig: any) {
+export function useOrchestrator(overlordSwalConfig: OverlordSwalConfig) {
   const store = useOverlordStore();
 
   async function crearRespaldo() {

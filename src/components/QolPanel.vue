@@ -266,9 +266,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { useOverlordStore } from "../stores/overlordStore";
 import Swal from "sweetalert2";
 import { getImpactClass } from "../utils/styleHelpers";
+import type { OverlordSwalConfig } from "../utils/swalConfig";
 
 const props = defineProps<{
-  swalConfig?: any;
+  swalConfig?: OverlordSwalConfig;
 }>();
 
 const isScanning = ref(true);

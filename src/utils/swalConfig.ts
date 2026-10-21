@@ -15,3 +15,5 @@ export const overlordSwalConfig = {
       "text-gray-300 border border-zinc-600 hover:bg-zinc-700 transition-colors duration-200",
   },
 };
+
+export type OverlordSwalConfig = typeof overlordSwalConfig;

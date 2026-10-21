@@ -508,5 +508,25 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $JsonJavaApp = $Parsed.minecraft.javaAppPath
             ($LocatorContent -match [regex]::Escape($JsonJavaApp)) | Should Be $true
         }
+
+        It "Debe comprobar la sincronizacion estatica de StartType de servicios entre scripts de aplicacion y get_modules_status.ps1" {
+            $DebloatContent = Get-Content -Path (Join-Path $script:ScriptsPath "02_debloat.ps1") -Raw
+            $StatusContent = Get-Content -Path (Join-Path $script:ScriptsPath "get_modules_status.ps1") -Raw
+
+            $ServicesToManualMatch = [regex]::Match($DebloatContent, '\$ServicesToManual\s*=\s*@\(([^)]+)\)')
+            $ServicesToManualMatch.Success | Should Be $true
+            ($ServicesToManualMatch.Groups[1].Value -match '"dmwappushservice"') | Should Be $true
+            ($StatusContent -match '\$DmwapSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
+            ($StatusContent -notmatch '\$DmwapSvc\.StartType\s*-ne\s*"Disabled"') | Should Be $true
+        }
+
+        It "Debe certificar la paridad estatica del gate de PacketCoalescing entre 03_red.ps1 y get_modules_status.ps1" {
+            $RedContent = Get-Content -Path (Join-Path $script:ScriptsPath "03_red.ps1") -Raw
+            $StatusContent = Get-Content -Path (Join-Path $script:ScriptsPath "get_modules_status.ps1") -Raw
+
+            $GateRegex = 'if\s*\(-not\s+\$IsLaptop\s+-and\s+\$TotalThreads\s+-gt\s+8\)'
+            ([regex]::IsMatch($RedContent, $GateRegex)) | Should Be $true
+            ([regex]::IsMatch($StatusContent, $GateRegex)) | Should Be $true
+        }
     }
 }
