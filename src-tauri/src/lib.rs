@@ -626,10 +626,12 @@ mod tests {
     #[test]
     fn test_version_sync() {
         let cargo_toml_version = env!("CARGO_PKG_VERSION");
-        let package_json_content = std::fs::read_to_string("../package.json")
-            .expect("Fallo al leer package.json para verificar la versión");
+        let package_json_content = match std::fs::read_to_string("../package.json") {
+            Ok(content) => content,
+            Err(err) => panic!("Fallo al leer package.json para verificar la versión: {}", err),
+        };
         
-        let parsed_version = package_json_content
+        let parsed_version = match package_json_content
             .lines()
             .find(|line| line.contains("\"version\""))
             .and_then(|line| {
@@ -639,8 +641,10 @@ mod tests {
                 } else {
                     None
                 }
-            })
-            .expect("No se encontró el campo 'version' en package.json");
+            }) {
+            Some(ver) => ver,
+            None => panic!("No se encontró el campo 'version' en package.json"),
+        };
 
         assert_eq!(
             cargo_toml_version, 

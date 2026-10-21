@@ -1,0 +1,18 @@
+# Auto normalize line endings for all text files
+* text=auto
+
+# PowerShell and Windows batch scripts use CRLF
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Source code and config use LF
+*.rs text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

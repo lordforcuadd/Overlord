@@ -516,6 +516,8 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $ServicesToManualMatch = [regex]::Match($DebloatContent, '\$ServicesToManual\s*=\s*@\(([^)]+)\)')
             $ServicesToManualMatch.Success | Should Be $true
             ($ServicesToManualMatch.Groups[1].Value -match '"dmwappushservice"') | Should Be $true
+            ($DebloatContent -match 'Set-Service\s+-Name\s+\$Service\s+-StartupType\s+Manual') | Should Be $true
+            ($StatusContent -match '\$DmwapSvc\s*=\s*Get-Service\s+-Name\s+"dmwappushservice"') | Should Be $true
             ($StatusContent -match '\$DmwapSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
             ($StatusContent -notmatch '\$DmwapSvc\.StartType\s*-ne\s*"Disabled"') | Should Be $true
         }
@@ -527,6 +529,10 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $GateRegex = 'if\s*\(-not\s+\$IsLaptop\s+-and\s+\$TotalThreads\s+-gt\s+8\)'
             ([regex]::IsMatch($RedContent, $GateRegex)) | Should Be $true
             ([regex]::IsMatch($StatusContent, $GateRegex)) | Should Be $true
+
+            # Paridad de valor aplicado vs verificado ("0")
+            ($RedContent -match 'Set-ItemProperty[\s\S]*?-Name\s+\$PKey[\s\S]*?-Value\s+"0"') | Should Be $true
+            ($StatusContent -match 'PacketCoalescing.*-ne\s+"0"') | Should Be $true
         }
     }
 }
