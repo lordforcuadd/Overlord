@@ -138,76 +138,80 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
 }
 
 #[tauri::command]
-fn purge_ram_native() -> Result<String, String> {
-    // Verificación dinámica de la versión de build de Windows.
-    // La clase SystemMemoryListInformation (80) y la acción MemoryPurgeStandbyList (4)
-    // fueron introducidas en Windows Vista / Server 2008. Validamos Build >= 7600 (Windows 7+)
-    // para mitigar riesgos de comportamiento indefinido en colmenas legacy.
-    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-    if let Ok(key) = hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion") {
-        if let Ok(build_str) = key.get_value::<String, _>("CurrentBuild") {
-            if let Ok(build_num) = build_str.parse::<u32>() {
-                if build_num < 7600 {
-                    return Err("La purga nativa de RAM requiere Windows 7 o superior (Build >= 7600)".to_string());
+async fn purge_ram_native() -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        // Verificación dinámica de la versión de build de Windows.
+        // La clase SystemMemoryListInformation (80) y la acción MemoryPurgeStandbyList (4)
+        // fueron introducidas en Windows Vista / Server 2008. Validamos Build >= 7600 (Windows 7+)
+        // para mitigar riesgos de comportamiento indefinido en colmenas legacy.
+        let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+        if let Ok(key) = hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion") {
+            if let Ok(build_str) = key.get_value::<String, _>("CurrentBuild") {
+                if let Ok(build_num) = build_str.parse::<u32>() {
+                    if build_num < 7600 {
+                        return Err("La purga nativa de RAM requiere Windows 7 o superior (Build >= 7600)".to_string());
+                    }
                 }
             }
         }
-    }
 
-    unsafe {
-        let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
-        // Habilitar acceso de consulta y ajuste de privilegios en el token del proceso actual
-        if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &raw mut token) == 0 {
-            let err = std::io::Error::last_os_error();
-            eprintln!("[OVERLORD ERROR] OpenProcessToken failed: {}", err);
-            return Err(format!("No se pudo abrir el token del proceso: {}", err));
-        }
-        
-        // Se requiere el privilegio SeProfileSingleProcessPrivilege para poder invocar NtSetSystemInformation
-        // con clases de información de memoria de sistema (como SystemMemoryListInformation).
-        let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
-        let mut luid = Luid { low_part: 0, high_part: 0 };
-        if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) == 0 {
-            let err = std::io::Error::last_os_error();
-            eprintln!("[OVERLORD ERROR] LookupPrivilegeValueW failed: {}", err);
+        unsafe {
+            let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
+            // Habilitar acceso de consulta y ajuste de privilegios en el token del proceso actual
+            if OpenProcessToken(GetCurrentProcess(), 0x0020 | 0x0008, &raw mut token) == 0 {
+                let err = std::io::Error::last_os_error();
+                eprintln!("[OVERLORD ERROR] OpenProcessToken failed: {}", err);
+                return Err(format!("No se pudo abrir el token del proceso: {}", err));
+            }
+            
+            // Se requiere el privilegio SeProfileSingleProcessPrivilege para poder invocar NtSetSystemInformation
+            // con clases de información de memoria de sistema (como SystemMemoryListInformation).
+            let priv_name: Vec<u16> = "SeProfileSingleProcessPrivilege\0".encode_utf16().collect();
+            let mut luid = Luid { low_part: 0, high_part: 0 };
+            if LookupPrivilegeValueW(std::ptr::null(), priv_name.as_ptr(), &raw mut luid) == 0 {
+                let err = std::io::Error::last_os_error();
+                eprintln!("[OVERLORD ERROR] LookupPrivilegeValueW failed: {}", err);
+                CloseHandle(token);
+                return Err(format!("No se pudo obtener LUID para el privilegio: {}", err));
+            }
+            
+            let tp = TokenPrivileges {
+                privilege_count: 1,
+                privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }], // 0x00000002 = SE_PRIVILEGE_ENABLED
+            };
+            if AdjustTokenPrivileges(token, 0, &raw const tp, 0, std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
+                let err = std::io::Error::last_os_error();
+                eprintln!("[OVERLORD ERROR] AdjustTokenPrivileges failed: {}", err);
+                CloseHandle(token);
+                return Err(format!("No se pudieron ajustar privilegios del token: {}", err));
+            }
+            let last_err = std::io::Error::last_os_error();
+            const ERROR_NOT_ALL_ASSIGNED: i32 = 1300;
+            if last_err.raw_os_error() == Some(ERROR_NOT_ALL_ASSIGNED) {
+                eprintln!("[OVERLORD ERROR] AdjustTokenPrivileges: SeProfileSingleProcessPrivilege no fue asignado");
+                CloseHandle(token);
+                return Err("El sistema denegó la asignación del privilegio SeProfileSingleProcessPrivilege".to_string());
+            }
             CloseHandle(token);
-            return Err(format!("No se pudo obtener LUID para el privilegio: {}", err));
-        }
-        
-        let tp = TokenPrivileges {
-            privilege_count: 1,
-            privileges: [LuidAndAttributes { luid, attributes: 0x00000002 }], // 0x00000002 = SE_PRIVILEGE_ENABLED
-        };
-        if AdjustTokenPrivileges(token, 0, &raw const tp, 0, std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
-            let err = std::io::Error::last_os_error();
-            eprintln!("[OVERLORD ERROR] AdjustTokenPrivileges failed: {}", err);
-            CloseHandle(token);
-            return Err(format!("No se pudieron ajustar privilegios del token: {}", err));
-        }
-        let last_err = std::io::Error::last_os_error();
-        const ERROR_NOT_ALL_ASSIGNED: i32 = 1300;
-        if last_err.raw_os_error() == Some(ERROR_NOT_ALL_ASSIGNED) {
-            eprintln!("[OVERLORD ERROR] AdjustTokenPrivileges: SeProfileSingleProcessPrivilege no fue asignado");
-            CloseHandle(token);
-            return Err("El sistema denegó la asignación del privilegio SeProfileSingleProcessPrivilege".to_string());
-        }
-        CloseHandle(token);
-        
-        // DOCUMENTACIÓN TÉCNICA DE REVERSING (Origen: ReactOS / Geoff Chappell NT API Research):
-        // * Clase 80 = SystemMemoryListInformation (Clase indocumentada de Windows NT)
-        // * command_class = 4 = MemoryPurgeStandbyList (Purga la lista de stand-by sin vaciar sets de trabajo)
-        // Este valor se pasa al buffer de entrada de NtSetSystemInformation con un tamaño de 4 bytes.
-        let mut command_class = 4u32;
-        let current_status = NtSetSystemInformation(80, &raw mut command_class as *mut std::ffi::c_void, 4);
+            
+            // DOCUMENTACIÓN TÉCNICA DE REVERSING (Origen: ReactOS / Geoff Chappell NT API Research):
+            // * Clase 80 = SystemMemoryListInformation (Clase indocumentada de Windows NT)
+            // * command_class = 4 = MemoryPurgeStandbyList (Purga la lista de stand-by sin vaciar sets de trabajo)
+            // Este valor se pasa al buffer de entrada de NtSetSystemInformation con un tamaño de 4 bytes.
+            let mut command_class = 4u32;
+            let current_status = NtSetSystemInformation(80, &raw mut command_class as *mut std::ffi::c_void, 4);
 
-        if current_status >= 0 {
-            Ok("Lista Standby del sistema purgada correctamente sin afectar el Working Set activo.".to_string())
-        } else {
-            let status_hex = format!("0x{:08X}", current_status as u32);
-            eprintln!("[OVERLORD ERROR] NtSetSystemInformation failed (status {}): {}", status_hex, current_status);
-            Err(format!("Error en llamada al sistema NT (NTSTATUS {}): {}", status_hex, current_status))
+            if current_status >= 0 {
+                Ok("Lista Standby del sistema purgada correctamente sin afectar el Working Set activo.".to_string())
+            } else {
+                let status_hex = format!("0x{:08X}", current_status as u32);
+                eprintln!("[OVERLORD ERROR] NtSetSystemInformation failed (status {}): {}", status_hex, current_status);
+                Err(format!("Error en llamada al sistema NT (NTSTATUS {}): {}", status_hex, current_status))
+            }
         }
-    }
+    })
+    .await
+    .map_err(|e| format!("Fallo en tarea asíncrona de purga de memoria: {}", e))?
 }
 
 // Helper function to get current user token SID
@@ -446,24 +450,32 @@ fn log_from_js(msg: String) {
     write_to_overlord_log(&sanitized);
 }
 
-#[tauri::command]
-fn read_overlord_log() -> Result<String, String> {
-    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
-    let log_path = std::path::Path::new(&program_data).join("Overlord").join("logs").join("overlord_errors.log");
-    if log_path.exists() {
-        let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
-        if content.len() > MAX_LOG_READ_BYTES {
-            let mut start = content.len() - MAX_LOG_READ_BYTES;
-            while !content.is_char_boundary(start) && start < content.len() {
-                start += 1;
-            }
-            Ok(content[start..].to_string())
-        } else {
-            Ok(content)
+pub(crate) fn truncate_log_tail(content: &str, max_bytes: usize) -> &str {
+    if content.len() > max_bytes {
+        let mut start = content.len() - max_bytes;
+        while !content.is_char_boundary(start) && start < content.len() {
+            start += 1;
         }
+        &content[start..]
     } else {
-        Ok("No se encontraron registros de eventos u operaciones.".to_string())
+        content
     }
+}
+
+#[tauri::command]
+async fn read_overlord_log() -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+        let log_path = std::path::Path::new(&program_data).join("Overlord").join("logs").join("overlord_errors.log");
+        if log_path.exists() {
+            let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
+            Ok(truncate_log_tail(&content, MAX_LOG_READ_BYTES).to_string())
+        } else {
+            Ok("No se encontraron registros de eventos u operaciones.".to_string())
+        }
+    })
+    .await
+    .map_err(|e| format!("Fallo al leer log de Overlord: {}", e))?
 }
 
 #[derive(Serialize, Clone)]
@@ -558,23 +570,19 @@ async fn get_daemon_status() -> DaemonStatusResponse {
 }
 
 #[tauri::command]
-fn read_daemon_log() -> Result<String, String> {
-    let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
-    let log_path = std::path::Path::new(&program_data).join("Overlord").join("daemon.log");
-    if log_path.exists() {
-        let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
-        if content.len() > MAX_LOG_READ_BYTES {
-            let mut start = content.len() - MAX_LOG_READ_BYTES;
-            while !content.is_char_boundary(start) && start < content.len() {
-                start += 1;
-            }
-            Ok(content[start..].to_string())
+async fn read_daemon_log() -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+        let log_path = std::path::Path::new(&program_data).join("Overlord").join("daemon.log");
+        if log_path.exists() {
+            let content = std::fs::read_to_string(&log_path).map_err(|e| e.to_string())?;
+            Ok(truncate_log_tail(&content, MAX_LOG_READ_BYTES).to_string())
         } else {
-            Ok(content)
+            Ok("El daemon de prioridad aún no ha generado registros o no está instalado.".to_string())
         }
-    } else {
-        Ok("El daemon de prioridad aún no ha generado registros o no está instalado.".to_string())
-    }
+    })
+    .await
+    .map_err(|e| format!("Fallo al leer log del daemon: {}", e))?
 }
 
 #[cfg_attr(mobile, tauri::command)]
@@ -660,5 +668,27 @@ mod tests {
         let path = super::get_powershell_path();
         assert!(!path.is_empty());
         assert!(path.to_lowercase().ends_with("powershell.exe"));
+    }
+
+    #[test]
+    fn test_truncate_log_tail_short() {
+        let content = "Linea 1\nLinea 2";
+        let res = super::truncate_log_tail(content, 100);
+        assert_eq!(res, content);
+    }
+
+    #[test]
+    fn test_truncate_log_tail_long() {
+        let content = "0123456789ABCDEF";
+        let res = super::truncate_log_tail(content, 6);
+        assert_eq!(res, "ABCDEF");
+    }
+
+    #[test]
+    fn test_truncate_log_tail_utf8_multibyte() {
+        let content = "optimización y diseño";
+        let res = super::truncate_log_tail(content, 8);
+        assert!(res.is_char_boundary(0));
+        assert!(content.ends_with(res));
     }
 }

@@ -516,9 +516,15 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $ServicesToManualMatch = [regex]::Match($DebloatContent, '\$ServicesToManual\s*=\s*@\(([^)]+)\)')
             $ServicesToManualMatch.Success | Should Be $true
             ($ServicesToManualMatch.Groups[1].Value -match '"dmwappushservice"') | Should Be $true
+            ($ServicesToManualMatch.Groups[1].Value -match '"WdiServiceHost"') | Should Be $true
+            ($ServicesToManualMatch.Groups[1].Value -match '"WdiSystemHost"') | Should Be $true
             ($DebloatContent -match 'Set-Service\s+-Name\s+\$Service\s+-StartupType\s+Manual') | Should Be $true
             ($StatusContent -match '\$DmwapSvc\s*=\s*Get-Service\s+-Name\s+"dmwappushservice"') | Should Be $true
+            ($StatusContent -match '\$WdiHostSvc\s*=\s*Get-Service\s+-Name\s+"WdiServiceHost"') | Should Be $true
+            ($StatusContent -match '\$WdiSysSvc\s*=\s*Get-Service\s+-Name\s+"WdiSystemHost"') | Should Be $true
             ($StatusContent -match '\$DmwapSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
+            ($StatusContent -match '\$WdiHostSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
+            ($StatusContent -match '\$WdiSysSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
             ($StatusContent -notmatch '\$DmwapSvc\.StartType\s*-ne\s*"Disabled"') | Should Be $true
         }
 

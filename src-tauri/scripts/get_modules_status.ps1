@@ -38,8 +38,10 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
 $ServicesOk = $true
 $MapsBrokerSvc = Get-Service -Name "MapsBroker" -ErrorAction SilentlyContinue
 $DmwapSvc = Get-Service -Name "dmwappushservice" -ErrorAction SilentlyContinue
+$WdiHostSvc = Get-Service -Name "WdiServiceHost" -ErrorAction SilentlyContinue
+$WdiSysSvc = Get-Service -Name "WdiSystemHost" -ErrorAction SilentlyContinue
 if ($null -ne $MapsBrokerSvc -and $null -ne $DmwapSvc) {
-    if ($MapsBrokerSvc.StartType -ne "Disabled" -or $DmwapSvc.StartType -ne "Manual") {
+    if ($MapsBrokerSvc.StartType -ne "Disabled" -or $DmwapSvc.StartType -ne "Manual" -or ($null -ne $WdiHostSvc -and $WdiHostSvc.StartType -ne "Manual") -or ($null -ne $WdiSysSvc -and $WdiSysSvc.StartType -ne "Manual")) {
         $ServicesOk = $false
     }
 } else {
