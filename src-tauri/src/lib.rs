@@ -688,7 +688,7 @@ mod tests {
     fn test_truncate_log_tail_utf8_multibyte() {
         let content = "optimización y diseño";
         let res = super::truncate_log_tail(content, 8);
-        assert!(res.is_char_boundary(0));
+        assert!(res.len() <= 8);
         assert!(content.ends_with(res));
     }
 }
