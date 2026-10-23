@@ -20,7 +20,6 @@ Try {
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
 
-    $AllProvisioned = try { Get-AppxProvisionedPackage -Online -ErrorAction Stop } catch { @() }
     $AppxBackupBase = "HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx"
     if (!(Test-Path $AppxBackupBase)) {
         try { New-Item -Path $AppxBackupBase -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
@@ -28,7 +27,8 @@ Try {
 
     foreach ($App in $Apps) {
         try {
-            $pkg = Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue
+            # Coincidencia exacta de paquete
+            $pkg = Get-AppxPackage | Where-Object { $_.Name -eq $App } | Select-Object -First 1
             if ($null -ne $pkg) {
                 $targetBackup = Join-Path $AppxBackupBase $App
                 if (!(Test-Path $targetBackup)) {
@@ -37,14 +37,25 @@ Try {
                 $manifestPath = if (![string]::IsNullOrWhiteSpace($pkg.InstallLocation)) {
                     Join-Path $pkg.InstallLocation "AppXManifest.xml"
                 } else { "" }
-                Set-ItemProperty -Path $targetBackup -Name "PackageFullName" -Value $pkg.PackageFullName -Force -ErrorAction SilentlyContinue | Out-Null
-                Set-ItemProperty -Path $targetBackup -Name "InstallLocation" -Value $pkg.InstallLocation -Force -ErrorAction SilentlyContinue | Out-Null
-                Set-ItemProperty -Path $targetBackup -Name "ManifestPath" -Value $manifestPath -Force -ErrorAction SilentlyContinue | Out-Null
-                Set-ItemProperty -Path $targetBackup -Name "Timestamp" -Value (Get-Date -Format "o") -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-            Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
-            if ($null -ne $AllProvisioned) {
-                $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+
+                # Respaldo robusto con ErrorAction Stop y verificacion previa
+                try {
+                    Set-ItemProperty -Path $targetBackup -Name "PackageFullName" -Value $pkg.PackageFullName -Force -ErrorAction Stop | Out-Null
+                    Set-ItemProperty -Path $targetBackup -Name "InstallLocation" -Value $pkg.InstallLocation -Force -ErrorAction Stop | Out-Null
+                    Set-ItemProperty -Path $targetBackup -Name "ManifestPath" -Value $manifestPath -Force -ErrorAction Stop | Out-Null
+                    Set-ItemProperty -Path $targetBackup -Name "Timestamp" -Value (Get-Date -Format "o") -Force -ErrorAction Stop | Out-Null
+
+                    $verifyProps = Get-ItemProperty -Path $targetBackup -ErrorAction SilentlyContinue
+                    if ($null -eq $verifyProps -or [string]::IsNullOrWhiteSpace($verifyProps.PackageFullName)) {
+                        throw "Fallo la persistencia del respaldo para ${App}"
+                    }
+                } catch {
+                    Write-Warning "No se pudo asegurar el respaldo en registro de ${App}: $_ (remocion abortada para prevenir perdida de datos)"
+                    continue
+                }
+
+                # Desinstalacion a nivel de usuario activo preservando archivos staged para permitir Add-AppxPackage simetrico
+                Remove-AppxPackage -Package $pkg.PackageFullName -ErrorAction SilentlyContinue | Out-Null
             }
         } catch {
             Write-Warning "No se pudo remover la aplicacion bloatware ${App}: $_"

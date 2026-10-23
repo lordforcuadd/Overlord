@@ -120,13 +120,13 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Deshabilita USB Selective Suspend via `powercfg` para eliminar micro-stutters causados por la suspensión automática de puertos USB del ratón y teclado.
 
 ### 2. Limpieza del Sistema - Debloat (`02_debloat.ps1`)
-- Desinstala aplicaciones UWP redundantes preinstaladas del sistema (`Remove-AppxProvisionedPackage`).
+- Desinstala aplicaciones UWP redundantes preinstaladas a nivel de usuario, preservando los paquetes staged en disco para garantizar reversibilidad local offline 1:1.
 - **Conserva intactos** `Microsoft.GamingApp`, `Microsoft.XboxApp`, `Microsoft.WindowsStickyNotes`, `Microsoft.Todos` y `Microsoft.BingSearch` (en Windows 11 24H2), blindando Xbox Game Pass, notas del usuario y el menú de inicio nativo.
 - Desactiva Copilot y Cortana Consent via políticas de grupo.
 - Deshabilita servicios de telemetría y diagnóstico innecesarios: `DiagTrack`, `Fax`, `RetailDemo`, `MapsBroker`, `RemoteRegistry` (configurando `dmwappushservice`, `WdiServiceHost` y `WdiSystemHost` en modo Manual para preservar la integridad de Windows Update), preservando `SensorService` en laptops y equipos 2-en-1 para auto-rotación.
 - Deshabilita procesos en segundo plano de Microsoft Edge (`StartupBoostEnabled = 0` y `BackgroundModeEnabled = 0`) para liberar de 150 a 250 MB de memoria RAM física.
 - Blindaje de `ContentDeliveryManager` y políticas de `CloudContent` (desactiva la descarga e instalación silenciosa de aplicaciones patrocinadas y sugerencias promocionales de Windows).
-- Gestor interactivo y curado de paquetes AppX (`manage_appx.ps1`) con catálogo clasificado por niveles de riesgo (Seguro / Precaución / Protegido), escaneo en vivo de paquetes instalados y respaldo en registro (`HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx`) para garantizar reversión simétrica 1:1.
+- Gestor interactivo y curado de paquetes AppX (`manage_appx.ps1`) con catálogo clasificado por niveles de riesgo (Seguro / Precaución / Protegido), escaneo en vivo de paquetes instalados, desinstalación granular y respaldo en registro (`HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx`) para reversión simétrica 1:1 local e inmediata.
 
 ### 3. Optimización de Red TCP/IP (`03_red.ps1`)
 - Elimina el límite de throttling del planificador de red con `NetworkThrottlingIndex = 0xFFFFFFFF`.

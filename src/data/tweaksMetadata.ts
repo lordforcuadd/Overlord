@@ -88,7 +88,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
-      "Restauración simétrica de paquetes AppX respaldados vía Add-AppxPackage y rehabilitación de servicios deshabilitados.",
+      "Restauración local 1:1 de paquetes AppX respaldados vía Add-AppxPackage (conservando binarios staged en WindowsApps) y rehabilitación de servicios deshabilitados.",
     hardwareRecomendado: "General.",
     windowsVersion: "Windows 10 / Windows 11 (Home y Pro)",
     fuenteOficial:
@@ -97,7 +97,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Liberación de memoria RAM física y reducción del recuento total de procesos activos en segundo plano.",
     warning:
-      "Este proceso preserva la Microsoft Store, Xbox, StickyNotes y To-Do para mantener intactas tus notas y entorno gaming. La desinstalación de aplicaciones seleccionadas es semi-permanente.",
+      "Este proceso preserva la Microsoft Store, Xbox, StickyNotes y To-Do para mantener intactas tus notas y entorno gaming. La desinstalación se ejecuta por usuario preservando los paquetes staged para permitir su re-registro offline instantáneo.",
     details: [
       "Remoción de software preinstalado innecesario (Cortana, Bing, Weather, Maps, etc.).",
       "Eliminación de telemetría GPO básica y sugerencias web invasivas de Bing en el menú de inicio.",
@@ -106,7 +106,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación estructural de Edge en segundo plano y Startup Boost para ahorrar memoria RAM.",
       "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, TrkWks, RemoteRegistry).",
       "Blindaje contra la reinstalación automática de bloatware y apps sugeridas (ContentDeliveryManager y CloudContent).",
-      "Gestor curado de bloatware AppX con clasificación de seguridad (Seguro / Precaución / Protegido) y respaldo en registro para reversión simétrica 1:1.",
+      "Gestor curado de bloatware AppX con clasificación de seguridad (Seguro / Precaución / Protegido), desinstalación por usuario y respaldo en registro para reversión simétrica 1:1 offline.",
     ],
   },
   networkOptimized: {

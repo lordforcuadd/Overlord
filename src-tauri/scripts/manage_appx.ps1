@@ -141,17 +141,23 @@ Try {
             New-Item -Path $BackupBase -Force | Out-Null
         }
 
-        $AllProvisioned = try { Get-AppxProvisionedPackage -Online -ErrorAction Stop } catch { @() }
+        $CatalogIds = $Catalog | ForEach-Object { $_.Id }
         $removed = @()
         $failed = @()
 
         foreach ($target in $targets) {
+            # Defensa en profundidad: validacion estricta contra catalogo y protegidos
+            if ($CatalogIds -notcontains $target) {
+                Write-Warning "El paquete ${target} no pertenece al catalogo curado de Overlord (omitido por seguridad)."
+                continue
+            }
             if ($ProtectedIds -contains $target) {
-                Write-Warning "El paquete $target es critico del sistema y esta protegido contra remocion."
+                Write-Warning "El paquete ${target} es critico del sistema y esta protegido contra remocion."
                 continue
             }
 
-            $pkg = Get-AppxPackage -Name $target -AllUsers -ErrorAction SilentlyContinue
+            # Coincidencia exacta de nombre de paquete (evita colisiones por wildcards)
+            $pkg = Get-AppxPackage | Where-Object { $_.Name -eq $target } | Select-Object -First 1
             if ($null -ne $pkg) {
                 $targetBackup = Join-Path $BackupBase $target
                 if (!(Test-Path $targetBackup)) {
@@ -164,26 +170,35 @@ Try {
                     ""
                 }
 
-                Set-ItemProperty -Path $targetBackup -Name "PackageFullName" -Value $pkg.PackageFullName -Force -ErrorAction SilentlyContinue | Out-Null
-                Set-ItemProperty -Path $targetBackup -Name "InstallLocation" -Value $pkg.InstallLocation -Force -ErrorAction SilentlyContinue | Out-Null
-                Set-ItemProperty -Path $targetBackup -Name "ManifestPath" -Value $manifestPath -Force -ErrorAction SilentlyContinue | Out-Null
-                Set-ItemProperty -Path $targetBackup -Name "Timestamp" -Value (Get-Date -Format "o") -Force -ErrorAction SilentlyContinue | Out-Null
+                # Respaldo robusto con ErrorAction Stop y verificacion de persistencia previa a la remocion
+                try {
+                    Set-ItemProperty -Path $targetBackup -Name "PackageFullName" -Value $pkg.PackageFullName -Force -ErrorAction Stop | Out-Null
+                    Set-ItemProperty -Path $targetBackup -Name "InstallLocation" -Value $pkg.InstallLocation -Force -ErrorAction Stop | Out-Null
+                    Set-ItemProperty -Path $targetBackup -Name "ManifestPath" -Value $manifestPath -Force -ErrorAction Stop | Out-Null
+                    Set-ItemProperty -Path $targetBackup -Name "Timestamp" -Value (Get-Date -Format "o") -Force -ErrorAction Stop | Out-Null
+
+                    $verifyProps = Get-ItemProperty -Path $targetBackup -ErrorAction SilentlyContinue
+                    if ($null -eq $verifyProps -or [string]::IsNullOrWhiteSpace($verifyProps.PackageFullName)) {
+                        throw "Fallo la persistencia del respaldo para ${target}"
+                    }
+                } catch {
+                    Write-Warning "No se pudo asegurar el respaldo en registro de ${target}: $_ (remocion abortada para prevenir perdida de datos)"
+                    $failed += $target
+                    continue
+                }
 
                 try {
-                    Get-AppxPackage -Name $target -AllUsers -ErrorAction Stop | Remove-AppxPackage -AllUsers -ErrorAction Stop
-                    if ($null -ne $AllProvisioned) {
-                        $AllProvisioned | Where-Object { $_.DisplayName -eq $target -or $_.PackageName -match $target } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null
-                    }
+                    # Desinstalacion a nivel de usuario activo sin purgar el paquete provisionado del disco.
+                    # Esto preserva los binarios staged en C:\Program Files\WindowsApps\, permitiendo
+                    # que Add-AppxPackage -DisableDevelopmentMode -Register funcione de forma simetrica 1:1, local y sin internet.
+                    Remove-AppxPackage -Package $pkg.PackageFullName -ErrorAction Stop
                     $removed += $target
                 } catch {
                     Write-Warning "Fallo al remover ${target}: $_"
                     $failed += $target
                 }
             } else {
-                # Ya no estaba instalado como paquete de usuario, intentar desprovisionar si existia
-                if ($null -ne $AllProvisioned) {
-                    $AllProvisioned | Where-Object { $_.DisplayName -eq $target -or $_.PackageName -match $target } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null
-                }
+                # Ya no estaba instalado para el usuario actual
                 $removed += $target
             }
         }
@@ -246,8 +261,15 @@ Try {
                     $failed += $target
                 }
             } else {
-                Write-Warning "No se encontro manifiesto valido para restaurar $target"
+                Write-Warning "No se encontro manifiesto staged en disco para restaurar ${target} (requiere instalacion desde Microsoft Store). Se conserva la clave de respaldo."
                 $failed += $target
+            }
+        }
+
+        if (Test-Path $BackupBase) {
+            $remaining = Get-ChildItem -Path $BackupBase -ErrorAction SilentlyContinue
+            if ($null -eq $remaining -or $remaining.Count -eq 0) {
+                Remove-Item -Path $BackupBase -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
             }
         }
 

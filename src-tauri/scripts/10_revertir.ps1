@@ -907,15 +907,22 @@ Try {
                         }
                     }
                     if (![string]::IsNullOrWhiteSpace($manifestFound)) {
-                        Add-AppxPackage -DisableDevelopmentMode -Register $manifestFound -ErrorAction SilentlyContinue | Out-Null
+                        Add-AppxPackage -DisableDevelopmentMode -Register $manifestFound -ErrorAction Stop | Out-Null
+                        # Solo eliminar la clave de respaldo tras una restauracion exitosa
+                        Remove-Item -Path $Key.PSPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                    } else {
+                        Write-Warning "No se encontro manifiesto en disco para restaurar ${target}; se preserva la clave de respaldo con PackageFullName."
                     }
-                    Remove-Item -Path $Key.PSPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                 } catch {
                     Write-Verbose "Fallo al reinstalar paquete AppX respaldado: $_"
                 }
             }
         }
-        Remove-Item -Path $AppxBackupBase -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        # Solo eliminar la carpeta base de backup si no quedaron claves pendientes de restauracion
+        $remaining = Get-ChildItem -Path $AppxBackupBase -ErrorAction SilentlyContinue
+        if ($null -eq $remaining -or $remaining.Count -eq 0) {
+            Remove-Item -Path $AppxBackupBase -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+        }
     }
 
     $AppsToRestore = @(
