@@ -246,6 +246,14 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             ($JsonResult.PSObject.Properties.Name -contains "disableWidgets") | Should Be $true
         }
 
+        It "Debe certificar la existencia y validez estructural de manage_appx.ps1" {
+            $AppxScript = Join-Path $script:ScriptsPath "manage_appx.ps1"
+            (Test-Path $AppxScript) | Should Be $true
+            $AppxContent = Get-Content -Path $AppxScript -Raw
+            ($AppxContent -match "Microsoft\.WindowsStore") | Should Be $true
+            ($AppxContent -match "HKLM:\\SOFTWARE\\Overlord\\Backup\\Debloat\\Appx") | Should Be $true
+        }
+
         It "Debe garantizar la integridad estructural del script de reversion espejo" {
             if (Test-Path $script:RevertPath) {
                 $Content = Get-Content -Path $script:RevertPath -ErrorAction SilentlyContinue

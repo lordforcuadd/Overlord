@@ -881,6 +881,43 @@ Try {
     # Restauracion dinamica de USB Selective Suspend delegada al bucle general
 
     # Intento de re-registro de aplicaciones AppX provisionadas del sistema eliminadas durante el debloat
+    $AppxBackupBase = "HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx"
+    $WindowsAppsPath = Join-Path $env:ProgramFiles "WindowsApps"
+    if (Test-Path $AppxBackupBase) {
+        $BackedApps = Get-ChildItem -Path $AppxBackupBase -ErrorAction SilentlyContinue
+        if ($null -ne $BackedApps) {
+            foreach ($Key in $BackedApps) {
+                try {
+                    $target = $Key.PSChildName
+                    $props = Get-ItemProperty -Path $Key.PSPath -ErrorAction SilentlyContinue
+                    $savedManifest = if ($null -ne $props -and $null -ne $props.PSObject.Properties["ManifestPath"]) { $props.ManifestPath } else { $null }
+                    $manifestFound = $null
+                    if (![string]::IsNullOrWhiteSpace($savedManifest) -and (Test-Path $savedManifest)) {
+                        $manifestFound = $savedManifest
+                    } elseif (Test-Path $WindowsAppsPath) {
+                        $dirs = Get-ChildItem -Path $WindowsAppsPath -Directory -Filter "$target*" -ErrorAction SilentlyContinue
+                        if ($null -ne $dirs) {
+                            foreach ($d in $dirs) {
+                                $mPath = Join-Path $d.FullName "AppXManifest.xml"
+                                if (Test-Path $mPath) {
+                                    $manifestFound = $mPath
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    if (![string]::IsNullOrWhiteSpace($manifestFound)) {
+                        Add-AppxPackage -DisableDevelopmentMode -Register $manifestFound -ErrorAction SilentlyContinue | Out-Null
+                    }
+                    Remove-Item -Path $Key.PSPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                } catch {
+                    Write-Verbose "Fallo al reinstalar paquete AppX respaldado: $_"
+                }
+            }
+        }
+        Remove-Item -Path $AppxBackupBase -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+
     $AppsToRestore = @(
         "Microsoft.BingNews", "Microsoft.BingWeather", "Microsoft.GetHelp",
         "Microsoft.Getstarted", "Microsoft.Messaging", "Microsoft.3DBuilder",
@@ -893,7 +930,6 @@ Try {
         "Microsoft.BingSports", "Microsoft.MicrosoftMahjong", "Microsoft.WindowsFeedbackHub",
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
-    $WindowsAppsPath = Join-Path $env:ProgramFiles "WindowsApps"
     if (Test-Path $WindowsAppsPath) {
         foreach ($App in $AppsToRestore) {
             try {

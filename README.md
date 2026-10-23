@@ -126,6 +126,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Deshabilita servicios de telemetría y diagnóstico innecesarios: `DiagTrack`, `Fax`, `RetailDemo`, `MapsBroker`, `RemoteRegistry` (configurando `dmwappushservice`, `WdiServiceHost` y `WdiSystemHost` en modo Manual para preservar la integridad de Windows Update), preservando `SensorService` en laptops y equipos 2-en-1 para auto-rotación.
 - Deshabilita procesos en segundo plano de Microsoft Edge (`StartupBoostEnabled = 0` y `BackgroundModeEnabled = 0`) para liberar de 150 a 250 MB de memoria RAM física.
 - Blindaje de `ContentDeliveryManager` y políticas de `CloudContent` (desactiva la descarga e instalación silenciosa de aplicaciones patrocinadas y sugerencias promocionales de Windows).
+- Gestor interactivo y curado de paquetes AppX (`manage_appx.ps1`) con catálogo clasificado por niveles de riesgo (Seguro / Precaución / Protegido), escaneo en vivo de paquetes instalados y respaldo en registro (`HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx`) para garantizar reversión simétrica 1:1.
 
 ### 3. Optimización de Red TCP/IP (`03_red.ps1`)
 - Elimina el límite de throttling del planificador de red con `NetworkThrottlingIndex = 0xFFFFFFFF`.

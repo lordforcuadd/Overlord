@@ -106,12 +106,14 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
         "get_modules_status" => include_str!("../scripts/get_modules_status.ps1"),
         "disable_mitigations" => include_str!("../scripts/disable_mitigations.ps1"),
         "manage_priority_service" => include_str!("../scripts/manage_priority_service.ps1"),
+        "manage_appx" => include_str!("../scripts/manage_appx.ps1"),
         _ => return Err("Script no autorizado u omitido por seguridad".to_string()),
     };
 
     let is_readonly = match script_name.as_str() {
         "get_qol" | "get_modules_status" => true,
         "manage_priority_service" => game_list.starts_with("status:"),
+        "manage_appx" => game_list.is_empty() || game_list == "list" || game_list.starts_with("list:"),
         _ => false,
     };
 

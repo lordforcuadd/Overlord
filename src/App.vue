@@ -264,6 +264,7 @@
   />
 
   <LogConsoleModal />
+  <AppxDebloatModal />
 </template>
 
 <script setup lang="ts">
@@ -284,6 +285,7 @@ import ProfileSelector from "./components/ProfileSelector.vue";
 import OptimizationGrid from "./components/OptimizationGrid.vue";
 import WarningModal from "./components/WarningModal.vue";
 import LogConsoleModal from "./components/LogConsoleModal.vue";
+import AppxDebloatModal from "./components/AppxDebloatModal.vue";
 
 const store = useOverlordStore();
 

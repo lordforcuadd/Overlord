@@ -89,6 +89,7 @@ export const useOverlordStore = defineStore("overlord", {
     } as DaemonStatusPayload,
     history: [] as HistoryEntry[],
     isLogModalOpen: false,
+    isAppxModalOpen: false,
     liveTelemetry: {
       cpuUsage: 0,
       ramUsed: 0,
@@ -134,6 +135,12 @@ export const useOverlordStore = defineStore("overlord", {
     },
     closeLogModal() {
       this.isLogModalOpen = false;
+    },
+    openAppxModal() {
+      this.isAppxModalOpen = true;
+    },
+    closeAppxModal() {
+      this.isAppxModalOpen = false;
     },
     loadHistory() {
       const stored = localStorage.getItem("overlord_history");

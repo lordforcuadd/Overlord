@@ -11,6 +11,20 @@
       @update:modelValue="handleModuleUpdate(tweakId as string, $event)"
       @request-warning="handleWarningRequest"
     >
+      <template v-if="tweakId === 'debloat'">
+        <div class="mt-3 pt-3 border-t border-white/5">
+          <button
+            @click.stop="store.openAppxModal"
+            class="w-full py-2 px-3 rounded-xl bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn shadow-[0_0_15px_rgba(234,179,8,0.08)]"
+          >
+            <svg class="w-4 h-4 text-yellow-400 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+            </svg>
+            <span>Abrir Gestor de Bloatware AppX</span>
+          </button>
+        </div>
+      </template>
+
       <template v-if="tweakId === 'gameHooks'">
         <div
           class="flex flex-col gap-3 mt-4 bg-[#0a0a0a] p-4 rounded-xl border border-white/10"

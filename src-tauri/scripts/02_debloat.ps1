@@ -20,12 +20,32 @@ Try {
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
 
-    $AllProvisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+    $AllProvisioned = try { Get-AppxProvisionedPackage -Online -ErrorAction Stop } catch { @() }
+    $AppxBackupBase = "HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx"
+    if (!(Test-Path $AppxBackupBase)) {
+        try { New-Item -Path $AppxBackupBase -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
+    }
 
     foreach ($App in $Apps) {
         try {
+            $pkg = Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue
+            if ($null -ne $pkg) {
+                $targetBackup = Join-Path $AppxBackupBase $App
+                if (!(Test-Path $targetBackup)) {
+                    New-Item -Path $targetBackup -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                $manifestPath = if (![string]::IsNullOrWhiteSpace($pkg.InstallLocation)) {
+                    Join-Path $pkg.InstallLocation "AppXManifest.xml"
+                } else { "" }
+                Set-ItemProperty -Path $targetBackup -Name "PackageFullName" -Value $pkg.PackageFullName -Force -ErrorAction SilentlyContinue | Out-Null
+                Set-ItemProperty -Path $targetBackup -Name "InstallLocation" -Value $pkg.InstallLocation -Force -ErrorAction SilentlyContinue | Out-Null
+                Set-ItemProperty -Path $targetBackup -Name "ManifestPath" -Value $manifestPath -Force -ErrorAction SilentlyContinue | Out-Null
+                Set-ItemProperty -Path $targetBackup -Name "Timestamp" -Value (Get-Date -Format "o") -Force -ErrorAction SilentlyContinue | Out-Null
+            }
             Get-AppxPackage -Name $App -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
-            $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+            if ($null -ne $AllProvisioned) {
+                $AllProvisioned | Where-Object { $_.DisplayName -eq $App -or $_.PackageName -match $App } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+            }
         } catch {
             Write-Warning "No se pudo remover la aplicacion bloatware ${App}: $_"
         }

@@ -88,7 +88,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
-      "Intento de re-registro de paquetes AppX provisionados locales y habilitación de servicios deshabilitados.",
+      "Restauración simétrica de paquetes AppX respaldados vía Add-AppxPackage y rehabilitación de servicios deshabilitados.",
     hardwareRecomendado: "General.",
     windowsVersion: "Windows 10 / Windows 11 (Home y Pro)",
     fuenteOficial:
@@ -106,6 +106,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación estructural de Edge en segundo plano y Startup Boost para ahorrar memoria RAM.",
       "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, TrkWks, RemoteRegistry).",
       "Blindaje contra la reinstalación automática de bloatware y apps sugeridas (ContentDeliveryManager y CloudContent).",
+      "Gestor curado de bloatware AppX con clasificación de seguridad (Seguro / Precaución / Protegido) y respaldo en registro para reversión simétrica 1:1.",
     ],
   },
   networkOptimized: {
