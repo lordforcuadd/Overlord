@@ -914,7 +914,7 @@ Try {
                         Write-Warning "No se encontro manifiesto en disco para restaurar ${target}; se preserva la clave de respaldo con PackageFullName."
                     }
                 } catch {
-                    Write-Verbose "Fallo al reinstalar paquete AppX respaldado: $_"
+                    Write-Warning "Fallo al reinstalar paquete AppX respaldado ${target}: $_"
                 }
             }
         }

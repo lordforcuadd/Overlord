@@ -69,11 +69,8 @@ $ProtectedIds = @(
 $BackupBase = "HKLM:\SOFTWARE\Overlord\Backup\Debloat\Appx"
 
 function Get-InstalledAppxData {
-    $InstalledPackages = try {
-        Get-AppxPackage -AllUsers -ErrorAction Stop
-    } catch {
-        Get-AppxPackage -ErrorAction SilentlyContinue
-    }
+    # Escaneo a nivel de usuario activo (alineado a la semantica de remocion y re-registro simetrico)
+    $InstalledPackages = Get-AppxPackage -ErrorAction SilentlyContinue
     $InstalledMap = @{}
     if ($null -ne $InstalledPackages) {
         foreach ($pkg in $InstalledPackages) {
