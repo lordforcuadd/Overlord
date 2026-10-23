@@ -87,10 +87,29 @@ if (Test-Path $EdgePolicyPath) {
     $EdgePoliciesOk = $false
 }
 
+$CloudContentPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+$CloudContentOk = $true
+if (Test-Path $CloudContentPath) {
+    $ConsumerVal = Get-ItemPropertyValue -Path $CloudContentPath -Name "DisableWindowsConsumerFeatures" -ErrorAction SilentlyContinue
+    if ($ConsumerVal -ne 1) { $CloudContentOk = $false }
+} else {
+    $CloudContentOk = $false
+}
+
+$CdmPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+$CdmOk = $true
+if (Test-Path $CdmPath) {
+    $SilentApps = Get-ItemPropertyValue -Path $CdmPath -Name "SilentInstalledAppsEnabled" -ErrorAction SilentlyContinue
+    $ContentAllowed = Get-ItemPropertyValue -Path $CdmPath -Name "ContentDeliveryAllowed" -ErrorAction SilentlyContinue
+    if ($SilentApps -ne 0 -or $ContentAllowed -ne 0) { $CdmOk = $false }
+} else {
+    $CdmOk = $false
+}
+
 $DataPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
 if (Test-Path $DataPath) {
     $Tele = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
-    if ($Tele -eq 0 -and $ServicesOk -and $EdgePoliciesOk -and $TasksOk) {
+    if ($Tele -eq 0 -and $ServicesOk -and $EdgePoliciesOk -and $TasksOk -and $CloudContentOk -and $CdmOk) {
         $Status['debloat'] = $true
     }
 }

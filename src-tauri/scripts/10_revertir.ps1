@@ -196,6 +196,26 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry" -DefaultValue 0
+
+    # Restauracion de ContentDeliveryManager y politicas de CloudContent (blindaje debloat)
+    $CloudContentSysPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+    Invoke-OverlordSafeRestore -TargetKey $CloudContentSysPath -ValueName "DisableWindowsConsumerFeatures" -BackupSubFolder "Debloat\CloudContent" -DefaultValue '_ABSENT_'
+    Invoke-OverlordSafeRestore -TargetKey $CloudContentSysPath -ValueName "DisableSoftLanding" -BackupSubFolder "Debloat\CloudContent" -DefaultValue '_ABSENT_'
+    Invoke-OverlordSafeRestore -TargetKey $CloudContentSysPath -ValueName "DisableConsumerAccountStateContent" -BackupSubFolder "Debloat\CloudContent" -DefaultValue '_ABSENT_'
+
+    $CdmUserPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "ContentDeliveryAllowed" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "FeatureManagementEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "OemPreInstalledAppsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "PreInstalledAppsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "PreInstalledAppsEverEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SilentInstalledAppsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SoftLandingEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SubscribedContent-338387Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SubscribedContent-338388Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SubscribedContent-338389Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SubscribedContent-353698Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
+    Invoke-OverlordSafeRestore -TargetKey $CdmUserPath -ValueName "SystemPaneSuggestionsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager" -DefaultValue 1
     if (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\WindowsAI_HKCU") {
         Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -Name "TurnOffUserCameraCapture" -ErrorAction SilentlyContinue | Out-Null
         Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis" -ErrorAction SilentlyContinue | Out-Null

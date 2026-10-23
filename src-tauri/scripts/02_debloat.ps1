@@ -42,6 +42,26 @@ Try {
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry"
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry"
 
+    # Copia de seguridad para ContentDeliveryManager y politicas de CloudContent (blindaje debloat)
+    $CdmUserPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "ContentDeliveryAllowed" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "FeatureManagementEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "OemPreInstalledAppsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "PreInstalledAppsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "PreInstalledAppsEverEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SilentInstalledAppsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SoftLandingEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SubscribedContent-338387Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SubscribedContent-338388Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SubscribedContent-338389Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SubscribedContent-353698Enabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+    Backup-OverlordRegistryValue -TargetKey $CdmUserPath -ValueName "SystemPaneSuggestionsEnabled" -BackupSubFolder "Debloat\ContentDeliveryManager"
+
+    $CloudContentSysPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+    Backup-OverlordRegistryValue -TargetKey $CloudContentSysPath -ValueName "DisableWindowsConsumerFeatures" -BackupSubFolder "Debloat\CloudContent"
+    Backup-OverlordRegistryValue -TargetKey $CloudContentSysPath -ValueName "DisableSoftLanding" -BackupSubFolder "Debloat\CloudContent"
+    Backup-OverlordRegistryValue -TargetKey $CloudContentSysPath -ValueName "DisableConsumerAccountStateContent" -BackupSubFolder "Debloat\CloudContent"
+
     # Copias de seguridad de servicios
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\DiagTrack" -ValueName "Start" -BackupSubFolder "Services\DiagTrack"
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -ValueName "Start" -BackupSubFolder "Services\dmwappushservice"
@@ -85,6 +105,26 @@ Try {
     if (!(Test-Path $EdgePolicyPath)) { New-Item -Path $EdgePolicyPath -Force | Out-Null }
     Set-ItemProperty -Path $EdgePolicyPath -Name "StartupBoostEnabled" -Type DWord -Value 0 -Force | Out-Null
     Set-ItemProperty -Path $EdgePolicyPath -Name "BackgroundModeEnabled" -Type DWord -Value 0 -Force | Out-Null
+
+    # Blindaje contra la reinstalacion automatica de bloatware y apps sugeridas (ContentDeliveryManager y CloudContent)
+    if (!(Test-Path $CdmUserPath)) { New-Item -Path $CdmUserPath -Force | Out-Null }
+    Set-ItemProperty -Path $CdmUserPath -Name "ContentDeliveryAllowed" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "FeatureManagementEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "OemPreInstalledAppsEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "PreInstalledAppsEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "PreInstalledAppsEverEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SilentInstalledAppsEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SoftLandingEnabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SubscribedContent-338387Enabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SubscribedContent-338388Enabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SubscribedContent-338389Enabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SubscribedContent-353698Enabled" -Type DWord -Value 0 -Force | Out-Null
+    Set-ItemProperty -Path $CdmUserPath -Name "SystemPaneSuggestionsEnabled" -Type DWord -Value 0 -Force | Out-Null
+
+    if (!(Test-Path $CloudContentSysPath)) { New-Item -Path $CloudContentSysPath -Force | Out-Null }
+    Set-ItemProperty -Path $CloudContentSysPath -Name "DisableWindowsConsumerFeatures" -Type DWord -Value 1 -Force | Out-Null
+    Set-ItemProperty -Path $CloudContentSysPath -Name "DisableSoftLanding" -Type DWord -Value 1 -Force | Out-Null
+    Set-ItemProperty -Path $CloudContentSysPath -Name "DisableConsumerAccountStateContent" -Type DWord -Value 1 -Force | Out-Null
 
     # DiagTrack y servicios generales se deshabilitan. WdiServiceHost, WdiSystemHost y dmwappushservice se configuran como Manual para no romper Windows Update.
     # SensorService se preserva para no alterar sensores de brillo ni rotacion en equipos AIO/convertibles.

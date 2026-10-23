@@ -105,6 +105,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Configuración en modo manual para servicios de Diagnóstico del Sistema (WdiServiceHost y WdiSystemHost) preservando la compatibilidad con Windows Update.",
       "Desactivación estructural de Edge en segundo plano y Startup Boost para ahorrar memoria RAM.",
       "Detención y deshabilitación de servicios innecesarios (Fax, RetailDemo, MapsBroker, PhoneSvc, AJRouter, WpcMonSvc, TrkWks, RemoteRegistry).",
+      "Blindaje contra la reinstalación automática de bloatware y apps sugeridas (ContentDeliveryManager y CloudContent).",
     ],
   },
   networkOptimized: {
