@@ -74,6 +74,7 @@ function Invoke-OverlordSafeRestore {
 
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
+    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuild" -ErrorAction SilentlyContinue)
     Write-Host "[*] Iniciando reversion simetrica de Overlord con helpers globales..."
     Write-Host "[*] [1/12] Restaurando latencia de perifericos y respuesta de teclado..."
 
@@ -190,11 +191,13 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "StartupBoostEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -ValueName "BackgroundModeEnabled" -BackupSubFolder "Telemetry" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKCU" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKLM" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue 0
-    Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
+    if ($BuildNum -ge 22000) {
+        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKCU" -DefaultValue '_ABSENT_'
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKLM" -DefaultValue '_ABSENT_'
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
+        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM" -DefaultValue '_ABSENT_'
+    }
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -ValueName "ExcludeWUDriversInQualityUpdate" -BackupSubFolder "Telemetry" -DefaultValue '_ABSENT_'
 
@@ -273,17 +276,19 @@ Try {
 
 
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "ShowCopilotButton" -BackupSubFolder "QoL\User" -DefaultValue 1
-    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\CopilotHKCU" -Name "TurnOffWindowsCopilot") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffWindowsCopilot")) {
-        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue 0
-        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System" -DefaultValue 0
-    }
+    if ($BuildNum -ge 22000) {
+        if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\CopilotHKCU" -Name "TurnOffWindowsCopilot") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffWindowsCopilot")) {
+            Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+            Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+        }
 
-    if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\WindowsAI_HKLM" -Name "TurnOffUserCameraCapture") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffUserCameraCapture")) {
-        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User" -DefaultValue 0
-        Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue 0
-        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue 0
-        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System" -DefaultValue 0
-        Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+        if (-not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry\WindowsAI_HKLM" -Name "TurnOffUserCameraCapture") -and -not (Get-SafeRegistryValue -Path "HKLM:\SOFTWARE\Overlord\Backup\Telemetry" -Name "TurnOffUserCameraCapture")) {
+            Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+            Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_'
+            Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+            Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "DisableAIDataAnalysis" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+            Invoke-OverlordSafeRestore -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -ValueName "AllowRecallEnablement" -BackupSubFolder "QoL\System" -DefaultValue '_ABSENT_'
+        }
     }
 
     Invoke-OverlordSafeRestore -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -ValueName "DisplayParameters" -BackupSubFolder "QoL\System" -DefaultValue 0

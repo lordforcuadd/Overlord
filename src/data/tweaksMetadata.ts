@@ -211,7 +211,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Reducción directa de la latencia del programador y mejora de 3% a 10% en FPS y 1% lows en juegos CPU-bound.",
     warning:
-      "Desactivar la Integridad de Memoria reduce el aislamiento del kernel frente a posibles vulnerabilidades en controladores de terceros no firmados. Requiere reiniciar el equipo para completarse.",
+      "Desactivar la Integridad de Memoria reduce el aislamiento del kernel frente a posibles vulnerabilidades en controladores de terceros no firmados. Las actualizaciones mayores de características de Windows (Feature Updates) pueden volver a habilitarlo automáticamente. Requiere reiniciar el equipo para completarse.",
     details: [
       "Desactivación de Virtualization-Based Security (EnableVirtualizationBasedSecurity = 0).",
       "Desactivación de Hypervisor-Protected Code Integrity / Integridad de Memoria (HypervisorEnforcedCodeIntegrity\\Enabled = 0).",
