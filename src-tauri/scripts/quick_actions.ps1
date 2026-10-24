@@ -253,7 +253,11 @@ Try {
             $chassisType = if ($IsLaptopDevice) { "Laptop / Portatil" } else { "Computadora de Escritorio (Desktop)" }
             $diskType = if ($IsSsdDrive) { "SSD (TRIM activo, LastAccess off)" } else { "HDD mecanico (WSearch optimizado)" }
 
-            Write-Output "OK: AUDITORIA DE RUNTIME EN VIVO`r`n----------------------------------------`r`n- Chasis: $chassisType`r`n- Almacenamiento: $diskType`r`n- Plan de Energia Activo: $activePlanName`r`n- VBS (DeviceGuard): $vbsRunning`r`n- Integridad de Memoria (HVCI): $hvciRunning`r`n- MMCSS Scheduler: $mmcssStatus ($sysRespText)`r`n- Moderacion de Interrupciones (NIC): $netSummary`r`n- Exclusiones Defender en Vivo: $exclCount rutas activas`r`n----------------------------------------`r`nEstado: El kernel y los controladores reflejan fielmente las directivas aplicadas."
+            $isVbsPenalizing = ($null -ne $dg -and $dg.VirtualizationBasedSecurityStatus -eq 2) -or ($null -ne $dg -and $null -ne $dg.SecurityServicesRunning -and (@($dg.SecurityServicesRunning) -contains 1))
+            $prefix = if ($isVbsPenalizing) { "ADVERTENCIA: AUDITORIA DE RUNTIME EN VIVO (VBS / HVCI activo en Kernel)" } else { "OK: AUDITORIA DE RUNTIME EN VIVO" }
+            $statusFooter = if ($isVbsPenalizing) { "Estado: VBS / Integridad de Memoria esta activo en el kernel (penalizacion en videojuegos presente). Si aplico el modulo Desactivar VBS, reinicie el equipo para que surta efecto." } else { "Estado: El kernel y los controladores reflejan fielmente las directivas aplicadas." }
+
+            Write-Output "$prefix`r`n----------------------------------------`r`n- Chasis: $chassisType`r`n- Almacenamiento: $diskType`r`n- Plan de Energia Activo: $activePlanName`r`n- VBS (DeviceGuard): $vbsRunning`r`n- Integridad de Memoria (HVCI): $hvciRunning`r`n- MMCSS Scheduler: $mmcssStatus ($sysRespText)`r`n- Moderacion de Interrupciones (NIC): $netSummary`r`n- Exclusiones Defender en Vivo: $exclCount rutas activas`r`n----------------------------------------`r`n$statusFooter"
         }
         default {
             throw "Accion rapida no reconocida: '$TargetAction'"

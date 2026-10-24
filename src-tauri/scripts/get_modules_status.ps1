@@ -222,7 +222,7 @@ if (Test-Path $ProfilePath) {
     }
     
     $ExpectedSysResp = if (-not $IsLaptop) { 0 } else { 10 }
-    if (($SysResp -eq $ExpectedSysResp -or $SysResp -eq 0 -or $SysResp -eq 10) -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PwrMgmtOk) {
+    if ($SysResp -eq $ExpectedSysResp -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PwrMgmtOk) {
         $Status['networkOptimized'] = $true
     }
 }
