@@ -27,6 +27,7 @@ pub struct SteamConfig {
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct EpicConfig {
+    /// Claves de Registro consumidas por el localizador de PowerShell (`game_locator.psm1`).
     pub registry_keys: Vec<RegistryKeyEntry>,
     pub manifests_rel_path: String,
     pub default_folder: String,
@@ -54,7 +55,9 @@ pub struct MinecraftConfig {
     pub user_profile_paths: Vec<String>,
     pub app_data_paths: Vec<String>,
     pub local_app_data_paths: Vec<String>,
+    /// Claves de Registro Java consumidas por el localizador de PowerShell (`game_locator.psm1`).
     pub java_registry_keys: Vec<String>,
+    /// Ruta App Paths de javaw.exe consumida por el localizador de PowerShell (`game_locator.psm1`).
     pub java_app_path: String,
 }
 
@@ -66,7 +69,9 @@ pub struct LaunchersConfig {
     pub epic: EpicConfig,
     pub gog: GogConfig,
     pub riot: RiotConfig,
+    /// Raíces en unidades fijas compartidas y consumidas por el localizador de PowerShell (`game_locator.psm1`).
     pub fixed_drive_roots: Vec<String>,
+    /// Raíces en Program Files compartidas y consumidas por el localizador de PowerShell (`game_locator.psm1`).
     pub default_program_files_roots: Vec<String>,
     pub minecraft: MinecraftConfig,
 }
@@ -477,8 +482,13 @@ mod tests {
         let config = get_launchers_config();
         assert!(!config.steam.registry_keys.is_empty());
         assert!(!config.epic.manifests_rel_path.is_empty());
+        assert!(!config.epic.registry_keys.is_empty());
         assert!(!config.riot.games.is_empty());
         assert!(!config.minecraft.app_data_paths.is_empty());
+        assert!(!config.minecraft.java_registry_keys.is_empty());
+        assert!(!config.minecraft.java_app_path.is_empty());
+        assert!(!config.fixed_drive_roots.is_empty());
+        assert!(!config.default_program_files_roots.is_empty());
     }
 
     #[test]

@@ -270,7 +270,7 @@ import Swal from "sweetalert2";
 import { overlordSwalConfig } from "../utils/swalConfig";
 import { useOverlordStore } from "../stores/overlordStore";
 
-export interface AppxPackageItem {
+interface AppxPackageItem {
   id: string;
   name: string;
   category: "safe" | "caution" | "system";

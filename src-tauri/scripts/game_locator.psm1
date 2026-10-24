@@ -2,12 +2,23 @@ function Get-OverlordLaunchersConfig {
     if ($null -ne $global:LaunchersConfig) {
         return $global:LaunchersConfig
     }
-    $cfgVar = Get-Variable -Name "LaunchersConfig" -ErrorAction SilentlyContinue
+    $cfgVar = Get-Variable -Name "LaunchersConfig" -Scope "global" -ErrorAction SilentlyContinue
     if ($null -ne $cfgVar -and $null -ne $cfgVar.Value) {
         return $cfgVar.Value
     }
+    if ($null -ne $global:LaunchersConfigJson) {
+        try {
+            $parsed = $global:LaunchersConfigJson | ConvertFrom-Json -ErrorAction Stop
+            if ($null -ne $parsed) {
+                $global:LaunchersConfig = $parsed
+                return $parsed
+            }
+        } catch {
+            # Intencional: continuar con fallback en disco si el string JSON global no parsea
+        }
+    }
 
-    # Fallback dinámico: intentar cargar launchers_config.json desde disco
+    # Fallback dinamico: intentar cargar launchers_config.json desde disco
     $possiblePaths = @(
         (Join-Path $PSScriptRoot "..\launchers_config.json"),
         (Join-Path $PSScriptRoot "launchers_config.json")
@@ -22,47 +33,12 @@ function Get-OverlordLaunchersConfig {
                     return $parsed
                 }
             } catch {
-                # Fallback al objeto predeterminado si falla la lectura/parseo
+                # Intencional: ignorar error de lectura y probar siguiente ruta
             }
         }
     }
 
-    return [PSCustomObject]@{
-        steam = [PSCustomObject]@{
-            registryKeys = @(
-                [PSCustomObject]@{ hive = "HKCU"; path = "Software\Valve\Steam"; value = "SteamPath" },
-                [PSCustomObject]@{ hive = "HKLM"; path = "SOFTWARE\Wow6432Node\Valve\Steam"; value = "InstallPath" }
-            )
-            libraryFoldersRelPath = "steamapps\libraryfolders.vdf"
-            commonRelPath = "steamapps\common"
-            programFilesSubPath = "Steam\steamapps\common"
-        }
-        epic = [PSCustomObject]@{
-            registryKeys = @(
-                [PSCustomObject]@{ hive = "HKLM"; path = "SOFTWARE\Wow6432Node\EpicGames\Unreal Engine"; value = "INSTALLDIR" }
-            )
-            manifestsRelPath = "Epic\EpicGamesLauncher\Data\Manifests"
-            defaultFolder = "Epic Games"
-        }
-        gog = [PSCustomObject]@{
-            registryKeys = @("SOFTWARE\GOG.com\Games", "SOFTWARE\Wow6432Node\GOG.com\Games")
-        }
-        riot = [PSCustomObject]@{
-            defaultFolder = "Riot Games"
-            games = @("VALORANT", "League of Legends")
-        }
-        fixedDriveRoots = @("Riot Games", "XboxGames", "Epic Games", "Games", "SteamLibrary\steamapps\common")
-        defaultProgramFilesRoots = @(
-            "Steam\steamapps\common", "Epic Games", "Battle.net", "Overwatch", "EA Games", "Ubisoft"
-        )
-        minecraft = [PSCustomObject]@{
-            userProfilePaths = @("curseforge\minecraft\Install", "curseforge\minecraft\Instances", "curseforge\minecraft", ".modrinth")
-            appDataPaths = @(".minecraft", "PrismLauncher", "PrismLauncher\instances")
-            localAppDataPaths = @("CurseForge", "ModrinthApp", "ModrinthApp\profiles", "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe\LocalCache\Local", "Packages\Microsoft.4297127D64ECE_8wekyb3d8bbwe")
-            javaRegistryKeys = @("SOFTWARE\JavaSoft\Java Runtime Environment", "SOFTWARE\JavaSoft\Java Development Kit", "SOFTWARE\WOW6432Node\JavaSoft\Java Runtime Environment")
-            javaAppPath = "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\javaw.exe"
-        }
-    }
+    throw "Error critico: No se encontro launchers_config.json ni variable global `$global:LaunchersConfig."
 }
 
 function Get-LauncherRoots {
@@ -205,7 +181,7 @@ function Get-JavaRoots {
     $JavaRoots.Add((Join-Path $ProgramFilesx86 "Minecraft Launcher"))
     $JavaRoots.Add((Join-Path $ProgramFiles "Java"))
 
-    # Búsqueda dinámica en el Registro
+    # Busqueda dinamica en el Registro
     $RegPaths = if ($cfg.minecraft.javaRegistryKeys) { $cfg.minecraft.javaRegistryKeys } else {
         @(
             "SOFTWARE\JavaSoft\Java Runtime Environment",

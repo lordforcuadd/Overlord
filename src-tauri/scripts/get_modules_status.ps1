@@ -1,6 +1,5 @@
 param(
     [bool]$IsLaptop = $false,
-    [int]$RamGB = 8,
     [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "SilentlyContinue"
@@ -87,7 +86,9 @@ try {
                 $TasksOk = $false
                 break
             }
-        } catch { }
+        } catch {
+            # Intencional: tolerante a tarea no existente en esta edicion de Windows
+        }
     }
 } catch {
     foreach ($t in $TasksToCheck) {

@@ -174,7 +174,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
     }
 
     Context "Modulo 04, 05 y 07 - Kernel, Almacenamiento y Pipelines Graficos" {
-        It "Debe validar esquemas HwSchMode de programación por hardware de GPU" -Skip:($env:CI -eq "true") {
+        It "Debe validar esquemas HwSchMode de programacion por hardware de GPU" -Skip:($env:CI -eq "true") {
             if ($env:CI -eq "true" -or -not (Test-Path "HKLM:\SOFTWARE\Overlord\Backup\GPU")) { Set-TestInconclusive "Prueba omitida: no existe backup de GPU en este entorno"; return }
             $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
             if (Test-Path $Path) {
@@ -496,25 +496,15 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $LocatorContent = Get-Content -Path (Join-Path $script:ScriptsPath "game_locator.psm1") -Raw
             ($LocatorContent -match 'Get-OverlordLaunchersConfig') | Should Be $true
 
-            # Verificacion estricta de no-drift contra el fallback en game_locator.psm1
-            $JsonSteamPath = $Parsed.steam.libraryFoldersRelPath
-            ($LocatorContent -match [regex]::Escape($JsonSteamPath)) | Should Be $true
-
-            $JsonSteamCommon = $Parsed.steam.commonRelPath
-            ($LocatorContent -match [regex]::Escape($JsonSteamCommon)) | Should Be $true
-
-            $JsonEpicManifests = $Parsed.epic.manifestsRelPath
-            ($LocatorContent -match [regex]::Escape($JsonEpicManifests)) | Should Be $true
-
-            $JsonRiotFolder = $Parsed.riot.defaultFolder
-            ($LocatorContent -match [regex]::Escape($JsonRiotFolder)) | Should Be $true
-
-            foreach ($GogKey in $Parsed.gog.registryKeys) {
-                ($LocatorContent -match [regex]::Escape($GogKey)) | Should Be $true
-            }
-
-            $JsonJavaApp = $Parsed.minecraft.javaAppPath
-            ($LocatorContent -match [regex]::Escape($JsonJavaApp)) | Should Be $true
+            # Verificacion dinamica de resolucion 1:1 de configuracion desde game_locator.psm1
+            Import-Module (Resolve-Path (Join-Path $script:ScriptsPath "game_locator.psm1")) -Force
+            $LoadedConfig = Get-OverlordLaunchersConfig
+            $LoadedConfig.steam.libraryFoldersRelPath | Should Be $Parsed.steam.libraryFoldersRelPath
+            $LoadedConfig.steam.commonRelPath | Should Be $Parsed.steam.commonRelPath
+            $LoadedConfig.epic.manifestsRelPath | Should Be $Parsed.epic.manifestsRelPath
+            $LoadedConfig.riot.defaultFolder | Should Be $Parsed.riot.defaultFolder
+            $LoadedConfig.minecraft.javaAppPath | Should Be $Parsed.minecraft.javaAppPath
+            $LoadedConfig.fixedDriveRoots.Count | Should Be $Parsed.fixedDriveRoots.Count
         }
 
         It "Debe comprobar la sincronizacion estatica de StartType de servicios entre scripts de aplicacion y get_modules_status.ps1" {

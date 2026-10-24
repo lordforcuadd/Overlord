@@ -50,7 +50,7 @@ if (-not [string]::IsNullOrWhiteSpace($Username)) {
     }
 }
 
-# 2. Si no se obtuvo SID por traducción, buscar perfil cargado activamente vinculando a $Username si está disponible
+# 2. Si no se obtuvo SID por traduccion, buscar perfil cargado activamente vinculando a $Username si esta disponible
 if ([string]::IsNullOrWhiteSpace($UserSID)) {
     try {
         $LoadedProfiles = Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.Loaded -eq $true -and ($_.SID -match '^S-1-5-21-' -or $_.SID -match '^S-1-12-1-') }

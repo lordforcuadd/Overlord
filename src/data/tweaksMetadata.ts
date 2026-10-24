@@ -1,4 +1,4 @@
-export interface TweakMetadata {
+interface TweakMetadata {
   id: string;
   title: string;
   description: string;

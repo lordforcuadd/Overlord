@@ -38,5 +38,4 @@ tauri-plugin-single-instance = "2"
 
 [features]
 default = []
-no-admin = []
 

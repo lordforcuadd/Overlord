@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Continue"
 $ToggleName = if ([string]::IsNullOrWhiteSpace($ToggleName)) { "" } else { $ToggleName.Trim().Replace("'", "").Replace('"', "") }
 if ($ToggleName -notmatch '^[a-zA-Z0-9_]+$') {
-    Write-Error "ERROR: Nombre de ajuste '$ToggleName' no válido o vacío."
+    Write-Error "ERROR: Nombre de ajuste '$ToggleName' no valido o vacio."
     exit 1
 }
 

@@ -39,7 +39,9 @@ if ($null -ne $ReleaseData -and $null -ne $ReleaseData.tag_name) {
             if ($null -ne $PkgData -and $null -ne $PkgData.version) {
                 $Version = $PkgData.version
             }
-        } catch {}
+        } catch {
+            # Intencional: tolerante a package.json ausente o invalido
+        }
     }
 }
 
@@ -68,7 +70,9 @@ if (!(Test-Path $TempDir)) {
 } else {
     try {
         Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-    } catch {}
+    } catch {
+        # Intencional: tolerante a archivos bloqueados durante la limpieza
+    }
 }
 
 try {
@@ -142,7 +146,7 @@ if ($null -ne $DownloadUrl) {
                 } else {
                     Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null
                     Write-Host "`n=======================================================" -ForegroundColor Red
-                    Write-Host "🚨 ¡ALERTA CRÍTICA DE MANIPULACIÓN / CORRUPCIÓN DETECTADA!" -ForegroundColor Red -BackgroundColor Black
+                    Write-Host "[!] ALERTA CRITICA DE MANIPULACION / CORRUPCION DETECTADA!" -ForegroundColor Red -BackgroundColor Black
                     Write-Host "=======================================================" -ForegroundColor Red
                     Write-Host "El hash del archivo descargado NO coincide con la firma oficial de GitHub de LordForCuadd." -ForegroundColor Yellow
                     Write-Host "El archivo pudo haber sido interceptado, alterado o descargado de forma corrupta." -ForegroundColor Yellow
@@ -161,11 +165,11 @@ if ($null -ne $DownloadUrl) {
         }
     } elseif ($null -eq $HashDownloadUrl -and $null -ne $DownloadUrl) {
         if (Test-Path $TempExePath) { Remove-Item -Path $TempExePath -Force -ErrorAction SilentlyContinue | Out-Null }
-        Write-Host "[-] ERROR CRÍTICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad." -ForegroundColor Red
+        Write-Host "[-] ERROR CRITICO: No se encontro el archivo de firma Overlord.exe.sha256 en la release. Abortando ejecucion por seguridad." -ForegroundColor Red
         $ExecutionPermitted = $false
     }
 } else {
-    # Si no se pudo obtener el link de descarga (por ejemplo, sin internet), buscar si existe una versión descargada previamente
+    # Si no se pudo obtener el link de descarga (por ejemplo, sin internet), buscar si existe una version descargada previamente
     if (Test-Path $ExePath) {
         Write-Host "[*] Validando integridad del binario local cacheado..." -ForegroundColor Gray
         $Signature = Get-AuthenticodeSignature -FilePath $ExePath -ErrorAction SilentlyContinue
@@ -178,7 +182,7 @@ if ($null -ne $DownloadUrl) {
             $ExecutionPermitted = $true
             Set-ItemProperty -Path $ExePath -Name IsReadOnly -Value $true -ErrorAction SilentlyContinue | Out-Null
         } else {
-            Write-Host "[-] ERROR CRÍTICO: El binario local no posee una firma digital válida o está corrupto/manipulado. Abortando por seguridad." -ForegroundColor Red
+            Write-Host "[-] ERROR CRITICO: El binario local no posee una firma digital valida o esta corrupto/manipulado. Abortando por seguridad." -ForegroundColor Red
             $ExecutionPermitted = $false
         }
     } else {
@@ -200,7 +204,7 @@ try {
             $ErrorLines = $LogLines | Where-Object { $_ -match '^\s*(\[?FALLO|\[?ERROR|RUST PANIC)' }
             if ($null -ne $ErrorLines -and @($ErrorLines).Count -gt 0) {
                 Write-Host "`n=======================================================" -ForegroundColor Red
-                Write-Host "⚠️  OVERLORD V$Version - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
+                Write-Host "[!] OVERLORD V$Version - INFORME DE EXCEPCIONES" -ForegroundColor Yellow -BackgroundColor Black
                 Write-Host "=======================================================" -ForegroundColor Red
                 foreach ($errLine in $ErrorLines) {
                     Write-Host $errLine -ForegroundColor BrightRed
@@ -208,18 +212,24 @@ try {
                 Write-Host "=======================================================`n" -ForegroundColor Red
                 
                 if ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
-                    Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoría..." -ForegroundColor Gray
+                    Write-Host "Presiona cualquier tecla para limpiar y cerrar la auditoria..." -ForegroundColor Gray
                     try {
                         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-                    } catch {}
+                    } catch {
+                        # Intencional: tolerante a consola no interactiva
+                    }
                 }
             } else {
-                Write-Host "`n[+] Ejecución de Overlord finalizada con ÉXITO (0 errores registrados)." -ForegroundColor Green
+                Write-Host "`n[+] Ejecucion de Overlord finalizada con EXITO (0 errores registrados)." -ForegroundColor Green
             }
         
-            try { Remove-Item $GlobalLog -Force -ErrorAction SilentlyContinue } catch {}
+            try {
+                Remove-Item $GlobalLog -Force -ErrorAction SilentlyContinue
+            } catch {
+                # Intencional: tolerante a log bloqueado o inexistente
+            }
         } else {
-            Write-Host "`n[+] Ejecución de Overlord finalizada con ÉXITO (0 errores registrados)." -ForegroundColor Green
+            Write-Host "`n[+] Ejecucion de Overlord finalizada con EXITO (0 errores registrados)." -ForegroundColor Green
         }
     }
 } finally {
@@ -229,6 +239,8 @@ try {
     if (Test-Path $TempDir) {
         try {
             Get-ChildItem -Path $TempDir -Exclude "Overlord.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-        } catch {}
+        } catch {
+            # Intencional: tolerante a temporales bloqueados por subprocesos
+        }
     }
 }

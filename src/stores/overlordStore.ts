@@ -39,14 +39,14 @@ interface GamePayload {
   optimize: boolean;
 }
 
-export interface DaemonStatusPayload {
+interface DaemonStatusPayload {
   isInstalled: boolean;
   isRunning: boolean;
   activeGame: string | null;
   statusText: string;
 }
 
-export interface HistoryEntry {
+interface HistoryEntry {
   id: string;
   timestamp: string;
   action: string;
