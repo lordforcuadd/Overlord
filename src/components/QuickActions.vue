@@ -188,6 +188,7 @@ const status = ref<Record<string, string>>({
   FlushNet: "idle",
   AppxDebloat: "idle",
   StabilityCheck: "idle",
+  RuntimeVerification: "idle",
 });
 
 const quickActions = [
@@ -197,6 +198,13 @@ const quickActions = [
     desc: "Aniquila el micro-stuttering liberando la memoria en espera.",
     icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />',
     evidenciaImpacto: "Cosmético",
+  },
+  {
+    id: "RuntimeVerification",
+    title: "Verificar en Vivo",
+    desc: "Audita el estado real en memoria del kernel (Win32_DeviceGuard, MMCSS, plan de energía activo y moderación NIC).",
+    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />',
+    evidenciaImpacto: "Comprobado",
   },
   {
     id: "AppxDebloat",
@@ -244,7 +252,7 @@ const runAction = async (actionId: string) => {
   if (isExecutingGlobal.value || store.isGlobalBusy || status.value[actionId] === "loading") return;
 
   // Diálogos de advertencia y confirmación antes de la ejecución de acciones críticas
-  if (actionId !== "PurgeRAM" && actionId !== "StabilityCheck") {
+  if (actionId !== "PurgeRAM" && actionId !== "StabilityCheck" && actionId !== "RuntimeVerification") {
     let title = "";
     let text = "";
     if (actionId === "DeepClean") {
@@ -285,12 +293,14 @@ const runAction = async (actionId: string) => {
         ramGb: store.hardwareInfo.ramGb,
         gameList: actionId,
       });
-      if (actionId === "StabilityCheck") {
+      if (actionId === "StabilityCheck" || actionId === "RuntimeVerification") {
         const isWarning = output.includes("ADVERTENCIA");
         await Swal.fire({
-          title: isWarning ? "Diagnóstico: Atención Requerida" : "Sistema Estable",
-          html: `<div class='text-left text-sm text-gray-300 font-sans leading-relaxed whitespace-pre-wrap bg-black/40 p-3 rounded-lg border ${isWarning ? "border-amber-500/40 text-amber-200" : "border-emerald-500/40 text-emerald-200"}'>${DOMPurify.sanitize(output)}</div>`,
-          icon: isWarning ? "warning" : "success",
+          title: actionId === "StabilityCheck"
+            ? (isWarning ? "Diagnóstico: Atención Requerida" : "Sistema Estable")
+            : "Verificación de Runtime en Vivo",
+          html: `<div class='text-left text-xs font-mono text-gray-300 leading-relaxed whitespace-pre-wrap bg-black/50 p-4 rounded-lg border ${isWarning ? "border-amber-500/40 text-amber-200" : "border-emerald-500/40 text-emerald-200"}'>${DOMPurify.sanitize(output)}</div>`,
+          icon: isWarning ? "warning" : "info",
           confirmButtonText: "Entendido",
           ...overlordSwalConfig,
         });

@@ -16,11 +16,12 @@ Try {
     Backup-OverlordRegistryValue -TargetKey $ProfilePath -ValueName "SystemResponsiveness" -BackupSubFolder "Network"
     Backup-OverlordRegistryValue -TargetKey $TcpPath -ValueName "InitialRto" -BackupSubFolder "Network"
 
+    $SysRespVal = if (-not $IsLaptop) { 0 } else { 10 }
     Set-ItemProperty -Path $ProfilePath -Name "NetworkThrottlingIndex" -Type DWord -Value ([uint32]4294967295) -Force | Out-Null
-    Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value 10 -Force | Out-Null
+    Set-ItemProperty -Path $ProfilePath -Name "SystemResponsiveness" -Type DWord -Value $SysRespVal -Force | Out-Null
     Set-ItemProperty -Path $TcpPath -Name "InitialRto" -Type DWord -Value 2000 -Force | Out-Null
  
-    if ((Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue) -ne 10) { throw "Verification failed" }
+    if ((Get-ItemPropertyValue -Path $ProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue) -ne $SysRespVal) { throw "Verification failed" }
     if ((Get-ItemPropertyValue -Path $TcpPath -Name "InitialRto" -ErrorAction SilentlyContinue) -ne 2000) { throw "Verification failed" }
     
     $throttlingVal = Get-ItemPropertyValue -Path $ProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue

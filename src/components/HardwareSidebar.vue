@@ -26,6 +26,13 @@
           ARM64
         </span>
         <span
+          class="px-2 py-1 bg-white/5 rounded text-xs font-bold uppercase tracking-wider"
+          :class="store.hardwareInfo.isSsd ? 'text-emerald-400' : 'text-amber-400'"
+          :title="store.hardwareInfo.isSsd ? 'Unidad de sistema SSD (TRIM forzado, LastAccess off)' : 'Unidad mecánica HDD (WSearch configurado a Manual para evitar trilla)'"
+        >
+          {{ store.hardwareInfo.isSsd ? "SSD" : "HDD" }}
+        </span>
+        <span
           class="px-2 py-1 bg-white/5 rounded text-xs font-bold text-gray-300 uppercase tracking-wider"
         >
           {{ store.hardwareInfo.isLaptop ? "Laptop" : "Desktop" }}

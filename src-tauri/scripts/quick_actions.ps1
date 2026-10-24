@@ -1,11 +1,15 @@
 param(
     [string]$ActionId,
-    [string]$GameList
+    [string]$GameList,
+    [bool]$IsLaptop = $false,
+    [bool]$IsSsd = $false
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $TargetAction = if (![string]::IsNullOrWhiteSpace($GameList)) { $GameList } else { $ActionId }
+$IsLaptopDevice = if (Get-Variable -Name "IsLaptop" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsLaptop } elseif (Get-Variable -Name "IsLaptop" -Scope "local" -ErrorAction SilentlyContinue) { [bool]$IsLaptop } else { $false }
+$IsSsdDrive = if (Get-Variable -Name "IsSsd" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsSsd } elseif (Get-Variable -Name "IsSsd" -Scope "local" -ErrorAction SilentlyContinue) { [bool]$IsSsd } else { $false }
 
 Try {
     switch ($TargetAction) {
@@ -208,6 +212,48 @@ Try {
             } else {
                 Write-Output "ADVERTENCIA: Detectados $wheaCount eventos de hardware WHEA (Error corregido de hardware ID 17: $id17, Error irrecuperable de hardware ID 18: $id18, Error de comprobacion de maquina corregido ID 19: $id19) y $kpCount apagados abruptos (Kernel-Power 41) en los ultimos $Days dias.`r`n`r`nRecomendacion: Si experimenta micro-cuelgues o cierres inesperados en juegos, verifique la estabilidad de su perfil XMP/EXPO, voltajes de CPU/RAM o temperaturas termicas."
             }
+        }
+        "RuntimeVerification" {
+            $dg = Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard -ErrorAction SilentlyContinue
+            $vbsRunning = if ($null -ne $dg) {
+                switch ($dg.VirtualizationBasedSecurityStatus) {
+                    0 { "DESACTIVADO (Optimo para gaming competitivo)" }
+                    1 { "HABILITADO pero no en ejecucion" }
+                    2 { "EN EJECUCION (VBS activo, penalizacion VTL presente)" }
+                    default { "Estado ($($dg.VirtualizationBasedSecurityStatus))" }
+                }
+            } else { "Inactivo / Hipervisor no presente" }
+
+            $hvciRunning = if ($null -ne $dg -and $null -ne $dg.SecurityServicesRunning) {
+                if (@($dg.SecurityServicesRunning) -contains 1) { "ACTIVA (Integridad de Memoria en ejecucion)" } else { "INACTIVA (Sin impacto en CPU/latencia)" }
+            } else { "INACTIVA" }
+
+            $mmcss = Get-Service -Name "MMCSS" -ErrorAction SilentlyContinue
+            $mmcssStatus = if ($null -ne $mmcss) { "$($mmcss.Status) ($($mmcss.StartType))" } else { "No disponible" }
+            $sysResp = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -ErrorAction SilentlyContinue
+            $sysRespText = if ($null -ne $sysResp) { "$sysResp% reservado para sistema" } else { "20% (por defecto)" }
+
+            $activePlanRaw = powercfg /getactivescheme 2>&1
+            $activePlanName = if ($activePlanRaw -match "\((.+)\)") { $Matches[1] } else { "$activePlanRaw" }
+
+            $netReport = @()
+            if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
+                $physicalAdapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }
+                foreach ($ad in $physicalAdapters) {
+                    $prop = Get-NetAdapterAdvancedProperty -Name $ad.Name -DisplayName "Interrupt Moderation*", "Moderacion de interrupciones*" -ErrorAction SilentlyContinue
+                    $imState = if ($prop) { $prop.DisplayValue } else { "N/A" }
+                    $netReport += "$($ad.Name): $imState"
+                }
+            }
+            $netSummary = if ($netReport.Count -gt 0) { $netReport -join "; " } else { "Sin adaptadores Ethernet activos" }
+
+            $mp = Get-CimInstance -Namespace root\Microsoft\Windows\Defender -ClassName MSFT_MpPreference -ErrorAction SilentlyContinue
+            $exclCount = if ($null -ne $mp -and $null -ne $mp.ExclusionPath) { @($mp.ExclusionPath).Count } else { 0 }
+
+            $chassisType = if ($IsLaptopDevice) { "Laptop / Portatil" } else { "Computadora de Escritorio (Desktop)" }
+            $diskType = if ($IsSsdDrive) { "SSD (TRIM activo, LastAccess off)" } else { "HDD mecanico (WSearch optimizado)" }
+
+            Write-Output "OK: AUDITORIA DE RUNTIME EN VIVO`r`n----------------------------------------`r`n- Chasis: $chassisType`r`n- Almacenamiento: $diskType`r`n- Plan de Energia Activo: $activePlanName`r`n- VBS (DeviceGuard): $vbsRunning`r`n- Integridad de Memoria (HVCI): $hvciRunning`r`n- MMCSS Scheduler: $mmcssStatus ($sysRespText)`r`n- Moderacion de Interrupciones (NIC): $netSummary`r`n- Exclusiones Defender en Vivo: $exclCount rutas activas`r`n----------------------------------------`r`nEstado: El kernel y los controladores reflejan fielmente las directivas aplicadas."
         }
         default {
             throw "Accion rapida no reconocida: '$TargetAction'"

@@ -355,6 +355,7 @@ Try {
         "WerSvc"           = "Manual"
         "DoSvc"            = "Automatic"
         "wuauserv"         = "Manual"
+        "WSearch"          = "Automatic"
     }
     try {
         foreach ($Svc in $ServicesFallback.Keys) {

@@ -49,6 +49,25 @@ Try {
         if ($LASTEXITCODE -ne 0) { throw "powercfg fallo al desactivar la hibernacion (Codigo: $LASTEXITCODE)" }
     }
 
+    if (-not $IsSsd) {
+        Write-Host "    -> Unidad mecanica (HDD) detectada: Configurando indexador de Windows Search (WSearch) a Manual para evitar trilla del cabezal..." -ForegroundColor Yellow
+        $wsearch = Get-Service -Name "WSearch" -ErrorAction SilentlyContinue
+        if ($null -ne $wsearch) {
+            $SvcBackupPath = "HKLM:\SOFTWARE\Overlord\Backup\Services\WSearch"
+            if (!(Test-Path $SvcBackupPath)) { New-Item -Path $SvcBackupPath -Force | Out-Null }
+            $wsearchReg = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -ErrorAction SilentlyContinue
+            if ($null -ne $wsearchReg -and $null -ne $wsearchReg.Start) {
+                Backup-OverlordRegistryValue -TargetKey "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -ValueName "Start" -BackupSubFolder "Services\WSearch"
+            }
+            $svcProps = Get-ItemProperty -Path $SvcBackupPath -ErrorAction SilentlyContinue
+            if ($null -eq $svcProps -or $null -eq $svcProps.PSObject.Properties["WasRunning"]) {
+                $WasRunning = if ($wsearch.Status -eq "Running") { 1 } else { 0 }
+                Set-ItemProperty -Path $SvcBackupPath -Name "WasRunning" -Value $WasRunning -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+            Set-Service -Name "WSearch" -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
+        }
+    }
+
     # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
     $IsServiceRunning = $false

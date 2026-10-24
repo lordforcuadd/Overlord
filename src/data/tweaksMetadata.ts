@@ -290,6 +290,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Desactivación de la actualización de marcas de tiempo (Last Access Update) para mitigar ciclos de degradación en SSD.",
       "Desactivación universal de la creación de nombres de archivo cortos en formato MS-DOS 8.3 para acelerar el sistema de archivos.",
       "Aseguramiento de soporte TRIM activo (DisableDeleteNotify = 0) para mantener la velocidad sostenida en unidades SSD.",
+      "Detección reactiva HDD: en discos mecánicos, conmuta el indexador de Windows Search a Manual para erradicar la trilla constante del cabezal electromecánico y caídas de 1% lows.",
       "Desactivación completa de la hibernación y remoción del archivo fantasma persistente Hiberfil.sys (en desktops).",
       "Desactivación de Inicio Rápido (HiberbootEnabled = 0) para forzar un apagado limpio del kernel de Windows.",
     ],

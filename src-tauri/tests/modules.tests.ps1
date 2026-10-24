@@ -404,7 +404,7 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $DebloatContent = (Get-Content -Path (Join-Path $script:ScriptsPath "02_debloat.ps1") -Raw) -replace '`\r?\n\s*', ' '
             $TelemetryContent = (Get-Content -Path (Join-Path $script:ScriptsPath "08_telemetria.ps1") -Raw) -replace '`\r?\n\s*', ' '
             
-            $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc", "DoSvc")
+            $KnownServices = @("DiagTrack", "dmwappushservice", "Fax", "RetailDemo", "MapsBroker", "PhoneSvc", "AJRouter", "WpcMonSvc", "SensorService", "TrkWks", "RemoteRegistry", "WdiServiceHost", "WdiSystemHost", "WerSvc", "DoSvc", "WSearch")
             
             foreach ($Svc in $KnownServices) {
                 ($script:RevertContent -match "\b$Svc\b") | Should Be $true
@@ -527,9 +527,12 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             ($ServicesToManualMatch.Groups[1].Value -match '"WdiServiceHost"') | Should Be $true
             ($ServicesToManualMatch.Groups[1].Value -match '"WdiSystemHost"') | Should Be $true
             ($DebloatContent -match 'Set-Service\s+-Name\s+\$Service\s+-StartupType\s+Manual') | Should Be $true
-            ($StatusContent -match '\$DmwapSvc\s*=\s*Get-Service\s+-Name\s+"dmwappushservice"') | Should Be $true
-            ($StatusContent -match '\$WdiHostSvc\s*=\s*Get-Service\s+-Name\s+"WdiServiceHost"') | Should Be $true
-            ($StatusContent -match '\$WdiSysSvc\s*=\s*Get-Service\s+-Name\s+"WdiSystemHost"') | Should Be $true
+            ($StatusContent -match '\$DmwapSvc\s*=') | Should Be $true
+            ($StatusContent -match '\$WdiHostSvc\s*=') | Should Be $true
+            ($StatusContent -match '\$WdiSysSvc\s*=') | Should Be $true
+            ($StatusContent -match 'dmwappushservice') | Should Be $true
+            ($StatusContent -match 'WdiServiceHost') | Should Be $true
+            ($StatusContent -match 'WdiSystemHost') | Should Be $true
             ($StatusContent -match '\$DmwapSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
             ($StatusContent -match '\$WdiHostSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true
             ($StatusContent -match '\$WdiSysSvc\.StartType\s*-ne\s*"Manual"') | Should Be $true

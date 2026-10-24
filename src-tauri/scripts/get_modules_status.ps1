@@ -37,10 +37,18 @@ if ((Test-Path $MousePath) -and (Test-Path $PriorityPath)) {
 }
 
 $ServicesOk = $true
-$MapsBrokerSvc = Get-Service -Name "MapsBroker" -ErrorAction SilentlyContinue
-$DmwapSvc = Get-Service -Name "dmwappushservice" -ErrorAction SilentlyContinue
-$WdiHostSvc = Get-Service -Name "WdiServiceHost" -ErrorAction SilentlyContinue
-$WdiSysSvc = Get-Service -Name "WdiSystemHost" -ErrorAction SilentlyContinue
+$AllTrackedServices = @("MapsBroker", "dmwappushservice", "WdiServiceHost", "WdiSystemHost", "AJRouter", "TrkWks", "DiagTrack", "WerSvc")
+$SvcMap = @{}
+foreach ($sItem in (Get-Service -Name $AllTrackedServices -ErrorAction SilentlyContinue)) {
+    $SvcMap[$sItem.Name] = $sItem
+}
+$MapsBrokerSvc = $SvcMap["MapsBroker"]
+$DmwapSvc = $SvcMap["dmwappushservice"]
+$WdiHostSvc = $SvcMap["WdiServiceHost"]
+$WdiSysSvc = $SvcMap["WdiSystemHost"]
+$DiagTrackSvc = $SvcMap["DiagTrack"]
+$WerSvc = $SvcMap["WerSvc"]
+
 if ($null -ne $MapsBrokerSvc -and $null -ne $DmwapSvc) {
     if ($MapsBrokerSvc.StartType -ne "Disabled" -or $DmwapSvc.StartType -ne "Manual" -or ($null -ne $WdiHostSvc -and $WdiHostSvc.StartType -ne "Manual") -or ($null -ne $WdiSysSvc -and $WdiSysSvc.StartType -ne "Manual")) {
         $ServicesOk = $false
@@ -49,8 +57,8 @@ if ($null -ne $MapsBrokerSvc -and $null -ne $DmwapSvc) {
     $ServicesOk = $false
 }
 
-$FoundManual = Get-Service -Name @("AJRouter", "TrkWks") -ErrorAction SilentlyContinue
-if ($null -ne $FoundManual -and @($FoundManual).Count -gt 0) {
+$FoundManual = @($SvcMap["AJRouter"], $SvcMap["TrkWks"]) | Where-Object { $null -ne $_ }
+if ($FoundManual.Count -gt 0) {
     foreach ($Svc in $FoundManual) {
         if ($Svc.StartType -ne "Manual" -and $Svc.StartType -ne "Disabled") {
             $ServicesOk = $false
@@ -213,7 +221,8 @@ if (Test-Path $ProfilePath) {
         }
     }
     
-    if ($SysResp -eq 10 -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PwrMgmtOk) {
+    $ExpectedSysResp = if (-not $IsLaptop) { 0 } else { 10 }
+    if (($SysResp -eq $ExpectedSysResp -or $SysResp -eq 0 -or $SysResp -eq 10) -and ($Throt -eq 4294967295 -or $Throt -eq -1) -and $NagleOk -and $InitialRtoVal -eq 2000 -and $CoalescingOk -and $PwrMgmtOk) {
         $Status['networkOptimized'] = $true
     }
 }
@@ -351,7 +360,14 @@ if (Test-Path $NtfsPath) {
     
     $StorageOk = $false
     if ($Last -eq 1 -and $FastStart -eq 0 -and $Ntfs8dot3 -eq 1) {
-        $StorageOk = $true
+        if (-not $IsSsd) {
+            $wsearchSvc = Get-Service -Name "WSearch" -ErrorAction SilentlyContinue
+            if ($null -eq $wsearchSvc -or $wsearchSvc.StartType -ne "Automatic") {
+                $StorageOk = $true
+            }
+        } else {
+            $StorageOk = $true
+        }
     }
     
     if ($StorageOk) {
@@ -359,8 +375,6 @@ if (Test-Path $NtfsPath) {
     }
 }
 
-$DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
-$WerSvc = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
 $WerPolicy = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -ErrorAction SilentlyContinue
 $PublishActivities = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -ErrorAction SilentlyContinue
 $ExcludeWuDrivers = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "ExcludeWUDriversInQualityUpdate" -ErrorAction SilentlyContinue

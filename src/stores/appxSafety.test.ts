@@ -86,12 +86,8 @@ describe("Reglas de Protección y Seguridad de AppX (Análisis Estático Real)",
         .map((entry) => entry.id)
     );
 
-    // Microsoft.Cortana es alias heredado de Microsoft.549981C3F5F10
-    const knownSafeAliases = new Set(["Microsoft.Cortana"]);
-
     for (const app of debloatApps) {
-      const isCatalogedSafe = safeCatalogIds.has(app) || knownSafeAliases.has(app);
-      expect(isCatalogedSafe).toBe(true);
+      expect(safeCatalogIds.has(app)).toBe(true);
     }
   });
 });

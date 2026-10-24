@@ -131,7 +131,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 ### 3. Optimización de Red TCP/IP (`03_red.ps1`)
 - Elimina el límite de throttling del planificador de red con `NetworkThrottlingIndex = 0xFFFFFFFF`.
 - Mantiene activas las marcas de tiempo TCP (TCP Timestamps) para correcto cálculo de RTT y control de congestión.
-- Establece la prioridad del programador a `SystemResponsiveness = 10` (90% para juegos en primer plano, 10% para procesos de fondo como Discord/Spotify).
+- **Responsividad adaptativa por hardware:** Establece `SystemResponsiveness = 0` en computadoras de escritorio (100% de CPU dedicado al videojuego en perfil competitivo sin reservar cuotas al sistema) y `10` en laptops (protección térmica y autonomía de batería).
 - Desactiva el algoritmo de Nagle (`TcpAckFrequency = 1` y `TcpNoDelay = 1`) **estrictamente en interfaces Ethernet físicas activas**, preservando adaptadores virtuales y túneles VPN.
 - **Preserva Flow Control** en Ethernet para evitar caídas de paquetes en switches saturados y deshabilita **Energy Efficient Ethernet (EEE)**.
 - Desactiva Large Send Offload (**LSO**) y Receive Segment Coalescing (**RSC**) para erradicar el jitter.
@@ -155,6 +155,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Activa `NtfsDisableLastAccessUpdate = 1`, eliminando escrituras innecesarias en cada lectura de archivo.
 - Desactiva nombres de archivo cortos MS-DOS 8.3 (`NtfsDisable8dot3NameCreation = 1`).
 - Asegura soporte TRIM activo (`DisableDeleteNotify = 0`) en unidades SSD.
+- **Detección reactiva de unidad mecánica (HDD):** Si Windows reside en un disco duro tradicional, conmuta el indexador de Windows Search (`WSearch`) a Manual para eliminar la trilla del cabezal electromecánico y caídas de 1% lows durante videojuegos.
 - Desactiva **Fast Startup** (`HiberbootEnabled = 0`) para asegurar reinicios limpios de Kernel.
 - En desktop: desactiva hibernación completa liberando gigabytes del archivo `hiberfil.sys`.
 
@@ -197,6 +198,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 ## ⚡ Acciones Rápidas (Quick Actions)
 
 * **Purgar RAM:** Vaciado nativo de la lista de espera (Standby List) en memoria física mediante la API NT indocumentada de Windows `SystemMemoryListInformation` sin provocar fallos de página ni vaciar el working set del juego.
+* **Verificar en Vivo (Runtime):** Auditoría en tiempo real del estado de memoria del kernel (`Win32_DeviceGuard`, MMCSS, plan activo de energía, moderación de interrupciones de red física y exclusiones activas de Windows Defender).
 * **Limpieza Profunda:** Limpieza de archivos temporales del sistema y eliminación de cachés de sombreadores corruptos de DirectX, NVIDIA y AMD para erradicar micro-stutters gráficos.
 * **Diagnóstico de Estabilidad:** Escaneo en tiempo real del visor de eventos de Windows para detectar advertencias WHEA-Logger (errores de CPU, PCIe y memoria causados por XMP/EXPO o Curve Optimizer inestables) y apagados abruptos Kernel-Power 41 en los últimos 30 días.
 * **Reparar Sistema:** Ejecución secuencial de DISM y SFC con preservación de transacciones en segundo plano.

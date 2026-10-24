@@ -14,7 +14,7 @@ Try {
         "Microsoft.Wallet", "Microsoft.MixedReality.Portal",
         "Microsoft.549981C3F5F10", "Microsoft.Windows.Ai.Copilot.Provider",
         "Clipchamp.Clipchamp", "Microsoft.MicrosoftSolitaireCollection",
-        "Microsoft.PowerAutomateDesktop", "Microsoft.Cortana", "Microsoft.BingFinance",
+        "Microsoft.PowerAutomateDesktop", "Microsoft.BingFinance",
         "Microsoft.BingSports", "Microsoft.MicrosoftMahjong", "Microsoft.WindowsFeedbackHub",
         "Microsoft.Print3D", "Microsoft.Microsoft3DViewer", "Microsoft.WindowsMaps"
     )
