@@ -413,6 +413,50 @@ switch ($ToggleName) {
         }
         $RequiresExplorerRestart = $true
     }
+    "taskbarEndTask" {
+        $endTaskVal = if ($Value -eq 1) { 1 } else { 0 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings") -ValueName "TaskbarEndTaskEnabled" -BackupSubFolder "QoL\User"
+        }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" "TaskbarEndTaskEnabled" "DWord" $endTaskVal
+    }
+    "disableSettingsAds" {
+        $settingsAdsVal = if ($Value -eq 1) { 0 } else { 1 }
+        foreach ($base in $Targets) {
+            $CDM = "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-338393Enabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base $CDM) -ValueName "SubscribedContent-353698Enabled" -BackupSubFolder "QoL\User"
+        }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338393Enabled" "DWord" $settingsAdsVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353698Enabled" "DWord" $settingsAdsVal
+    }
+    "hideStartRecommendations" {
+        $irisVal = if ($Value -eq 1) { 0 } else { 1 }
+        $hideSecVal = if ($Value -eq 1) { 1 } else { 0 }
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced") -ValueName "Start_IrisRecommendations" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Policies\Microsoft\Windows\Explorer") -ValueName "HideRecommendedSection" -BackupSubFolder "QoL\User"
+        }
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Start_IrisRecommendations" "DWord" $irisVal
+        Set-RegistryValue "Software\Policies\Microsoft\Windows\Explorer" "HideRecommendedSection" "DWord" $hideSecVal
+        $RequiresExplorerRestart = $true
+    }
+    "hideGallery" {
+        foreach ($base in $Targets) {
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}") -ValueName "System.IsPinnedToNameSpaceTree" -BackupSubFolder "QoL\User"
+        }
+        if ($Value -eq 1) {
+            Set-RegistryValue "Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" "System.IsPinnedToNameSpaceTree" "DWord" 0
+        } else {
+            foreach ($base in $Targets) {
+                $galleryPath = Join-Path $base "Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
+                if (Test-Path $galleryPath) {
+                    Remove-ItemProperty -Path $galleryPath -Name "System.IsPinnedToNameSpaceTree" -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+        }
+        $RequiresExplorerRestart = $true
+    }
     default {
         Write-Error "ERROR: Toggle desconocido: $ToggleName"
         exit 1

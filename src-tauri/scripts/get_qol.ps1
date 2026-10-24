@@ -26,7 +26,7 @@ function Get-RegistryValue($basePath, $subPath, $name, $expectedValue) {
     return $false
 }
 
-$globalBuildVer = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
+$globalBuildVer = if ($global:WindowsBuild) { [int]$global:WindowsBuild } else { [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue) }
 
 function Test-ClassicMenuEnabled {
     if ($globalBuildVer -lt 26000) {
@@ -65,9 +65,13 @@ $Qol = @{
     barebonesVisual    = ((Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2) -and (Get-RegistryValue $null "Control Panel\Desktop\WindowMetrics" "MinAnimate" "0"))
     disableCopilot     = ((Get-RegistryValue $null "Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1) -or (Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowCopilotButton" 0) -or (Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1))
     disableRecall      = ((Get-RegistryValue $null "Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1) -and (Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1))
-    detailedBSoD       = Get-RegistryValue "HKLM:" "SYSTEM\CurrentControlSet\Control\CrashControl" "DisplayParameters" 1
-    disableOneDrive    = Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" 1
-    windowsBuild       = $globalBuildVer
+    detailedBSoD             = Get-RegistryValue "HKLM:" "SYSTEM\CurrentControlSet\Control\CrashControl" "DisplayParameters" 1
+    disableOneDrive          = Get-RegistryValue "HKLM:" "SOFTWARE\Policies\Microsoft\Windows\OneDrive" "DisableFileSyncNGSC" 1
+    taskbarEndTask           = Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" "TaskbarEndTaskEnabled" 1
+    disableSettingsAds       = ((Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338393Enabled" 0) -and (Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353698Enabled" 0))
+    hideStartRecommendations = ((Get-RegistryValue $null "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Start_IrisRecommendations" 0) -and (Get-RegistryValue $null "Software\Policies\Microsoft\Windows\Explorer" "HideRecommendedSection" 1))
+    hideGallery              = Get-RegistryValue $null "Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" "System.IsPinnedToNameSpaceTree" 0
+    windowsBuild             = $globalBuildVer
 }
 
 ConvertTo-Json $Qol -Compress

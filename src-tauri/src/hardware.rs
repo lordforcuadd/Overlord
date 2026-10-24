@@ -392,6 +392,18 @@ pub fn is_arm64() -> bool {
             .unwrap_or(false)
 }
 
+pub fn get_windows_build_number() -> u32 {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    if let Ok(key) = hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion") {
+        if let Ok(build_str) = key.get_value::<String, _>("CurrentBuildNumber") {
+            if let Ok(num) = build_str.parse::<u32>() {
+                return num;
+            }
+        }
+    }
+    19045
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -447,5 +459,11 @@ mod tests {
             Some(v) => std::env::set_var("PROCESSOR_ARCHITEW6432", v),
             None => std::env::remove_var("PROCESSOR_ARCHITEW6432"),
         }
+    }
+
+    #[test]
+    fn test_get_windows_build_number() {
+        let build = get_windows_build_number();
+        assert!(build >= 10000, "Expected valid Windows build number, got: {}", build);
     }
 }

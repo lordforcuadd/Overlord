@@ -137,7 +137,7 @@ Try {
     }
 
     # Bloqueo de Windows Recall (Directivas de Windows AI para Windows 11)
-    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuild" -ErrorAction SilentlyContinue)
+    $BuildNum = if ($global:WindowsBuild) { [int]$global:WindowsBuild } else { [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuild" -ErrorAction SilentlyContinue) }
     if ($BuildNum -ge 22000) {
         $WindowsAIPolicyHKLM = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
 

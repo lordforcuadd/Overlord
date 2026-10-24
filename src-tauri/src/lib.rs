@@ -84,6 +84,9 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
     let is_hybrid = hw.is_hybrid;
     let is_x3d = hw.is_x3d;
     let is_ssd = hw.is_ssd;
+    let is_arm64 = hw.is_arm64;
+    let cpu_vendor = hw.cpu_vendor;
+    let windows_build = crate::hardware::get_windows_build_number();
 
     let script_raw = match script_name.as_str() {
         "01_perifericos" => include_str!("../scripts/01_perifericos.ps1"),
@@ -120,9 +123,9 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
 
     let start_time = std::time::Instant::now();
     let res = if is_readonly {
-        execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
+        execute_script_in_memory_readonly(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd, windows_build, is_arm64, &cpu_vendor).await
     } else {
-        execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd).await
+        execute_script_in_memory(&script_name, script_raw, is_laptop, ram_gb, &game_list, is_hybrid, is_x3d, is_ssd, windows_build, is_arm64, &cpu_vendor).await
     };
     let duration = start_time.elapsed();
 

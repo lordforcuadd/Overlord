@@ -297,7 +297,11 @@ type QolKeys =
   | "disableWidgets"
   | "zeroStartupDelay"
   | "enableGameMode"
-  | "barebonesVisual";
+  | "barebonesVisual"
+  | "taskbarEndTask"
+  | "disableSettingsAds"
+  | "hideStartRecommendations"
+  | "hideGallery";
 
 type QolStatusKeys = {
   [K in QolKeys]: "idle" | "loading" | "success" | "error";
@@ -325,6 +329,10 @@ const qol = ref<Record<QolKeys, boolean>>({
   zeroStartupDelay: false,
   enableGameMode: false,
   barebonesVisual: false,
+  taskbarEndTask: false,
+  disableSettingsAds: false,
+  hideStartRecommendations: false,
+  hideGallery: false,
 });
 
 const qolStatus = ref<QolStatusKeys>({
@@ -349,6 +357,10 @@ const qolStatus = ref<QolStatusKeys>({
   zeroStartupDelay: "idle",
   enableGameMode: "idle",
   barebonesVisual: "idle",
+  taskbarEndTask: "idle",
+  disableSettingsAds: "idle",
+  hideStartRecommendations: "idle",
+  hideGallery: "idle",
 });
 
 const uiToggles = [
@@ -389,6 +401,18 @@ const uiToggles = [
     desc: "Muestra códigos de error reales.",
     evidenciaImpacto: "Cosmético" as const,
   },
+  {
+    id: "taskbarEndTask" as const,
+    title: "Finalizar Tarea en Barra (Win11)",
+    desc: "Habilita la opción 'Finalizar tarea' al dar clic derecho en la barra de tareas.",
+    evidenciaImpacto: "Comprobado" as const,
+  },
+  {
+    id: "hideStartRecommendations" as const,
+    title: "Ocultar Recomendados en Inicio (Win11)",
+    desc: "Oculta la sección de archivos y apps recomendadas en el menú inicio.",
+    evidenciaImpacto: "Comprobado" as const,
+  },
 ];
 
 const privacyToggles = [
@@ -428,6 +452,12 @@ const privacyToggles = [
     desc: "Impide capturas de pantalla.",
     evidenciaImpacto: "Comprobado" as const,
   },
+  {
+    id: "disableSettingsAds" as const,
+    title: "Bloquear Ads en Configuración",
+    desc: "Bloquea tarjetas de sugerencias de Microsoft 365 y cuentas en Inicio de Configuración.",
+    evidenciaImpacto: "Comprobado" as const,
+  },
 ];
 
 const explorerToggles = [
@@ -453,6 +483,12 @@ const explorerToggles = [
     id: "zeroStartupDelay" as const,
     title: "Cero Retraso de Arranque",
     desc: "Apps de inicio instantáneas.",
+    evidenciaImpacto: "Cosmético" as const,
+  },
+  {
+    id: "hideGallery" as const,
+    title: "Ocultar Galería (Win11)",
+    desc: "Elimina el nodo 'Galería' del panel de navegación del Explorador de archivos.",
     evidenciaImpacto: "Cosmético" as const,
   },
 ];

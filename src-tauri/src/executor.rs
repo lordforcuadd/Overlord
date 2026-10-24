@@ -101,13 +101,27 @@ fn parse_qol_params(game_list: &str) -> (String, String) {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list: &str, toggle_name: &str, is_enabled_str: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> String {
+fn build_script_header(
+    action_id: &str,
+    is_laptop: bool,
+    ram_gb: u32,
+    game_list: &str,
+    toggle_name: &str,
+    is_enabled_str: &str,
+    is_hybrid: bool,
+    is_x3d: bool,
+    is_ssd: bool,
+    windows_build: u32,
+    is_arm64: bool,
+    cpu_vendor: &str,
+) -> String {
     let game_list_b64 = encode_utf8_base64(game_list);
     let action_id_b64 = encode_utf8_base64(action_id);
     let toggle_name_b64 = encode_utf8_base64(toggle_name);
     let is_enabled_str_b64 = encode_utf8_base64(is_enabled_str);
     let version_b64 = encode_utf8_base64(env!("CARGO_PKG_VERSION"));
     let launchers_config_b64 = encode_utf8_base64(include_str!("../launchers_config.json"));
+    let cpu_vendor_b64 = encode_utf8_base64(cpu_vendor);
 
     format!(
         "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8\n\
@@ -124,6 +138,10 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
          $global:IsHybrid = ${}; $IsHybrid = $global:IsHybrid\n\
          $global:IsX3d = ${}; $IsX3d = $global:IsX3d\n\
          $global:IsSsd = ${}; $IsSsd = $global:IsSsd\n\
+         $global:WindowsBuild = {}; $WindowsBuild = $global:WindowsBuild\n\
+         $global:IsWindows11 = ${}; $IsWindows11 = $global:IsWindows11\n\
+         $global:IsArm64 = ${}; $IsArm64 = $global:IsArm64\n\
+         $global:CpuVendor = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $CpuVendor = $global:CpuVendor\n\
          $ErrorActionPreference = 'Stop'\n",
         if is_laptop { "true" } else { "false" },
         ram_gb,
@@ -135,7 +153,11 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
         launchers_config_b64,
         if is_hybrid { "true" } else { "false" },
         if is_x3d { "true" } else { "false" },
-        if is_ssd { "true" } else { "false" }
+        if is_ssd { "true" } else { "false" },
+        windows_build,
+        if windows_build >= 22000 { "true" } else { "false" },
+        if is_arm64 { "true" } else { "false" },
+        cpu_vendor_b64
     )
 }
 
@@ -163,10 +185,35 @@ pub(crate) fn validate_input_string(s: &str) -> Result<(), String> {
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
+async fn execute_script_in_memory_impl(
+    action_id: &str,
+    script_raw: &str,
+    is_laptop: bool,
+    ram_gb: u32,
+    game_list: &str,
+    is_hybrid: bool,
+    is_x3d: bool,
+    is_ssd: bool,
+    windows_build: u32,
+    is_arm64: bool,
+    cpu_vendor: &str,
+) -> Result<String, String> {
     validate_input_string(game_list)?;
     let (toggle_name, is_enabled_str) = parse_qol_params(game_list);
-    let header = build_script_header(action_id, is_laptop, ram_gb, game_list, &toggle_name, &is_enabled_str, is_hybrid, is_x3d, is_ssd);
+    let header = build_script_header(
+        action_id,
+        is_laptop,
+        ram_gb,
+        game_list,
+        &toggle_name,
+        &is_enabled_str,
+        is_hybrid,
+        is_x3d,
+        is_ssd,
+        windows_build,
+        is_arm64,
+        cpu_vendor,
+    );
     let script_clean = strip_param_block(script_raw);
 
     let sid_resolver = include_str!("../scripts/sid_resolver.ps1");
@@ -303,14 +350,62 @@ async fn execute_script_in_memory_impl(action_id: &str, script_raw: &str, is_lap
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn execute_script_in_memory(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
+pub async fn execute_script_in_memory(
+    action_id: &str,
+    script_raw: &str,
+    is_laptop: bool,
+    ram_gb: u32,
+    game_list: &str,
+    is_hybrid: bool,
+    is_x3d: bool,
+    is_ssd: bool,
+    windows_build: u32,
+    is_arm64: bool,
+    cpu_vendor: &str,
+) -> Result<String, String> {
     let _lock = EXECUTION_LOCK.lock().await;
-    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list, is_hybrid, is_x3d, is_ssd).await
+    execute_script_in_memory_impl(
+        action_id,
+        script_raw,
+        is_laptop,
+        ram_gb,
+        game_list,
+        is_hybrid,
+        is_x3d,
+        is_ssd,
+        windows_build,
+        is_arm64,
+        cpu_vendor,
+    ).await
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn execute_script_in_memory_readonly(action_id: &str, script_raw: &str, is_laptop: bool, ram_gb: u32, game_list: &str, is_hybrid: bool, is_x3d: bool, is_ssd: bool) -> Result<String, String> {
-    execute_script_in_memory_impl(action_id, script_raw, is_laptop, ram_gb, game_list, is_hybrid, is_x3d, is_ssd).await
+pub async fn execute_script_in_memory_readonly(
+    action_id: &str,
+    script_raw: &str,
+    is_laptop: bool,
+    ram_gb: u32,
+    game_list: &str,
+    is_hybrid: bool,
+    is_x3d: bool,
+    is_ssd: bool,
+    windows_build: u32,
+    is_arm64: bool,
+    cpu_vendor: &str,
+) -> Result<String, String> {
+    execute_script_in_memory_impl(
+        action_id,
+        script_raw,
+        is_laptop,
+        ram_gb,
+        game_list,
+        is_hybrid,
+        is_x3d,
+        is_ssd,
+        windows_build,
+        is_arm64,
+        cpu_vendor,
+    ).await
 }
 
 fn strip_param_block(script: &str) -> String {
@@ -457,7 +552,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_script_in_memory_readonly_simple() {
         let script = "Write-Output 'Overlord Test Output'";
-        let res = execute_script_in_memory_readonly("test_action", script, false, 16, "", false, false, true).await;
+        let res = execute_script_in_memory_readonly("test_action", script, false, 16, "", false, false, true, 22631, false, "AMD").await;
         assert!(res.is_ok(), "Expected script execution to succeed, got: {:?}", res);
         assert_eq!(res.unwrap(), "Overlord Test Output");
     }
@@ -465,7 +560,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_script_in_memory_simple() {
         let script = "Write-Output 'Overlord Locking Test Output'";
-        let res = execute_script_in_memory("test_locking_action", script, false, 16, "", false, false, true).await;
+        let res = execute_script_in_memory("test_locking_action", script, false, 16, "", false, false, true, 22631, false, "Intel").await;
         assert!(res.is_ok(), "Expected script execution to succeed, got: {:?}", res);
         assert_eq!(res.unwrap(), "Overlord Locking Test Output");
     }

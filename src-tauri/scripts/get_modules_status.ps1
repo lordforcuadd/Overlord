@@ -3,6 +3,8 @@ param(
     [bool]$IsSsd = $false
 )
 $ErrorActionPreference = "SilentlyContinue"
+$IsLaptop = if (Get-Variable -Name "IsLaptop" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsLaptop } else { $IsLaptop }
+$IsSsd = if (Get-Variable -Name "IsSsd" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsSsd } else { $IsSsd }
 $WIN32_PRIORITY_SEP = 26
 $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
 
@@ -246,7 +248,7 @@ if (Test-Path $GpuPath) {
     $AllowDVR = Get-ItemPropertyValue -Path $GameBarPath -Name "AllowGameDVR" -ErrorAction SilentlyContinue
     $AppCap = Get-ItemPropertyValue -Path $UserGameDVRPath -Name "AppCaptureEnabled" -ErrorAction SilentlyContinue
     
-    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue)
+    $BuildNum = if ($global:WindowsBuild) { [int]$global:WindowsBuild } else { [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber" -ErrorAction SilentlyContinue) }
     $WddmSupported = $false
     if ($BuildNum -ge 19041) {
         $ExistingHwSchMode = Get-ItemProperty -Path $GpuPath -Name "HwSchMode" -ErrorAction SilentlyContinue

@@ -1,14 +1,16 @@
 $ErrorActionPreference = "Stop"
 
 try {
-    $isArm = $false
-    try {
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-        if ($null -ne $os -and $os.OSArchitecture -match "(?i)ARM") {
-            $isArm = $true
+    $isArm = if (Get-Variable -Name "IsArm64" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsArm64 } else { $false }
+    if (-not $isArm) {
+        try {
+            $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
+            if ($null -ne $os -and $os.OSArchitecture -match "(?i)ARM") {
+                $isArm = $true
+            }
+        } catch {
+            Write-Verbose "Fallo al consultar arquitectura via CIM: $_"
         }
-    } catch {
-        Write-Verbose "Fallo al consultar arquitectura via CIM: $_"
     }
     if (-not $isArm) {
         $Arch = $env:PROCESSOR_ARCHITECTURE
