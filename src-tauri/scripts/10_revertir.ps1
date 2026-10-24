@@ -624,6 +624,13 @@ Try {
     $ControlPath = "HKLM:\SYSTEM\CurrentControlSet\Control"
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "FeatureSettingsOverride" -BackupSubFolder "Performance" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey $MemPath -ValueName "FeatureSettingsOverrideMask" -BackupSubFolder "Performance" -DefaultValue '_ABSENT_'
+    
+    # Restauracion de VBS (Virtualization-Based Security) y HVCI (Integridad de Memoria)
+    $DeviceGuardPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard"
+    $HvciPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
+    Invoke-OverlordSafeRestore -TargetKey $DeviceGuardPath -ValueName "EnableVirtualizationBasedSecurity" -BackupSubFolder "Security\VBS" -DefaultValue '_ABSENT_'
+    Invoke-OverlordSafeRestore -TargetKey $DeviceGuardPath -ValueName "RequirePlatformSecurityFeatures" -BackupSubFolder "Security\VBS" -DefaultValue '_ABSENT_'
+    Invoke-OverlordSafeRestore -TargetKey $HvciPath -ValueName "Enabled" -BackupSubFolder "Security\VBS" -DefaultValue '_ABSENT_'
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\System\GameConfigStore" -ValueName "GameDVR_Enabled" -BackupSubFolder "Performance" -DefaultValue 1
     
     try {

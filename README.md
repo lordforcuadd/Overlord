@@ -190,6 +190,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 
 * **Prioridad Dinámica en Segundo Plano (`manage_priority_service.ps1`):** Tarea Programada de Windows elevada a nivel `SYSTEM` con ACLs blindadas y watchdog. Monitorea cada 15 segundos los juegos seleccionados y eleva su prioridad a `High`. En procesadores AMD Ryzen Dual-CCD X3D, fija la afinidad del proceso exclusivamente al CCD0 (3D V-Cache).
 * **Desactivación de Mitigaciones de CPU (`disable_mitigations.ps1`):** Tweak opcional con advertencia explícita en la UI que desactiva las mitigaciones Spectre (v2), Meltdown, SSBD y L1TF (`FeatureSettingsOverride = 8259`), recuperando hasta un 15% de throughput en CPUs antiguas.
+* **Desactivación de VBS y HVCI (`disable_vbs.ps1`):** Módulo opt-in de rendimiento extremo con advertencia de seguridad explícita en la UI que desactiva Virtualization-Based Security e Integridad de Memoria en el hipervisor de Windows, erradicando micro-stutters y mejorando los 1% lows de FPS en 3-10% en títulos competitivos CPU-bound.
 
 ---
 
@@ -197,6 +198,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 
 * **Purgar RAM:** Vaciado nativo de la lista de espera (Standby List) en memoria física mediante la API NT indocumentada de Windows `SystemMemoryListInformation` sin provocar fallos de página ni vaciar el working set del juego.
 * **Limpieza Profunda:** Limpieza de archivos temporales del sistema y eliminación de cachés de sombreadores corruptos de DirectX, NVIDIA y AMD para erradicar micro-stutters gráficos.
+* **Diagnóstico de Estabilidad:** Escaneo en tiempo real del visor de eventos de Windows para detectar advertencias WHEA-Logger (errores de CPU, PCIe y memoria causados por XMP/EXPO o Curve Optimizer inestables) y apagados abruptos Kernel-Power 41 en los últimos 30 días.
 * **Reparar Sistema:** Ejecución secuencial de DISM y SFC con preservación de transacciones en segundo plano.
 * **Liberar Red (DNS):** Limpieza de caché DNS y optimización de catálogos Winsock preservando IPs y DNS estáticos.
 
@@ -204,7 +206,9 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 
 ## 💻 Entorno de Desarrollo Local
 
-### Prerrequisitos
+### Prerrequisitos y Compatibilidad
+- **Arquitectura:** x86_64 (64-bit). Sistemas legados x86 de 32-bit no son compatibles.
+- **Sistema Operativo:** Windows 10 (versión 21H2 o superior) / Windows 11 (todas las versiones hasta 24H2+).
 - **Node.js** v20 o superior con `npm`
 - **Rust Toolchain** estable via `rustup` (`x86_64-pc-windows-msvc`)
 - **C++ Build Tools** de Visual Studio (MSVC)
@@ -215,8 +219,10 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 # 1. Instalar dependencias frontend
 npm install
 
-# 2. Verificación de tipos TypeScript y build del frontend
-npx vue-tsc --noEmit
+# 2. Pruebas unitarias de frontend con Vitest
+npm run test
+
+# 3. Verificación de tipos TypeScript y build del frontend
 npm run build
 
 # 3. Compilación, linter y tests del backend en Rust

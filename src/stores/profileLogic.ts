@@ -15,6 +15,7 @@ export function buildExpectedProfileState(
     powerProfiles: false,
     gameHooks: false,
     disableMitigations: false,
+    disableVbs: false,
     defenderExclusions: false
   };
 

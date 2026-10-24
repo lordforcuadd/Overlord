@@ -108,6 +108,7 @@ export const useOverlordStore = defineStore("overlord", {
       powerProfiles: false,
       gameHooks: false,
       disableMitigations: false,
+      disableVbs: false,
       defenderExclusions: false,
     },
     gameList: [] as Array<{

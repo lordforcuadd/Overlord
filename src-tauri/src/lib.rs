@@ -105,6 +105,7 @@ async fn run_optimization_script(script_name: String, is_laptop: bool, ram_gb: u
         "shutdown" => include_str!("../scripts/shutdown.ps1"),
         "get_modules_status" => include_str!("../scripts/get_modules_status.ps1"),
         "disable_mitigations" => include_str!("../scripts/disable_mitigations.ps1"),
+        "disable_vbs" => include_str!("../scripts/disable_vbs.ps1"),
         "manage_priority_service" => include_str!("../scripts/manage_priority_service.ps1"),
         "manage_appx" => include_str!("../scripts/manage_appx.ps1"),
         _ => return Err("Script no autorizado u omitido por seguridad".to_string()),

@@ -192,6 +192,31 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Restauración del rendimiento perdido por parches de seguridad de kernel.",
     ],
   },
+  disableVbs: {
+    id: "disableVbs",
+    title: "Desactivar VBS / HVCI (Integridad de Memoria)",
+    description:
+      "Desactiva la Integridad de Memoria (HVCI) y la Seguridad Basada en Virtualización (VBS), eliminando la penalización de CPU y la latencia de transiciones VTL en videojuegos.",
+    riesgo: "Experimental",
+    evidenciaImpacto: "Comprobado",
+    reversible: true,
+    metodoReversion:
+      "Restauración de las directivas nativas de DeviceGuard e HypervisorEnforcedCodeIntegrity a su estado original.",
+    hardwareRecomendado:
+      "Cualquier sistema dedicado al gaming competitivo donde se busque máxima consistencia de frametimes y 1% lows.",
+    windowsVersion: "Windows 10 / Windows 11",
+    fuenteOficial:
+      "https://support.microsoft.com/en-us/windows/options-to-optimize-gaming-performance-in-windows-11-b356564c-fb83-47e0-b617-ebd45f63974a",
+    scriptName: "disable_vbs.ps1",
+    impactoRendimiento:
+      "Reducción directa de la latencia del programador y mejora de 3% a 10% en FPS y 1% lows en juegos CPU-bound.",
+    warning:
+      "Desactivar la Integridad de Memoria reduce el aislamiento del kernel frente a posibles vulnerabilidades en controladores de terceros no firmados. Requiere reiniciar el equipo para completarse.",
+    details: [
+      "Desactivación de Virtualization-Based Security (EnableVirtualizationBasedSecurity = 0).",
+      "Desactivación de Hypervisor-Protected Code Integrity / Integridad de Memoria (HypervisorEnforcedCodeIntegrity\\Enabled = 0).",
+    ],
+  },
   gpuDisplay: {
     id: "gpuDisplay",
     title: "Fluidez de Pantalla y Gráficos",

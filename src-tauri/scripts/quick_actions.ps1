@@ -190,6 +190,25 @@ Try {
             }
             Write-Output "OK: Explorador de Windows reiniciado con exito."
         }
+        "StabilityCheck" {
+            $Days = 30
+            $Since = (Get-Date).AddDays(-$Days)
+            $wheaEvents = Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-WHEA-Logger'; StartTime=$Since} -ErrorAction SilentlyContinue
+            $kpEvents = Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Power'; Id=41; StartTime=$Since} -ErrorAction SilentlyContinue
+            
+            $wheaCount = @($wheaEvents).Count
+            $kpCount = @($kpEvents).Count
+            
+            $id17 = @($wheaEvents | Where-Object { $_.Id -eq 17 }).Count
+            $id18 = @($wheaEvents | Where-Object { $_.Id -eq 18 }).Count
+            $id19 = @($wheaEvents | Where-Object { $_.Id -eq 19 }).Count
+            
+            if ($wheaCount -eq 0 -and $kpCount -eq 0) {
+                Write-Output "OK: SISTEMA ESTABLE. Cero errores de hardware WHEA y cero apagados bruscos (Kernel-Power 41) en los ultimos $Days dias."
+            } else {
+                Write-Output "ADVERTENCIA: Detectados $wheaCount eventos de hardware WHEA (PCIe ID 17: $id17, CPU Fatal ID 18: $id18, Corregidos ID 19: $id19) y $kpCount apagados abruptos (Kernel-Power 41) en los ultimos $Days dias.`r`n`r`nRecomendacion: Si experimenta micro-cuelgues o cierres inesperados en juegos, verifique la estabilidad de su perfil XMP/EXPO, voltajes de CPU/RAM o temperaturas termicas."
+            }
+        }
         default {
             throw "Accion rapida no reconocida: '$TargetAction'"
         }

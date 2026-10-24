@@ -19,6 +19,7 @@ $Status = @{
     powerProfiles      = $false
     gameHooks          = $false
     disableMitigations = $false
+    disableVbs         = $false
     defenderExclusions = $false
 }
 
@@ -409,6 +410,16 @@ if (Test-Path $MemPath) {
     $Mask = Get-ItemPropertyValue -Path $MemPath -Name "FeatureSettingsOverrideMask" -ErrorAction SilentlyContinue
     if ($Override -eq 8259 -and $Mask -eq 3) {
         $Status['disableMitigations'] = $true
+    }
+}
+
+$DeviceGuardPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard"
+$HvciPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
+if (Test-Path $DeviceGuardPath) {
+    $vbsVal = Get-ItemPropertyValue -Path $DeviceGuardPath -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue
+    $hvciVal = Get-ItemPropertyValue -Path $HvciPath -Name "Enabled" -ErrorAction SilentlyContinue
+    if ($vbsVal -eq 0 -and $hvciVal -eq 0) {
+        $Status['disableVbs'] = $true
     }
 }
 
