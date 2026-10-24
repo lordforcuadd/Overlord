@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 
 Try {
     $HKCU_Path = if (Get-Variable -Name "HKCU_Path" -Scope "global" -ErrorAction SilentlyContinue) { $global:HKCU_Path } else { "HKCU:" }
-    Write-Host "[*] Aplicando optimizaciones visuales y calibración de GPU de Grado de Producción..."
+    Write-Host "[*] Aplicando optimizaciones visuales y calibracion de GPU de Grado de Produccion..."
 
     $HagsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
     if (!(Test-Path $HagsPath)) { New-Item -Path $HagsPath -Force | Out-Null }
@@ -80,6 +80,6 @@ Try {
 
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo GPU: $_"
+    Write-Error "[-] Error critico en Modulo GPU: $_"
     exit 1
 }

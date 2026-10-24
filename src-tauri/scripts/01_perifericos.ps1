@@ -51,11 +51,11 @@ Try {
                                         $interruptKey.SetValue("MSISupported", 1, [Microsoft.Win32.RegistryValueKind]::DWord)
                                         
                                         if ($interruptKey.GetValue("MSISupported") -ne 1) { 
-                                            throw "El SO bloqueó MSISupported para el dispositivo PCI: $devId" 
+                                            throw "El SO bloqueo MSISupported para el dispositivo PCI: $devId" 
                                         }
                                     }
                                     
-                                    # Configurar prioridad de interrupción alta (DevicePriority = 3)
+                                    # Configurar prioridad de interrupcion alta (DevicePriority = 3)
                                     $affinityPathName = "Interrupt Management\Affinity Policy"
                                     $affinityKey = $paramKey.CreateSubKey($affinityPathName, $true)
                                     if ($affinityKey) {
@@ -108,7 +108,7 @@ Try {
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "2a737441-1930-4402-8d77-b2bebba308a3" -SettingGuid "48e6b7a6-50f5-4782-a5d4-53bb8f07e226" -BackupName "Power_${CurrentGuid}_48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
         }
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló al configurar USB Selective Suspend" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo al configurar USB Selective Suspend" }
         if ($CurrentGuid) {
             & powercfg /setactive $CurrentGuid 2>$null | Out-Null
             if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo al reactivar el esquema actual" }

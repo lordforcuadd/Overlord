@@ -507,6 +507,29 @@ Describe "Suite de Verificacion de Integridad Mecanica - Overlord v$Version" {
             $LoadedConfig.fixedDriveRoots.Count | Should Be $Parsed.fixedDriveRoots.Count
         }
 
+        It "Debe certificar la resolucion in-memory de Get-OverlordLaunchersConfig bajo el modelo del executor" {
+            $JsonRaw = Get-Content -Path (Join-Path $script:ScriptsPath "..\launchers_config.json") -Raw
+            $JsonB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($JsonRaw))
+            $Psm1Raw = Get-Content -Path (Join-Path $script:ScriptsPath "game_locator.psm1") -Raw
+
+            $Header = @"
+`$global:LaunchersConfigJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('$JsonB64'))
+`$LaunchersConfigJson = `$global:LaunchersConfigJson
+`$global:LaunchersConfig = ConvertFrom-Json -InputObject `$global:LaunchersConfigJson
+`$LaunchersConfig = `$global:LaunchersConfig
+`$ErrorActionPreference = 'Stop'
+"@
+            $Call = "Get-OverlordLaunchersConfig"
+            $UnifiedScript = "$Header`n$Psm1Raw`n$Call"
+
+            $Sb = [scriptblock]::Create($UnifiedScript)
+            $Resolved = & $Sb
+            $null -ne $Resolved | Should Be $true
+            $Resolved.steam.libraryFoldersRelPath | Should Be "steamapps\libraryfolders.vdf"
+            $Resolved.riot.defaultFolder | Should Be "Riot Games"
+            $Resolved.fixedDriveRoots.Count | Should Be 5
+        }
+
         It "Debe comprobar la sincronizacion estatica de StartType de servicios entre scripts de aplicacion y get_modules_status.ps1" {
             $DebloatContent = Get-Content -Path (Join-Path $script:ScriptsPath "02_debloat.ps1") -Raw
             $StatusContent = Get-Content -Path (Join-Path $script:ScriptsPath "get_modules_status.ps1") -Raw

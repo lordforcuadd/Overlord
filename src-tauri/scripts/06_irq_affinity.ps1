@@ -16,10 +16,10 @@ Try {
     $BackupPath = "HKLM:\SOFTWARE\Overlord\Backup\CPU"
     if (!(Test-Path $BackupPath)) { New-Item -Path $BackupPath -Force | Out-Null }
 
-    # Configuración de políticas de interrupción:
+    # Configuracion de politicas de interrupcion:
     # En procesadores AMD Ryzen Dual-CCD X3D (7900X3D, 7950X3D, 9900X3D, 9950X3D), enrutamos las interrupciones
     # de red al CCD1 (frecuencia) para blindar el CCD0 (3D V-Cache) exclusivamente para el renderizado del juego.
-    # En el resto de topologías (Intel, Ryzen single CCD, etc.), delegamos de forma nativa al HAL (IrqPolicyMachineDefault).
+    # En el resto de topologias (Intel, Ryzen single CCD, etc.), delegamos de forma nativa al HAL (IrqPolicyMachineDefault).
     $DevicePolicyValue = 0 # IrqPolicyMachineDefault
     [uint64]$NetBitmask = 0
 
@@ -93,12 +93,12 @@ Try {
                                             $affinityKey.SetValue("AssignmentSetOverride", $NetMaskBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
                                             
                                             if ($affinityKey.GetValue("DevicePolicy") -ne $DevicePolicyValue) {
-                                                Write-Warning "El SO bloqueó DevicePolicy para el dispositivo PCI: $devId"
+                                                Write-Warning "El SO bloqueo DevicePolicy para el dispositivo PCI: $devId"
                                             }
                                         }
                                     }
                                 } catch {
-                                    Write-Warning "El SO bloqueó la configuración de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
+                                    Write-Warning "El SO bloqueo la configuracion de afinidad IRQ de red para el dispositivo PCI $devId (sin permisos): $_"
                                 } finally {
                                     if ($null -ne $affinityKey) { $affinityKey.Close(); $affinityKey = $null }
                                     if ($null -ne $paramKey) { $paramKey.Close(); $paramKey = $null }
@@ -134,7 +134,7 @@ Try {
                         
                         $AdvProps = Get-NetAdapterAdvancedProperty -Name $Adapter.Name -ErrorAction SilentlyContinue
                         if ($null -ne $AdvProps) {
-                            $IntMod = $AdvProps | Where-Object { $_.RegistryKeyword -match "^\*?InterruptModeration$" -or $_.DisplayName -match "Interrupt Moderation|Moderaci[oó]n de interrupciones" } | Select-Object -First 1
+                            $IntMod = $AdvProps | Where-Object { $_.RegistryKeyword -match "^\*?InterruptModeration$" -or $_.DisplayName -match "Interrupt Moderation|Moderaci.?n de interrupciones" } | Select-Object -First 1
                             if ($null -ne $IntMod) {
                                 if (Test-Path $AdapterBackupPath) {
                                     $props = Get-ItemProperty -Path $AdapterBackupPath -ErrorAction SilentlyContinue

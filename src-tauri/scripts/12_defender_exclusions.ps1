@@ -174,7 +174,7 @@ try {
                 Add-MpPreference -ExclusionPath $Dir -ErrorAction Stop
                 Write-Host "    [+] Ruta excluida en Windows Defender: $Dir"
                 
-                # Registrar en nuestro backup que Overlord gestiona esta exclusión
+                # Registrar en nuestro backup que Overlord gestiona esta exclusion
                 if (-not ($NewAddedPaths | Where-Object { $_ -ieq $Dir })) {
                     $NewAddedPaths.Add($Dir)
                 }

@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Try {
-    Write-Host "[*] Iniciando mantenimiento y optimización de almacenamiento..."
+    Write-Host "[*] Iniciando mantenimiento y optimizacion de almacenamiento..."
 
     if ($IsSsd) {
         Write-Host "[+] Unidad SSD detectada. Optimizando parametros de lectura/escritura NTFS y cache..." -ForegroundColor Green
@@ -68,7 +68,7 @@ Try {
         }
     }
 
-    # La compactación de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
+    # La compactacion de componentes DISM se delega a la Limpieza Profunda manual en Quick Actions para prevenir stutters de fondo.
 
     $IsServiceRunning = $false
     try {
@@ -84,11 +84,11 @@ Try {
             }
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         } else {
-            # TiWorker o TrustedInstaller están activos. Borrar solo temporales no bloqueados sin apagar el servicio.
+            # TiWorker o TrustedInstaller estan activos. Borrar solo temporales no bloqueados sin apagar el servicio.
             Remove-Item -Path "$env:windir\SoftwareDistribution\Download\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         }
     } catch {
-        Write-Warning "Fallo no crítico gestionando limpieza de SoftwareDistribution: $_"
+        Write-Warning "Fallo no critico gestionando limpieza de SoftwareDistribution: $_"
     } finally {
         if ($IsServiceRunning) {
             $curStatus = (Get-Service -Name "wuauserv" -ErrorAction SilentlyContinue).Status
@@ -101,10 +101,10 @@ Try {
     try {
         Remove-Item -Path "$env:TEMP\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         Remove-Item -Path "$env:SystemRoot\Temp\*" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    } catch { Write-Warning "Fallo no crítico limpiando temporales: $_" }
+    } catch { Write-Warning "Fallo no critico limpiando temporales: $_" }
 
     exit 0
 } Catch {
-    Write-Error "[-] Error crítico en Módulo de Almacenamiento: $_"
+    Write-Error "[-] Error critico en Modulo de Almacenamiento: $_"
     exit 1
 }

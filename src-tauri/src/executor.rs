@@ -111,18 +111,19 @@ fn build_script_header(action_id: &str, is_laptop: bool, ram_gb: u32, game_list:
 
     format!(
         "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8\n\
-         $IsLaptop = ${}\n\
-         $RamGB = {}\n\
-         $GameList = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
-         $ActionId = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
-         $ToggleName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
-         $IsEnabledStr = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
-         $Version = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
-         $LaunchersConfigJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))\n\
-         $LaunchersConfig = ConvertFrom-Json -InputObject $LaunchersConfigJson\n\
-         $IsHybrid = ${}\n\
-         $IsX3d = ${}\n\
-         $IsSsd = ${}\n\
+         $global:HKCU_Path = 'HKCU:'; $HKCU_Path = 'HKCU:'\n\
+         $global:IsLaptop = ${}; $IsLaptop = $global:IsLaptop\n\
+         $global:RamGB = {}; $RamGB = $global:RamGB\n\
+         $global:GameList = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $GameList = $global:GameList\n\
+         $global:ActionId = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $ActionId = $global:ActionId\n\
+         $global:ToggleName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $ToggleName = $global:ToggleName\n\
+         $global:IsEnabledStr = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $IsEnabledStr = $global:IsEnabledStr\n\
+         $global:Version = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $Version = $global:Version\n\
+         $global:LaunchersConfigJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}')); $LaunchersConfigJson = $global:LaunchersConfigJson\n\
+         $global:LaunchersConfig = ConvertFrom-Json -InputObject $global:LaunchersConfigJson; $LaunchersConfig = $global:LaunchersConfig\n\
+         $global:IsHybrid = ${}; $IsHybrid = $global:IsHybrid\n\
+         $global:IsX3d = ${}; $IsX3d = $global:IsX3d\n\
+         $global:IsSsd = ${}; $IsSsd = $global:IsSsd\n\
          $ErrorActionPreference = 'Stop'\n",
         if is_laptop { "true" } else { "false" },
         ram_gb,

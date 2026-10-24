@@ -2,7 +2,7 @@ function Get-OverlordLaunchersConfig {
     if ($null -ne $global:LaunchersConfig) {
         return $global:LaunchersConfig
     }
-    $cfgVar = Get-Variable -Name "LaunchersConfig" -Scope "global" -ErrorAction SilentlyContinue
+    $cfgVar = Get-Variable -Name "LaunchersConfig" -ErrorAction SilentlyContinue
     if ($null -ne $cfgVar -and $null -ne $cfgVar.Value) {
         return $cfgVar.Value
     }
@@ -14,31 +14,45 @@ function Get-OverlordLaunchersConfig {
                 return $parsed
             }
         } catch {
-            # Intencional: continuar con fallback en disco si el string JSON global no parsea
+            # Intencional: continuar con fallback si el string JSON global no parsea
+        }
+    }
+    $cfgJsonVar = Get-Variable -Name "LaunchersConfigJson" -ErrorAction SilentlyContinue
+    if ($null -ne $cfgJsonVar -and !([string]::IsNullOrWhiteSpace($cfgJsonVar.Value))) {
+        try {
+            $parsed = $cfgJsonVar.Value | ConvertFrom-Json -ErrorAction Stop
+            if ($null -ne $parsed) {
+                $global:LaunchersConfig = $parsed
+                return $parsed
+            }
+        } catch {
+            # Intencional: continuar con fallback si el string JSON no parsea
         }
     }
 
-    # Fallback dinamico: intentar cargar launchers_config.json desde disco
-    $possiblePaths = @(
-        (Join-Path $PSScriptRoot "..\launchers_config.json"),
-        (Join-Path $PSScriptRoot "launchers_config.json")
-    )
-    foreach ($path in $possiblePaths) {
-        if (Test-Path $path) {
-            try {
-                $content = Get-Content -Path $path -Raw -Encoding UTF8 -ErrorAction Stop
-                $parsed = $content | ConvertFrom-Json -ErrorAction Stop
-                if ($null -ne $parsed) {
-                    $global:LaunchersConfig = $parsed
-                    return $parsed
+    # Fallback dinamico: intentar cargar launchers_config.json desde disco (solo si PSScriptRoot no es nulo ni vacio)
+    if (-not [string]::IsNullOrEmpty($PSScriptRoot)) {
+        $possiblePaths = @(
+            (Join-Path $PSScriptRoot "..\launchers_config.json"),
+            (Join-Path $PSScriptRoot "launchers_config.json")
+        )
+        foreach ($path in $possiblePaths) {
+            if (Test-Path $path) {
+                try {
+                    $content = Get-Content -Path $path -Raw -Encoding UTF8 -ErrorAction Stop
+                    $parsed = $content | ConvertFrom-Json -ErrorAction Stop
+                    if ($null -ne $parsed) {
+                        $global:LaunchersConfig = $parsed
+                        return $parsed
+                    }
+                } catch {
+                    # Intencional: ignorar error de lectura y probar siguiente ruta
                 }
-            } catch {
-                # Intencional: ignorar error de lectura y probar siguiente ruta
             }
         }
     }
 
-    throw "Error critico: No se encontro launchers_config.json ni variable global `$global:LaunchersConfig."
+    throw "Error critico: No se encontro launchers_config.json ni variable `$LaunchersConfig."
 }
 
 function Get-LauncherRoots {

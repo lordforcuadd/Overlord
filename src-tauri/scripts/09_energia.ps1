@@ -40,7 +40,7 @@ Try {
         if ($null -ne $CurrentGuid) {
             Backup-OverlordPowerSetting -SchemeGuid $CurrentGuid -SubGroupGuid "54533251-82be-4824-96c1-47b60b740d00" -SettingGuid "94d3a615-a899-4ac5-ae2b-e4d8f634367f" -BackupName "Power_${CurrentGuid}_94d3a615-a899-4ac5-ae2b-e4d8f634367f"
             & powercfg /SETACVALUEINDEX $CurrentGuid 54533251-82be-4824-96c1-47b60b740d00 94d3a615-a899-4ac5-ae2b-e4d8f634367f 1 2>$null | Out-Null
-            if ($LASTEXITCODE -ne 0) { Write-Verbose "Fallo al ajustar índice AC en laptop" }
+            if ($LASTEXITCODE -ne 0) { Write-Verbose "Fallo al ajustar indice AC en laptop" }
             & powercfg /setactive $CurrentGuid 2>$null | Out-Null
             if ($LASTEXITCODE -ne 0) { Write-Verbose "Fallo al activar plan en laptop" }
         }
@@ -115,38 +115,38 @@ Try {
 
         # Nota de rigor: Las llamadas powercfg externas no generan excepciones en PowerShell
         # al fallar (por ejemplo, si el hardware/firmware no soporta EPP o Boost Mode).
-        # Verificamos explícitamente $LASTEXITCODE para reportar advertencias informadas sin interrumpir la ejecución.
+        # Verificamos explicitamente $LASTEXITCODE para reportar advertencias informadas sin interrumpir la ejecucion.
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ee12f906-d277-404b-b6da-e5fa1a576df5" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para ee12f906-d277-404b-b6da-e5fa1a576df5" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 48e6b7a6-50f5-4782-a5d4-53bb8f07e226" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 48e6b7a6-50f5-4782-a5d4-53bb8f07e226" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 0cc5b647-c1df-4637-891a-dec35c318583 100 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 0cc5b647-c1df-4637-891a-dec35c318583" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 0cc5b647-c1df-4637-891a-dec35c318583" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 ea062031-0e34-4ff1-9b6d-eb1059334028 100 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para ea062031-0e34-4ff1-9b6d-eb1059334028" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para ea062031-0e34-4ff1-9b6d-eb1059334028" }
         
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 0012ee47-9041-4b5d-9b77-535fba8b1442 6738e2c4-e8a5-4a42-b16a-e040e769756e 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 6738e2c4-e8a5-4a42-b16a-e040e769756e" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 6738e2c4-e8a5-4a42-b16a-e040e769756e" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 36687f9e-e3a5-4dbf-b1dc-15eb381c6863 0 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para 36687f9e-e3a5-4dbf-b1dc-15eb381c6863" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para 36687f9e-e3a5-4dbf-b1dc-15eb381c6863" }
 
         & powercfg /SETACVALUEINDEX SCHEME_CURRENT 54533251-82be-4824-96c1-47b60b740d00 be337238-0d82-4146-a960-4f3749d470c7 2 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg falló para be337238-0d82-4146-a960-4f3749d470c7" }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "powercfg fallo para be337238-0d82-4146-a960-4f3749d470c7" }
 
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
             $CurrentGuid = $Matches[1]
             & powercfg /setactive $CurrentGuid 2>$null
-            if ($LASTEXITCODE -ne 0) { Write-Warning "Fallo al reactivar plan de energía: $CurrentGuid" }
+            if ($LASTEXITCODE -ne 0) { Write-Warning "Fallo al reactivar plan de energia: $CurrentGuid" }
         }
     }
 
-    # Inyectar desactivación de Power Throttling solo en computadoras de escritorio.
-    # En laptops se preserva EcoQoS para evitar sobrecalentamiento y drenaje acelerado de batería.
+    # Inyectar desactivacion de Power Throttling solo en computadoras de escritorio.
+    # En laptops se preserva EcoQoS para evitar sobrecalentamiento y drenaje acelerado de bateria.
     if (-not $IsRunningOnLaptop) {
         $ThrottlePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling"
         if (!(Test-Path $ThrottlePath)) { New-Item -Path $ThrottlePath -Force | Out-Null }
