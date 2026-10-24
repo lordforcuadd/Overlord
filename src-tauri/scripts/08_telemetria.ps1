@@ -87,6 +87,15 @@ Try {
     Backup-OverlordRegistryValue -TargetKey $WUpPath -ValueName "NoAutoRebootWithLoggedOnUsers" -BackupSubFolder "Telemetry"
     Set-ItemProperty -Path $WUpPath -Name "NoAutoRebootWithLoggedOnUsers" -Type DWord -Value 1 -Force | Out-Null
 
+    # Blindar drivers de GPU y dispositivos contra reemplazo automatico por Windows Update
+    $WUpRootPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
+    if (!(Test-Path $WUpRootPath)) { New-Item -Path $WUpRootPath -Force | Out-Null }
+    Backup-OverlordRegistryValue -TargetKey $WUpRootPath -ValueName "ExcludeWUDriversInQualityUpdate" -BackupSubFolder "Telemetry"
+    Set-ItemProperty -Path $WUpRootPath -Name "ExcludeWUDriversInQualityUpdate" -Type DWord -Value 1 -Force | Out-Null
+    if ((Get-ItemPropertyValue -Path $WUpRootPath -Name "ExcludeWUDriversInQualityUpdate" -ErrorAction SilentlyContinue) -ne 1) { 
+        throw "Fallo al asegurar la directiva ExcludeWUDriversInQualityUpdate en 1"
+    }
+
     Set-ItemProperty -Path $ActivityPath -Name "PublishUserActivities" -Type DWord -Value 0 -Force | Out-Null
     if ((Get-ItemPropertyValue -Path $ActivityPath -Name "PublishUserActivities" -ErrorAction SilentlyContinue) -ne 0) { 
         throw "Fallo al asegurar la directiva PublishUserActivities en 0"
@@ -127,17 +136,20 @@ Try {
         }
     }
 
-    # Bloqueo de Windows Recall (Directivas de Windows AI)
-    $WindowsAIPolicyHKLM = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
+    # Bloqueo de Windows Recall (Directivas de Windows AI para Windows 11)
+    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuild" -ErrorAction SilentlyContinue)
+    if ($BuildNum -ge 22000) {
+        $WindowsAIPolicyHKLM = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
 
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
-    Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
+        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "TurnOffUserCameraCapture" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
+        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "DisableAIDataAnalysis" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
+        Backup-OverlordRegistryValue -TargetKey $WindowsAIPolicyHKLM -ValueName "AllowRecallEnablement" -BackupSubFolder "Telemetry\WindowsAI_HKLM"
 
-    if (!(Test-Path $WindowsAIPolicyHKLM)) { New-Item -Path $WindowsAIPolicyHKLM -Force | Out-Null }
-    Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "TurnOffUserCameraCapture" -Type DWord -Value 1 -Force | Out-Null
-    Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "DisableAIDataAnalysis" -Type DWord -Value 1 -Force | Out-Null
-    Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "AllowRecallEnablement" -Type DWord -Value 0 -Force | Out-Null
+        if (!(Test-Path $WindowsAIPolicyHKLM)) { New-Item -Path $WindowsAIPolicyHKLM -Force | Out-Null }
+        Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "TurnOffUserCameraCapture" -Type DWord -Value 1 -Force | Out-Null
+        Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "DisableAIDataAnalysis" -Type DWord -Value 1 -Force | Out-Null
+        Set-ItemProperty -Path $WindowsAIPolicyHKLM -Name "AllowRecallEnablement" -Type DWord -Value 0 -Force | Out-Null
+    }
 
     Write-Host "[+] Flujos de telemetria e hilos espia erradicados con exito."
     exit 0

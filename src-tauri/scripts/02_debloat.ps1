@@ -64,8 +64,12 @@ Try {
     Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -ValueName "AllowTelemetry" -BackupSubFolder "Telemetry"
     Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "BingSearchEnabled" -BackupSubFolder "Telemetry"
     Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search" -ValueName "CortanaConsent" -BackupSubFolder "Telemetry"
-    Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKCU"
-    Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKLM"
+    
+    $BuildNum = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuild" -ErrorAction SilentlyContinue)
+    if ($BuildNum -ge 22000) {
+        Backup-OverlordRegistryValue -TargetKey "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKCU"
+        Backup-OverlordRegistryValue -TargetKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -ValueName "TurnOffWindowsCopilot" -BackupSubFolder "Telemetry\CopilotHKLM"
+    }
 
     
     # Copia de seguridad para politicas de Microsoft Edge
@@ -122,13 +126,15 @@ Try {
     if ($null -eq $BingSearchEnabled -or $BingSearchEnabled -ne 0) { throw "El SO bloqueó la configuración de BingSearchEnabled" }
     if ($null -eq $CortanaConsent -or $CortanaConsent -ne 0) { throw "El SO bloqueó la configuración de CortanaConsent" }
 
-    $CopilotUserPath = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot"
-    if (!(Test-Path $CopilotUserPath)) { New-Item -Path $CopilotUserPath -Force | Out-Null }
-    Set-ItemProperty -Path $CopilotUserPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
+    if ($BuildNum -ge 22000) {
+        $CopilotUserPath = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot"
+        if (!(Test-Path $CopilotUserPath)) { New-Item -Path $CopilotUserPath -Force | Out-Null }
+        Set-ItemProperty -Path $CopilotUserPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
 
-    $CopilotSystemPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-    if (!(Test-Path $CopilotSystemPath)) { New-Item -Path $CopilotSystemPath -Force | Out-Null }
-    Set-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
+        $CopilotSystemPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
+        if (!(Test-Path $CopilotSystemPath)) { New-Item -Path $CopilotSystemPath -Force | Out-Null }
+        Set-ItemProperty -Path $CopilotSystemPath -Name "TurnOffWindowsCopilot" -Type DWord -Value 1 -Force | Out-Null
+    }
 
     # Desactivar inicio rapido y segundo plano de Microsoft Edge
     $EdgePolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"

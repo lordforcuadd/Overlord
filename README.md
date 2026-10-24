@@ -154,6 +154,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 ### 7. Almacenamiento y Sistema de Archivos (`07_almacenamiento.ps1`)
 - Activa `NtfsDisableLastAccessUpdate = 1`, eliminando escrituras innecesarias en cada lectura de archivo.
 - Desactiva nombres de archivo cortos MS-DOS 8.3 (`NtfsDisable8dot3NameCreation = 1`).
+- Asegura soporte TRIM activo (`DisableDeleteNotify = 0`) en unidades SSD.
 - Desactiva **Fast Startup** (`HiberbootEnabled = 0`) para asegurar reinicios limpios de Kernel.
 - En desktop: desactiva hibernación completa liberando gigabytes del archivo `hiberfil.sys`.
 
@@ -162,6 +163,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Bloquea la salida de red de binarios espía (`CompatTelRunner.exe`, `DeviceCensus.exe`, `wsqmcons.exe`) con reglas de Firewall de Windows dedicadas (`Overlord_Block_`).
 - Desactiva loggers WMI de telemetría y Windows Error Reporting (`WerFault.exe`).
 - Desactiva Windows Recall e IA de captura constante de pantalla (`TurnOffUserCameraCapture = 1`, `DisableAIDataAnalysis = 1`).
+- Protege los controladores limpios de GPU y dispositivos contra sobrescritura automática por Windows Update (`ExcludeWUDriversInQualityUpdate = 1`).
 
 ### 9. Gestión de Energía (`09_energia.ps1`)
 - Respalda el GUID del plan activo original antes de cualquier modificación.
@@ -175,7 +177,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Desregistra y detiene el daemon residente, elimina reglas de Firewall inyectadas y restaura el plan de energía anterior.
 
 ### 11. Prioridad de Juegos y Hooks Gráficos (`11_game_hooks.ps1`)
-- Aplica flags de compatibilidad en el Registro (`HIGHDPI_SCALING_OVERRIDE_APPLICATION` y bypass de pantalla completa optimizada de DWM) de forma aislada para los ejecutables de juegos seleccionados.
+- Aplica flags de compatibilidad en el Registro (`HIGHDPI_SCALING_OVERRIDE_APPLICATION` y `DISABLEDXMAXIMIZEDWINDOWEDMODE` para bypass de composición DWM) de forma aislada para los ejecutables de juegos seleccionados.
 - En títulos basados en Unreal Engine, optimiza `GameUserSettings.ini` hacia pantalla completa exclusiva respaldando previamente la preferencia original del usuario.
 - Preserva de forma 100% segura los hooks de Anti-Cheats (Vanguard, EAC, BattlEye).
 

@@ -22,20 +22,12 @@ Try {
     Backup-OverlordRegistryValue -TargetKey $FastStartPath -ValueName "HiberbootEnabled" -BackupSubFolder "Storage"
     Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsDisable8dot3NameCreation" -BackupSubFolder "Storage"
     Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "DisableDeleteNotify" -BackupSubFolder "Storage"
-    if ($IsSsd -and $RamGB -ge 16) {
-        Backup-OverlordRegistryValue -TargetKey $NtfsPath -ValueName "NtfsMemoryUsage" -BackupSubFolder "Storage"
-    }
 
     # Desactivar actualizacion del ultimo acceso en NTFS para reducir escrituras en disco
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -Type DWord -Value 1 -Force | Out-Null
     
     # Desactivar nombres cortos MS-DOS 8.3
     Set-ItemProperty -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -Type DWord -Value 1 -Force | Out-Null
-
-    # Optimizar caché de metadatos NTFS adaptativamente (solo en SSD rápidos)
-    if ($IsSsd -and $RamGB -ge 16) {
-        Set-ItemProperty -Path $NtfsPath -Name "NtfsMemoryUsage" -Type DWord -Value 2 -Force | Out-Null
-    }
 
     if ($IsSsd) {
         # Asegurar soporte TRIM activo en SSD (DisableDeleteNotify = 0 significa TRIM habilitado)
@@ -48,9 +40,6 @@ Try {
     
     if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue) -ne 1) { throw "Fallo al verificar NtfsDisableLastAccessUpdate" }
     if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -ErrorAction SilentlyContinue) -ne 1) { throw "Fallo al verificar NtfsDisable8dot3NameCreation" }
-    if ($IsSsd -and $RamGB -ge 16) {
-        if ((Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue) -ne 2) { throw "Fallo al verificar NtfsMemoryUsage" }
-    }
     if ((Get-ItemPropertyValue -Path $FastStartPath -Name "HiberbootEnabled" -ErrorAction SilentlyContinue) -ne 0) { throw "Fallo al verificar HiberbootEnabled (Inicio Rapido)" }
 
     if (-not $IsLaptop) {

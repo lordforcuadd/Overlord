@@ -119,8 +119,9 @@ Try {
     }
     }
 
-    if (-not $IsLaptop) {
-        Write-Host "    -> Desactivando Interrupt Moderation en adaptadores Ethernet fisicos de escritorio para baja latencia..."
+    $TotalThreads = [int]$env:NUMBER_OF_PROCESSORS
+    if (-not $IsLaptop -and $TotalThreads -gt 8) {
+        Write-Host "    -> Desactivando Interrupt Moderation en adaptadores Ethernet fisicos de escritorio (>8 hilos) para baja latencia..."
         if (Get-Command Get-NetAdapter -ErrorAction SilentlyContinue) {
             $NetAdapters = Get-NetAdapter -ErrorAction SilentlyContinue
             foreach ($Adapter in $NetAdapters) {

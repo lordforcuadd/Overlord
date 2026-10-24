@@ -264,7 +264,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     details: [
       "Desactivación de la actualización de marcas de tiempo (Last Access Update) para mitigar ciclos de degradación en SSD.",
       "Desactivación universal de la creación de nombres de archivo cortos en formato MS-DOS 8.3 para acelerar el sistema de archivos.",
-      "Optimización adaptativa de la caché de metadatos NTFS (NtfsMemoryUsage = 2) en sistemas con >= 16 GB de RAM.",
+      "Aseguramiento de soporte TRIM activo (DisableDeleteNotify = 0) para mantener la velocidad sostenida en unidades SSD.",
       "Desactivación completa de la hibernación y remoción del archivo fantasma persistente Hiberfil.sys (en desktops).",
       "Desactivación de Inicio Rápido (HiberbootEnabled = 0) para forzar un apagado limpio del kernel de Windows.",
     ],
@@ -296,6 +296,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Bloqueo perimetral en el Firewall de Windows para los ejecutables de recolección nativos (CompatTelRunner, etc.).",
       "Detención e inhabilitación asíncrona de Autologgers ocultos del Visor de Eventos de Windows.",
       "Bloqueo total de Windows Recall y captura de actividad local de Inteligencia Artificial (Windows AI).",
+      "Blindaje contra sobrescritura no deseada de controladores de video y dispositivos por Windows Update (ExcludeWUDriversInQualityUpdate = 1).",
     ],
   },
   powerProfiles: {
@@ -345,6 +346,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Módulo 100% seguro para Anti-Cheats (Vanguard, EasyAntiCheat, BattlEye). La prioridad se inyecta dinámicamente desde el backend de Rust.",
     details: [
       "Inyección de invalidación de escalado de PPP (High DPI) para eliminar la latencia por reescalado de pantalla.",
+      "Bypass directo de optimizaciones de pantalla completa en DWM (DISABLEDXMAXIMIZEDWINDOWEDMODE) para reducir la latencia de entrada.",
       "Forzado de pantalla completa exclusiva en archivos de configuración de juegos compatibles (como Unreal Engine).",
       "Limpieza quirúrgica de modificaciones IFEO inyectadas previamente por Overlord, preservando de forma 100% segura los hooks legítimos de Anti-Cheats (Vanguard, EAC).",
       "Aislamiento de persistencia de entorno mediante subllaves estructuradas con la ruta física completa del ejecutable.",

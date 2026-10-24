@@ -65,13 +65,30 @@ $TasksToCheck = @(
 )
 $TasksOk = $true
 $FoundAnyTask = $false
-foreach ($t in $TasksToCheck) {
-    $tObj = Get-ScheduledTask -TaskPath $t.Path -TaskName $t.Name -ErrorAction SilentlyContinue
-    if ($null -ne $tObj) {
-        $FoundAnyTask = $true
-        if ($tObj.State -ne "Disabled") {
-            $TasksOk = $false
-            break
+
+try {
+    $ts = New-Object -ComObject Schedule.Service -ErrorAction Stop
+    $ts.Connect()
+    foreach ($t in $TasksToCheck) {
+        try {
+            $folder = $ts.GetFolder($t.Path.TrimEnd('\'))
+            $task = $folder.GetTask($t.Name)
+            $FoundAnyTask = $true
+            if ($task.Enabled) {
+                $TasksOk = $false
+                break
+            }
+        } catch { }
+    }
+} catch {
+    foreach ($t in $TasksToCheck) {
+        $tObj = Get-ScheduledTask -TaskPath $t.Path -TaskName $t.Name -ErrorAction SilentlyContinue
+        if ($null -ne $tObj) {
+            $FoundAnyTask = $true
+            if ($tObj.State -ne "Disabled") {
+                $TasksOk = $false
+                break
+            }
         }
     }
 }
@@ -254,7 +271,7 @@ if (Test-Path $GpuPath) {
     }
 }
 
-if (-not $IsLaptop) {
+if (-not $IsLaptop -and $TotalThreads -gt 8) {
     $intModDisabled = $false
     if (Get-Command Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue) {
         $AdvProps = Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match "Interrupt Moderation" }
@@ -330,15 +347,10 @@ if (Test-Path $NtfsPath) {
     $Last = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisableLastAccessUpdate" -ErrorAction SilentlyContinue
     $FastStart = Get-ItemPropertyValue -Path $FastStartPath -Name "HiberbootEnabled" -ErrorAction SilentlyContinue
     $Ntfs8dot3 = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsDisable8dot3NameCreation" -ErrorAction SilentlyContinue
-    $NtfsMem = Get-ItemPropertyValue -Path $NtfsPath -Name "NtfsMemoryUsage" -ErrorAction SilentlyContinue
     
     $StorageOk = $false
     if ($Last -eq 1 -and $FastStart -eq 0 -and $Ntfs8dot3 -eq 1) {
-        if ($IsSsd -and $RamGB -ge 16) {
-            if ($NtfsMem -eq 2) { $StorageOk = $true }
-        } else {
-            $StorageOk = $true
-        }
+        $StorageOk = $true
     }
     
     if ($StorageOk) {
@@ -350,7 +362,8 @@ $DiagTrackSvc = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
 $WerSvc = Get-Service -Name "WerSvc" -ErrorAction SilentlyContinue
 $WerPolicy = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -ErrorAction SilentlyContinue
 $PublishActivities = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -ErrorAction SilentlyContinue
-if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and ($WerSvc.StartType -eq "Manual" -or $WerSvc.StartType -eq "Disabled")) -and $WerPolicy -eq 1 -and $PublishActivities -eq 0) {
+$ExcludeWuDrivers = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "ExcludeWUDriversInQualityUpdate" -ErrorAction SilentlyContinue
+if (($null -ne $DiagTrackSvc -and $DiagTrackSvc.StartType -eq "Disabled") -and ($null -ne $WerSvc -and ($WerSvc.StartType -eq "Manual" -or $WerSvc.StartType -eq "Disabled")) -and $WerPolicy -eq 1 -and $PublishActivities -eq 0 -and $ExcludeWuDrivers -eq 1) {
     $Status['deepTelemetry'] = $true
 }
 
@@ -382,7 +395,7 @@ if (Test-Path $LayersPath) {
     $LayersProps = Get-ItemProperty -Path $LayersPath -ErrorAction SilentlyContinue
     if ($null -ne $LayersProps) {
         foreach ($prop in $LayersProps.PSObject.Properties) {
-            if ($prop.Value -and $prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION") {
+            if ($prop.Value -and ($prop.Value -match "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -or $prop.Value -match "DISABLEDXMAXIMIZEDWINDOWEDMODE")) {
                 $Status['gameHooks'] = $true
                 break
             }
@@ -403,12 +416,19 @@ $DefenderExclusionsOk = $false
 $BkpProps = Get-ItemProperty -Path "HKLM:\SOFTWARE\Overlord\Backup\DefenderExclusions" -ErrorAction SilentlyContinue
 if ($null -ne $BkpProps -and $null -ne $BkpProps.AddedExclusions) {
     $PathsToCheck = $BkpProps.AddedExclusions -split ";" | Where-Object { $_ -ne "" }
-    if ($PathsToCheck.Count -gt 0 -and (Get-Command Get-MpPreference -ErrorAction SilentlyContinue)) {
+    if ($PathsToCheck.Count -gt 0) {
         $CurrentExclusions = $null
         try {
-            $CurrentExclusions = Get-MpPreference -ErrorAction Stop | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
+            $pref = Get-CimInstance -Namespace 'root\Microsoft\Windows\Defender' -ClassName 'MSFT_MpPreference' -ErrorAction Stop
+            $CurrentExclusions = $pref.ExclusionPath
         } catch {
-            Write-Verbose "Fallo al consultar Get-MpPreference (AV de terceros o Defender inactivo): $_"
+            if (Get-Command Get-MpPreference -ErrorAction SilentlyContinue) {
+                try {
+                    $CurrentExclusions = Get-MpPreference -ErrorAction Stop | Select-Object -ExpandProperty ExclusionPath -ErrorAction SilentlyContinue
+                } catch {
+                    Write-Verbose "Fallo al consultar Get-MpPreference (AV de terceros o Defender inactivo): $_"
+                }
+            }
         }
         $CurrentExclusionsSet = @{}
         if ($CurrentExclusions) {

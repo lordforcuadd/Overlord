@@ -272,15 +272,19 @@ try {
                 if ($ExistingLayers) {
                     $FilteredLayers = $ExistingLayers -split '\s+' | Where-Object { 
                         $_ -and 
+                        $_ -ne "~" -and
                         $_ -ine "HIGHDPI_SCALING_OVERRIDE_APPLICATION" -and 
-                        $_ -ine "~HIGHDPI_SCALING_OVERRIDE_APPLICATION"
+                        $_ -ine "~HIGHDPI_SCALING_OVERRIDE_APPLICATION" -and
+                        $_ -ine "DISABLEDXMAXIMIZEDWINDOWEDMODE" -and
+                        $_ -ine "~DISABLEDXMAXIMIZEDWINDOWEDMODE"
                     }
                     if ($FilteredLayers) { $NewFlagsList.AddRange([string[]]$FilteredLayers) }
                 }
                 
                 $NewFlagsList.Add("HIGHDPI_SCALING_OVERRIDE_APPLICATION")
+                $NewFlagsList.Add("DISABLEDXMAXIMIZEDWINDOWEDMODE")
                 
-                $FinalFlagsValue = ($NewFlagsList -join " ").Trim()
+                $FinalFlagsValue = "~ " + (($NewFlagsList -join " ").Trim())
 
                 if ($FinalFlagsValue) {
                     Set-ItemProperty -Path $LayersPath -Name $RealExePath -Type String -Value $FinalFlagsValue -Force | Out-Null
