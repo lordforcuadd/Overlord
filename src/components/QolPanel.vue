@@ -532,7 +532,7 @@ function getDescription(id: QolKeys): string {
       return "Ya es clásico en Windows 10.";
     }
   }
-  if (id === "taskbarEndTask" && windowsBuild.value > 0 && windowsBuild.value < 22000) {
+  if (id === "taskbarEndTask" && windowsBuild.value > 0 && windowsBuild.value < 22621) {
     return "⚠️ Exclusivo de Windows 11 (23H2+). No aplicable en Windows 10.";
   }
   if (id === "hideStartRecommendations") {

@@ -414,8 +414,8 @@ switch ($ToggleName) {
         $RequiresExplorerRestart = $true
     }
     "taskbarEndTask" {
-        $isWin11 = if (Get-Variable -Name "IsWindows11" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsWindows11 } else { $buildVer -ge 22000 }
-        if (-not $isWin11) {
+        $isWin11M4 = if (Get-Variable -Name "WindowsBuild" -Scope "global" -ErrorAction SilentlyContinue) { [int]$global:WindowsBuild -ge 22621 } else { $buildVer -ge 22621 }
+        if (-not $isWin11M4) {
             Write-Output "AVISO: taskbarEndTask requiere Windows 11 (Build 22621+)."
             exit 0
         }
