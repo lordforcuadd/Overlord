@@ -217,7 +217,7 @@ const handleServiceToggle = async (event: Event) => {
     if (isChecked) {
       const confirm = await Swal.fire({
         title: "¿Instalar Servicio de Fondo?",
-        html: "<p>Esta acción instalará un <b>proceso persistente</b> (Daemon) en Windows que seguirá ejecutándose incluso después de cerrar Overlord.</p><p class='mt-2'>Su función es monitorear e inyectar prioridad alta a los juegos en tiempo real de forma autónoma.</p>",
+        html: "<p>Esta acción instalará un <b>proceso persistente</b> (Daemon) en Windows que seguirá ejecutándose incluso después de cerrar Overlord.</p><p class='mt-2'>Su función es monitorear e inyectar prioridad alta a los juegos en tiempo real de forma autónoma.</p><p class='mt-2 text-xs text-yellow-400/90'>Nota: Optimizado para el usuario de Windows activo durante la instalación; no aplica en entornos multi-usuario simultáneos o compartidos.</p>",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Sí, instalar e iniciar",

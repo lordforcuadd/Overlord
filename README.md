@@ -40,9 +40,9 @@ irm https://raw.githubusercontent.com/lordforcuadd/Overlord/main/launch.ps1 | ie
 La aplicación analiza automáticamente tu procesador (CPU), tarjeta gráfica (GPU), memoria RAM y tipo de equipo (PC de escritorio o Laptop):
 * **🏆 Competitivo:** Diseñado para eSports (CS2, Valorant, Warzone, Apex). Latencia de entrada ultra-baja, afinidad de interrupciones (IRQ), prioridades multimedia MMCSS y máxima estabilidad de fotogramas (1% Low FPS).
 * **💻 Programador & Competitivo:** Combina baja latencia para juegos con la coexistencia intacta de herramientas de desarrollo (Docker, WSL2, virtualización y Git).
-* **💼 Programador:** Optimizado para flujos de trabajo pesados de desarrollo, compilación y multitarea, ajustando la responsividad del kernel y almacenamiento sin aplicar hooks de pantalla completa ni afinidad de juegos en segundo plano.
-* **🔋 Home Office / Laptops:** Optimiza la latencia de red TCP/IP, saneamiento de telemetría y almacenamiento respetando la autonomía de batería, la gestión térmica y los C-States del portátil.
-* **🛡️ Usuario Casual:** Optimización ligera y debloat conservador enfocado en privacidad, limpieza de bloatware y reducción de procesos en segundo plano.
+* **💼 Programador:** Optimizado para flujos de trabajo pesados de desarrollo, compilación y multitarea, inyectando el plan de máxima energía para prevenir CPU throttling durante builds, ajustando la responsividad del kernel y almacenamiento sin aplicar hooks de pantalla completa ni afinidad de juegos en segundo plano.
+* **🔋 Home Office / Laptops:** Optimiza la latencia de respuesta de periféricos, latencia de red TCP/IP para videollamadas, saneamiento de telemetría y almacenamiento respetando la autonomía de batería, la gestión térmica y los C-States del portátil.
+* **🛡️ Usuario Casual:** Optimización ligera con respuesta fluida de periféricos sin aceleración artificial, debloat conservador enfocado en privacidad, limpieza de bloatware y almacenamiento inteligente con máxima estabilidad.
 
 ### 3. Blindaje Automático (Respaldo Obligatorio)
 Antes de tocar un solo valor del sistema, Overlord **crea un Punto de Restauración del Sistema (VSS)** y respalda en el Registro (`HKLM:\SOFTWARE\Overlord\Backup`) el valor original de cada ajuste junto con su tipo exacto de dato.
@@ -137,7 +137,7 @@ Antes de despachar cualquier módulo, el orquestador invoca obligatoriamente `cr
 - Desactiva Large Send Offload (**LSO**) y Receive Segment Coalescing (**RSC**) para erradicar el jitter.
 
 ### 4. Rendimiento de Kernel y Procesador (`04_rendimiento.ps1`)
-- **Preserva MemoryCompression activa** para prevenir fallos OOM en escenarios multitarea, y **deshabilita Page Combining** en `MMAgent` para erradicar los ciclos de CPU gastados en deduplicación de RAM en segundo plano.
+- **Preserva MemoryCompression activa** para prevenir fallos OOM en escenarios multitarea, y **adapta Page Combining** en `MMAgent` de forma reactiva (activo en <= 8 GB de RAM para proteger la memoria física disponible, deshabilitado en > 8 GB de RAM para erradicar ciclos de CPU y micro-stutters por deduplicación en segundo plano).
 - Deshabilita `GameDVR_Enabled` en el `GameConfigStore` del usuario.
 - Optimiza las directivas del Programador Multimedia (**MMCSS Games Task**): prioridad de CPU `High`, prioridad SFIO `High`, `GPU Priority = 8` y `Clock Rate = 10`.
 - Inyecta `PowerThrottlingOff = 1` en sistemas de escritorio conectados a corriente AC para evitar estrangulamiento de procesos en background.

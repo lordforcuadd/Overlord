@@ -40,14 +40,23 @@ export const PROFILE_CONFIGS: Record<string, string[]> = {
     "gameHooks",
     "defenderExclusions",
   ],
-  Programador: ["debloat", "smartStorage", "generalPerformance"],
-  "Home Office / Laptops": [
+  Programador: [
     "debloat",
     "smartStorage",
-    "networkOptimized",
-    "defenderExclusions",
+    "generalPerformance",
+    "powerProfiles",
   ],
-  "Usuario Casual": ["debloat", "smartStorage", "defenderExclusions"],
+  "Home Office / Laptops": [
+    "peripheralLatency",
+    "debloat",
+    "networkOptimized",
+    "smartStorage",
+  ],
+  "Usuario Casual": [
+    "peripheralLatency",
+    "debloat",
+    "smartStorage",
+  ],
 };
 
 export const tweaksMetadata: Record<string, TweakMetadata> = {
@@ -57,7 +66,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     description:
       "Desactiva la aceleración del puntero, optimiza los tiempos de repetición del teclado y deshabilita la suspensión selectiva de puertos USB para reducir la latencia de respuesta.",
     riesgo: "Seguro",
-    evidenciaImpacto: "Cosmético",
+    evidenciaImpacto: "Comprobado",
     reversible: true,
     metodoReversion:
       "Restauración de la aceleración del ratón por defecto, reactivación de suspensión de USB y restablecimiento de velocidad de teclado stock.",
@@ -144,7 +153,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     id: "generalPerformance",
     title: "Potencia Bruta y Procesador",
     description:
-      "Configura la compresión adaptativa de RAM y desactiva el servicio de captura automática de juegos (GameDVR) para liberar recursos de CPU.",
+      "Configura la compresión y combinación adaptativa de RAM según la memoria del sistema (<= 8GB vs > 8GB), optimiza el programador multimedia (MMCSS) y desactiva GameDVR para liberar recursos de CPU.",
     riesgo: "Seguro",
     evidenciaImpacto: "Comprobado",
     reversible: true,
@@ -159,10 +168,10 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Disminución de stutters provocados por procesos de reorganización de memoria y codificación de vídeo en segundo plano.",
     warning:
-      "Scheduling Category = High en la rama Games de MMCSS prioriza hilos de juegos frente a otros procesos multimedia. Reversible en cualquier momento para entornos de producción de audio (DAW).",
+      "Scheduling Category = High en la rama Games de MMCSS prioriza el despacho de subprocesos de juegos frente a otros procesos multimedia dentro del planificador de Windows. Reversible en cualquier momento para entornos de producción de audio (DAW).",
     details: [
-      "Desactivación de Page Combining en MMAgent para mitigar micro-stutters generados por el escaneo de páginas, manteniendo Memory Compression activa contra desbordamientos OOM.",
-      "Ajuste del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
+      "Gestión adaptativa de Page Combining en MMAgent: se desactiva en sistemas con más de 8 GB de RAM para erradicar micro-stutters por escaneo en kernel, y se mantiene activa en sistemas de 8 GB o menos para conservar memoria física crítica contra OOM.",
+      "Configuración del Programador Multimedia (MMCSS) para priorizar juegos en primer plano (Scheduling Category = High, Priority = 6, GPU Priority = 8).",
       "Apagado total de los servicios de grabación en segundo plano y capturas automáticas de GameDVR.",
       "Desactivación del aparcamiento de núcleos (Core Parking al 0% en corriente alterna) para extrema estabilidad de 1% y 0.1% lows.",
     ],
@@ -347,7 +356,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
       "Importación e inyección del esquema de energía personalizado Overlord Performance.",
       "Ajuste del estacionamiento de núcleos (Core Parking) al 100% para evitar caídas y fluctuaciones de frecuencias.",
       "Optimización adaptativa de la preferencia de rendimiento energético (EPP = 0) y CPU Boost (Agresivo).",
-      "Configuración de la suspensión de discos duros a Nunca (Timeout = 0) y deshabilitación de Power Throttling en PCs de escritorio (preservando EcoQoS en laptops para autonomía y control térmico).",
+      "Configuración de la suspensión de discos duros a Nunca (DISKIDLE Timeout = 0) para prevenir latencia de reactivación electromecánica o PCIe, y deshabilitación de Power Throttling en PCs de escritorio (preservando EcoQoS en laptops para autonomía y control térmico).",
     ],
   },
   gameHooks: {
@@ -369,7 +378,7 @@ export const tweaksMetadata: Record<string, TweakMetadata> = {
     impactoRendimiento:
       "Prioridad de ejecución en tiempo real aislada frente a hilos del sistema operativo, estabilizando los cuadros por segundo.",
     warning:
-      "Módulo 100% seguro para Anti-Cheats (Vanguard, EasyAntiCheat, BattlEye). La prioridad se inyecta dinámicamente desde el backend de Rust.",
+      "Módulo 100% seguro para Anti-Cheats (Vanguard, EasyAntiCheat, BattlEye). La prioridad se inyecta dinámicamente desde el backend de Rust. El servicio de fondo opcional (Daemon) está optimizado para el usuario de Windows activo durante la instalación; no aplica en entornos multi-usuario simultáneos o compartidos.",
     details: [
       "Inyección de invalidación de escalado de PPP (High DPI) para eliminar la latencia por reescalado de pantalla.",
       "Bypass directo de optimizaciones de pantalla completa en DWM (DISABLEDXMAXIMIZEDWINDOWEDMODE) para reducir la latencia de entrada.",

@@ -56,11 +56,19 @@ Try {
             }
 
             # Page Combining genera micro-stutters al escanear paginas duplicadas en RAM en segundo plano.
-            # Se desactiva para reducir jitter, mientras que MemoryCompression se mantiene activa para evitar caidas OOM ante picos de carga.
-            Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+            # Se desactiva para reducir jitter en sistemas con suficiente memoria (> 8 GB).
+            # En sistemas de 8 GB o menos, mantener PageCombining activo ahorra memoria fisica critica contra OOM.
+            $EffectiveRamGB = if (Get-Variable -Name "RamGB" -Scope "global" -ErrorAction SilentlyContinue) { $global:RamGB } else { $RamGB }
+            if ($EffectiveRamGB -le 8) {
+                Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+                Write-Host "    -> RAM <= 8 GB ($EffectiveRamGB GB): PageCombining mantenido/habilitado para conservar memoria fisica."
+            } else {
+                Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+                Write-Host "    -> RAM > 8 GB ($EffectiveRamGB GB): PageCombining deshabilitado para erradicar jitter de escaneo en kernel."
+            }
             Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
             $chkAgent = Get-MMAgent -ErrorAction SilentlyContinue
-            if ($null -ne $chkAgent -and $chkAgent.PageCombining -eq $true) { 
+            if ($null -ne $chkAgent -and $chkAgent.PageCombining -eq $true -and $EffectiveRamGB -gt 8) { 
                 Write-Warning "El SO bloqueo la directiva MMAgent de PageCombining (posible politica de grupo o VM)" 
             }
         }

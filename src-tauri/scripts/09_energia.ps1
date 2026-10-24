@@ -99,7 +99,7 @@ Try {
             }
         }
 
-        Write-Host "    -> Aplicando deshabilitacion de Core Parking y ahorros PCIe sobre el plan activo..."
+        Write-Host "    -> Aplicando deshabilitacion de Core Parking, suspension de discos y ahorros PCIe sobre el plan activo..."
         
         $ActivePlan = powercfg /getactivescheme 2>$null
         if ($ActivePlan -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {

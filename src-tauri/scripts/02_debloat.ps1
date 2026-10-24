@@ -115,7 +115,7 @@ Try {
     if (!(Test-Path $DataPath)) { New-Item -Path $DataPath -Force | Out-Null }
     Set-ItemProperty -Path $DataPath -Name "AllowTelemetry" -Type DWord -Value 0 -Force | Out-Null
     $AllowTelemetry = Get-ItemPropertyValue -Path $DataPath -Name "AllowTelemetry" -ErrorAction SilentlyContinue
-    if ($null -eq $AllowTelemetry -or $AllowTelemetry -ne 0) { throw "El SO bloqueo la configuracion de AllowTelemetry" }
+    if ($null -eq $AllowTelemetry -or $AllowTelemetry -ne 0) { Write-Warning "El SO bloqueo la configuracion de AllowTelemetry (posible directiva de grupo/GPO)" }
 
     $SearchPath = "$HKCU_Path\Software\Microsoft\Windows\CurrentVersion\Search"
     if (!(Test-Path $SearchPath)) { New-Item -Path $SearchPath -Force | Out-Null }
@@ -123,8 +123,8 @@ Try {
     Set-ItemProperty -Path $SearchPath -Name "CortanaConsent" -Type DWord -Value 0 -Force | Out-Null
     $BingSearchEnabled = Get-ItemPropertyValue -Path $SearchPath -Name "BingSearchEnabled" -ErrorAction SilentlyContinue
     $CortanaConsent = Get-ItemPropertyValue -Path $SearchPath -Name "CortanaConsent" -ErrorAction SilentlyContinue
-    if ($null -eq $BingSearchEnabled -or $BingSearchEnabled -ne 0) { throw "El SO bloqueo la configuracion de BingSearchEnabled" }
-    if ($null -eq $CortanaConsent -or $CortanaConsent -ne 0) { throw "El SO bloqueo la configuracion de CortanaConsent" }
+    if ($null -eq $BingSearchEnabled -or $BingSearchEnabled -ne 0) { Write-Warning "El SO bloqueo la configuracion de BingSearchEnabled (posible directiva de grupo/GPO)" }
+    if ($null -eq $CortanaConsent -or $CortanaConsent -ne 0) { Write-Warning "El SO bloqueo la configuracion de CortanaConsent (posible directiva de grupo/GPO)" }
 
     if ($BuildNum -ge 22000) {
         $CopilotUserPath = "$HKCU_Path\Software\Policies\Microsoft\Windows\WindowsCopilot"

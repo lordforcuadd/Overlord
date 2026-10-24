@@ -68,15 +68,13 @@
           juego.</span
         >
         <span v-else-if="store.activeProfile === 'Programador'"
-          >Optimiza el rendimiento del compilador, aplica caché de almacenamiento inteligente y reduce servicios innecesarios en segundo plano para desarrollo.</span
+          >Optimiza el rendimiento del compilador, inyecta el perfil de máxima potencia para evitar estrangulamiento térmico en builds, aplica almacenamiento inteligente y reduce servicios en segundo plano.</span
         >
         <span v-else-if="store.activeProfile === 'Home Office / Laptops'"
-          >Prioriza la duración de la batería en Laptops y la estabilidad de la
-          red para videollamadas.</span
+          >Respuesta ágil de periféricos, limpieza del sistema y optimización de red para videollamadas, respetando la autonomía de la batería y la protección térmica.</span
         >
         <span v-else-if="store.activeProfile === 'Usuario Casual'"
-          >El estándar. Windows 11 ultraligero para navegación y multimedia sin
-          tweaks arriesgados.</span
+          >Windows ultraligero con respuesta fluida de periféricos sin aceleración artificial, almacenamiento inteligente y cero bloatware, con máxima estabilidad.</span
         >
         <span v-else
           >Modo personalizado. Conserva tu configuración actual como punto de partida para activar o desactivar los módulos manualmente según tus necesidades.</span
