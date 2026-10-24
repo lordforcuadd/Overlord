@@ -532,6 +532,18 @@ function getDescription(id: QolKeys): string {
       return "Ya es clásico en Windows 10.";
     }
   }
+  if (id === "taskbarEndTask" && windowsBuild.value > 0 && windowsBuild.value < 22000) {
+    return "⚠️ Exclusivo de Windows 11 (23H2+). No aplicable en Windows 10.";
+  }
+  if (id === "hideStartRecommendations") {
+    if (windowsBuild.value > 0 && windowsBuild.value < 22000) {
+      return "⚠️ Exclusivo de Windows 11. No aplicable en Windows 10.";
+    }
+    return "Oculta recomendaciones y sugerencias en Inicio (en Pro/Ent colapsa la sección; en Home vacía los elementos).";
+  }
+  if (id === "hideGallery" && windowsBuild.value > 0 && windowsBuild.value < 22000) {
+    return "⚠️ Exclusivo de Windows 11. No aplicable en Windows 10.";
+  }
   const all = [
     ...uiToggles,
     ...privacyToggles,

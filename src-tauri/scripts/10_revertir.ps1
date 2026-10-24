@@ -275,7 +275,7 @@ Try {
     Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-353694Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-338393Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey $CdmPath -ValueName "SubscribedContent-353698Enabled" -BackupSubFolder "QoL\User" -DefaultValue 1
-    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" -ValueName "TaskbarEndTaskEnabled" -BackupSubFolder "QoL\User" -DefaultValue 0
+    Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" -ValueName "TaskbarEndTask" -BackupSubFolder "QoL\User" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -ValueName "Start_IrisRecommendations" -BackupSubFolder "QoL\User" -DefaultValue 1
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -ValueName "HideRecommendedSection" -BackupSubFolder "QoL\User" -DefaultValue 0
     Invoke-OverlordSafeRestore -TargetKey "HKCU:\Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}" -ValueName "System.IsPinnedToNameSpaceTree" -BackupSubFolder "QoL\User" -DefaultValue '_ABSENT_' 

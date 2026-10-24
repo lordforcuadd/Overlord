@@ -414,11 +414,16 @@ switch ($ToggleName) {
         $RequiresExplorerRestart = $true
     }
     "taskbarEndTask" {
+        $isWin11 = if (Get-Variable -Name "IsWindows11" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsWindows11 } else { $buildVer -ge 22000 }
+        if (-not $isWin11) {
+            Write-Output "AVISO: taskbarEndTask requiere Windows 11 (Build 22621+)."
+            exit 0
+        }
         $endTaskVal = if ($Value -eq 1) { 1 } else { 0 }
         foreach ($base in $Targets) {
-            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings") -ValueName "TaskbarEndTaskEnabled" -BackupSubFolder "QoL\User"
+            Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings") -ValueName "TaskbarEndTask" -BackupSubFolder "QoL\User"
         }
-        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" "TaskbarEndTaskEnabled" "DWord" $endTaskVal
+        Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" "TaskbarEndTask" "DWord" $endTaskVal
     }
     "disableSettingsAds" {
         $settingsAdsVal = if ($Value -eq 1) { 0 } else { 1 }
@@ -431,6 +436,11 @@ switch ($ToggleName) {
         Set-RegistryValue "Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353698Enabled" "DWord" $settingsAdsVal
     }
     "hideStartRecommendations" {
+        $isWin11 = if (Get-Variable -Name "IsWindows11" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsWindows11 } else { $buildVer -ge 22000 }
+        if (-not $isWin11) {
+            Write-Output "AVISO: hideStartRecommendations requiere Windows 11."
+            exit 0
+        }
         $irisVal = if ($Value -eq 1) { 0 } else { 1 }
         $hideSecVal = if ($Value -eq 1) { 1 } else { 0 }
         foreach ($base in $Targets) {
@@ -442,6 +452,11 @@ switch ($ToggleName) {
         $RequiresExplorerRestart = $true
     }
     "hideGallery" {
+        $isWin11 = if (Get-Variable -Name "IsWindows11" -Scope "global" -ErrorAction SilentlyContinue) { [bool]$global:IsWindows11 } else { $buildVer -ge 22000 }
+        if (-not $isWin11) {
+            Write-Output "AVISO: hideGallery requiere Windows 11."
+            exit 0
+        }
         foreach ($base in $Targets) {
             Backup-OverlordRegistryValue -TargetKey (Join-Path $base "Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}") -ValueName "System.IsPinnedToNameSpaceTree" -BackupSubFolder "QoL\User"
         }
